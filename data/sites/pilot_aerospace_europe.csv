@@ -1,0 +1,17 @@
+site_id,name,country,lat,lon,notes
+TLS,Toulouse,FR,43.63,1.37,Approximate coordinates - verify
+SNR,Saint-Nazaire,FR,47.29,-2.18,Approximate coordinates - verify
+NTE,Nantes,FR,47.16,-1.61,Approximate coordinates - verify
+MLT,Meaulte,FR,49.97,2.69,Approximate coordinates - verify
+MRS,Marignane,FR,43.44,5.21,Approximate coordinates - verify
+XFW,Hamburg-Finkenwerder,DE,53.54,9.83,Approximate coordinates - verify
+BRE,Bremen,DE,53.05,8.79,Approximate coordinates - verify
+STD,Stade,DE,53.60,9.48,Approximate coordinates - verify
+NOR,Nordenham,DE,53.49,8.48,Approximate coordinates - verify
+DON,Donauworth,DE,48.70,10.78,Approximate coordinates - verify
+GET,Getafe,ES,40.29,-3.72,Approximate coordinates - verify
+ILL,Illescas,ES,40.13,-3.84,Approximate coordinates - verify
+SVQ,Sevilla San Pablo,ES,37.42,-5.90,Approximate coordinates - verify
+PRL,Puerto Real,ES,36.52,-6.17,Approximate coordinates - verify
+BRG,Broughton,GB,53.17,-2.98,Approximate coordinates - verify
+FIL,Filton,GB,51.51,-2.58,Approximate coordinates - verify
