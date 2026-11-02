@@ -1,16 +1,16 @@
 site_id,name,hot_year,hot_op_wbgt_shade_degree_hours_gt_base,hot_op_hours_wbgt_shade_gt_ref,hot_op_days_wbgt_shade_gt_ref,hot_hours_t_gt30,hot_temp_max,hot_days_tmax_gt35,median_op_hours_wbgt_shade_gt_ref
-SVQ,Sevilla (San Pablo),2025,669.0,16.0,8.0,996.0,41.6,51.0,7.0
-ILL,Illescas,2022,31.3,0.0,0.0,864.0,41.2,53.0,0.0
-GET,Getafe,2022,31.3,0.0,0.0,864.0,41.2,53.0,0.0
-MRS,Marignane,2025,175.9,0.0,0.0,444.0,38.3,18.0,0.0
-TLS,Toulouse (Blagnac),2025,230.3,5.0,2.0,322.0,42.2,14.0,2.0
-NTE,Nantes (Bouguenais),2019,68.7,4.0,1.0,94.0,37.8,2.0,0.0
+SVQ,Sevilla (San Pablo),2025,736.6,27.0,10.0,996.0,41.6,51.0,12.0
+ILL,Illescas,2022,47.3,0.0,0.0,864.0,41.2,53.0,0.0
+GET,Getafe,2022,47.3,0.0,0.0,864.0,41.2,53.0,0.0
+MRS,Marignane,2025,196.2,2.0,1.0,444.0,38.3,18.0,0.0
+TLS,Toulouse (Blagnac),2025,250.5,8.0,3.0,322.0,42.2,14.0,3.0
+NTE,Nantes (Bouguenais),2019,72.2,4.0,1.0,94.0,37.8,2.0,0.0
 SNR,Saint-Nazaire (Montoir-de-Bretagne),2024,22.6,0.0,0.0,13.0,32.7,0.0,0.0
-DON,Donauworth,2015,2.4,0.0,0.0,133.0,35.7,1.0,0.0
-MLT,Meaulte,2025,20.4,0.0,0.0,43.0,35.2,1.0,0.0
+DON,Donauworth,2015,3.6,0.0,0.0,133.0,35.7,1.0,0.0
+MLT,Meaulte,2025,21.8,0.0,0.0,43.0,35.2,1.0,0.0
 FIL,Filton,2022,0.0,0.0,0.0,46.0,34.9,0.0,0.0
-BRE,Bremen,2015,14.7,0.0,0.0,28.0,35.6,1.0,0.0
+BRE,Bremen,2015,15.2,0.0,0.0,28.0,35.6,1.0,0.0
 BRG,Broughton,2022,0.0,0.0,0.0,15.0,33.9,0.0,0.0
 NOR,Nordenham,2015,4.6,0.0,0.0,7.0,31.7,0.0,0.0
-XFW,Hamburg-Finkenwerder,2015,8.6,0.0,0.0,20.0,35.4,1.0,0.0
-STD,Stade,2015,8.2,0.0,0.0,21.0,35.1,1.0,0.0
+XFW,Hamburg-Finkenwerder,2015,9.1,0.0,0.0,20.0,35.4,1.0,0.0
+STD,Stade,2015,8.6,0.0,0.0,21.0,35.1,1.0,0.0
