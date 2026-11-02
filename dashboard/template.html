@@ -1,0 +1,635 @@
+<title>European Plant Heat Risk</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout (PDE shell): left filter rail | main canvas (view bar, KPI strip, map card + site card).
+   Tokens copied from the PDE design handoff (01-tokens-shell.css, 16-kit.css); heat ramp extends --pink. */
+/*__FONTS__*/
+:root {
+  color-scheme: light;
+  --purple:#6D28D9; --purple-600:#5B21B6; --purple-050:#F2ECFD; --purple-100:#E4D8FB; --purple-200:#C4ACF2; --deep:#2A1052;
+  --ink:#1A1622; --ink-2:#5A5566; --ink-3:#6B6577;
+  --bg:#F6F5F8; --bg-2:#EFEDF3; --surface:#FFFFFF; --line:#E7E4EE; --line-2:#DAD6E4;
+  --need:#C2410C; --need-bg:#FFF4ED; --need-line:#FBD5BE;
+  --blue:#0B41CD; --blue-050:#E7EDFF; --pink:#FF3D8B; --pink-050:#FDE4EF; --pink-600:#C0006A; --green:#0FB86E; --green-050:#E4F7EC;
+  --r-lg:16px; --r-md:14px; --r-sm:10px; --r-xs:6px; --r-pill:999px; --r-bar:3px;
+  --sh-1:0 1px 2px rgba(28,16,44,.06),0 2px 6px rgba(28,16,44,.05);
+  --sh-2:0 2px 6px rgba(28,16,44,.06),0 18px 40px -20px rgba(28,16,44,.28);
+  --font:"Geist","Segoe UI",Arial,system-ui,sans-serif; --mono:"Geist Mono",ui-monospace,"Cascadia Mono",monospace;
+  --ease:cubic-bezier(.16,.84,.44,1);
+  --fs-10:10px; --fs-105:10.5px; --fs-11:11px; --fs-115:11.5px; --fs-12:12px; --fs-125:12.5px; --fs-13:13px; --fs-14:14px; --fs-15:15px; --fs-16:16px;
+  /* series */
+  --c-today:#9C96A8; --c-hot:#2A1052; --c-2040:#0B41CD; --c-2050:#FF3D8B;
+  /* map + land */
+  --sea:#FBFAFD; --land:#ECEAF1; --land-edge:#D6D2DF;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font); font-size: var(--fs-13); line-height: 1.5; letter-spacing: -.011em; -webkit-font-smoothing: antialiased; }
+button { font-family: inherit; }
+.mono, .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+:focus-visible { outline: 2px solid var(--purple-200); outline-offset: 2px; }
+
+/* ---- shell ---- */
+.shell { display: grid; grid-template-columns: 250px minmax(0, 1fr); min-height: 100%; transition: grid-template-columns .15s; }
+.shell.fmin { grid-template-columns: 46px minmax(0, 1fr); }
+@media (max-width: 860px) { .shell, .shell.fmin { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---- product bar ---- */
+.pbar { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--surface); border-bottom: 1px solid var(--line);
+  padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.pbar .mark { width: 30px; height: 30px; border-radius: 9px; background: var(--purple); display: grid; place-items: center; flex: none; box-shadow: 0 2px 8px rgba(109,40,217,.35); }
+.pbar .mark svg { width: 17px; height: 17px; }
+.pbar h1 { margin: 0; font-size: var(--fs-14); font-weight: 600; line-height: 1.2; }
+.pbar h1 small { display: block; font-size: var(--fs-115); font-weight: 400; color: var(--ink-3); }
+.pbar .sp { flex: 1; }
+.ktag { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-11); font-weight: 600; line-height: 1.5; border-radius: var(--r-pill); padding: 1px 9px; white-space: nowrap; border: 1px solid transparent; }
+.ktag .d { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+.ktag.k-look { background: var(--need-bg); color: var(--ink); border-color: var(--need-line); }
+.ktag.k-look .d { background: var(--need); }
+.ktag.k-edit { background: var(--purple-050); color: var(--purple-600); }
+
+/* ---- filter rail (PDE #dashSide) ---- */
+.side { background: var(--surface); border-right: 1px solid var(--line); padding: 14px 14px 40px; min-width: 0; }
+@media (max-width: 860px) { .side { border-right: 0; border-bottom: 1px solid var(--line); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); } }
+.fhead { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; }
+.fhead h4 { font-size: var(--fs-11); font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-3); margin: 0; flex: 1; }
+.lnk { border: 0; background: none; padding: 0; font: inherit; font-size: var(--fs-12); color: var(--purple-600); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.lnk.quiet { color: var(--ink-3); text-decoration: none; }
+.lnk.quiet:hover { color: var(--purple-600); }
+.fmin-btn { border: 1px solid var(--line-2); background: #fff; border-radius: 7px; width: 24px; height: 24px; cursor: pointer; color: var(--ink-3); display: grid; place-items: center; padding: 0; font-size: var(--fs-12); flex: none; }
+.fmin-btn:hover { color: var(--ink); border-color: var(--purple-200); }
+.fbadge { display: none; }
+.shell.fmin .side { padding: 12px 6px; }
+.shell.fmin .side > *:not(.fhead):not(.fbadge) { display: none; }
+.shell.fmin .fhead { justify-content: center; margin: 0; }
+.shell.fmin .fhead h4, .shell.fmin .fhead .lnk { display: none; }
+.shell.fmin .fbadge { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--purple); color: #fff; font-size: var(--fs-11); font-weight: 700; margin: 10px auto 0; border: 0; cursor: pointer; padding: 0; }
+@media (max-width: 860px) { .fmin-btn { display: none; } }
+.fsum { background: var(--bg-2); border-radius: var(--r-sm); padding: 9px 11px; margin: 0 0 12px; font-size: var(--fs-125); color: var(--ink-2); line-height: 1.4; }
+.fsum b { color: var(--ink); font-weight: 600; }
+.fsum .bar { height: 5px; border-radius: 3px; background: var(--line); margin-top: 7px; overflow: hidden; }
+.fsum .bar i { display: block; height: 100%; background: var(--purple); transition: width .3s var(--ease); }
+.facet { border-top: 1px solid var(--line); padding: 10px 0 8px; }
+.facet > .fh { display: flex; align-items: center; gap: 6px; width: 100%; border: 0; background: none; padding: 0; font: inherit; cursor: pointer; text-align: left; color: var(--ink); }
+.facet > .fh .t { font-size: var(--fs-125); font-weight: 600; flex: 1; }
+.facet > .fh .s { font-size: var(--fs-115); color: var(--ink-3); }
+.cv { color: var(--ink-3); width: 12px; height: 12px; display: grid; place-items: center; transition: transform .12s; flex: none; }
+.cv svg { width: 10px; height: 10px; }
+.facet.shut > .fh .cv, .cv.shut { transform: rotate(-90deg); }
+.facet .fb { margin-top: 6px; }
+.facet.shut > .fb { display: none; }
+.fo { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 3px 4px; border-radius: 6px; font-size: var(--fs-125); color: var(--ink-2); cursor: pointer; position: relative; user-select: none; }
+.fo:hover { background: var(--bg-2); color: var(--ink); }
+.fo.l1 { padding-left: 18px; } .fo.l2 { padding-left: 34px; }
+.fo .cb { width: 15px; height: 15px; border-radius: 4px; border: 1.5px solid var(--line-2); display: grid; place-items: center; background: #fff; }
+.fo.on .cb, .fo.part .cb { background: var(--purple); border-color: var(--purple); }
+.fo.on .cb::after { content: ""; width: 7px; height: 3.5px; border: 2px solid #fff; border-top: 0; border-right: 0; transform: rotate(-45deg) translate(1px, -1px); }
+.fo.part .cb::after { content: ""; width: 7px; height: 2px; background: #fff; border-radius: 1px; }
+.fo .nm { white-space: nowrap; overflow: hidden; display: flex; align-items: center; gap: 5px; min-width: 0; }
+.fo .nm .tx { overflow: hidden; text-overflow: ellipsis; }
+.fo .nm .tog { border: 0; background: none; padding: 0; cursor: pointer; border-radius: 3px; }
+.fo .nm .tog:hover { background: var(--line); }
+.fo.cur .tx { color: var(--purple-600); font-weight: 600; }
+.fo .n { font-size: var(--fs-115); color: var(--ink-3); font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: 6px; }
+.fo .sh { display: inline-block; width: 34px; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.fo .sh i { display: block; height: 100%; border-radius: 2px; background: var(--purple-200); }
+.fo.on .sh i, .fo.part .sh i { background: var(--purple); }
+.fo .only { display: none; position: absolute; right: 4px; top: 50%; transform: translateY(-50%); background: #fff; border: 1px solid var(--line-2); border-radius: 6px; font: inherit; font-size: var(--fs-11); font-weight: 600; color: var(--purple-600); padding: 0 6px; line-height: 18px; cursor: pointer; }
+.fo:hover .only, .fo:focus-within .only { display: block; }
+.fsearch { width: 100%; height: 30px; padding: 0 9px; margin: 2px 0 6px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: var(--fs-125); color: var(--ink); }
+.sres { border: 1px solid var(--line-2); border-radius: 8px; margin: -2px 0 6px; max-height: 200px; overflow: auto; background: #fff; box-shadow: var(--sh-1); }
+.sres button { display: flex; justify-content: space-between; gap: 8px; width: 100%; border: 0; background: none; padding: 5px 9px; font: inherit; font-size: var(--fs-125); color: var(--ink); cursor: pointer; text-align: left; }
+.sres button:hover, .sres button:focus-visible { background: var(--bg-2); outline: 0; }
+.sres small { color: var(--ink-3); white-space: nowrap; }
+.fhint { font-size: var(--fs-115); color: var(--ink-3); margin: 6px 0 0; }
+
+/* ---- main ---- */
+.main { min-width: 0; padding-block: 14px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 14px; align-content: start; }
+.vbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; }
+.vbar .vl { font-size: var(--fs-11); font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-3); }
+.vgrp { display: flex; align-items: center; gap: 8px; }
+.vgrp > span { font-size: var(--fs-12); color: var(--ink-3); }
+.toggle { display: flex; height: 30px; padding: 2px; gap: 2px; border-radius: 8px; background: var(--bg-2); }
+.toggle button { height: 26px; padding: 0 10px; border: 0; background: none; border-radius: 6px; font-size: var(--fs-12); color: var(--ink-2); cursor: pointer; white-space: nowrap; }
+.toggle button[aria-pressed="true"] { background: #fff; color: var(--ink); box-shadow: 0 1px 2px rgba(28,16,44,.14); font-weight: 600; }
+.vbar .cnt { margin-left: auto; font-size: var(--fs-12); color: var(--ink-3); }
+.vbar .cnt b { color: var(--ink); }
+select.ksel { height: 30px; font: inherit; font-size: var(--fs-125); padding: 0 8px; border: 1px solid var(--line-2); border-radius: 8px; background: #fff; color: var(--ink); cursor: pointer; max-width: 100%; }
+
+.kstrip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 1100px) { .kstrip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .kstrip { grid-template-columns: minmax(0, 1fr); } }
+.kstat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); padding: 12px 14px; box-shadow: var(--sh-1); min-width: 0; display: grid; gap: 4px; }
+.kstat .lab { display: flex; align-items: center; gap: 8px; font-size: var(--fs-115); color: var(--ink-2); font-weight: 500; }
+.kstat .ic { width: 26px; height: 26px; border-radius: 8px; background: var(--bg-2); display: grid; place-items: center; color: var(--ink-3); flex: none; }
+.kstat .ic svg { width: 15px; height: 15px; }
+.kstat .val { font-size: 22px; font-weight: 600; letter-spacing: -.02em; line-height: 1.2; font-variant-numeric: tabular-nums lining-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kstat .val small { font-size: var(--fs-12); color: var(--ink-3); font-weight: 500; margin-left: 3px; letter-spacing: 0; }
+.kstat .foot { font-size: var(--fs-115); color: var(--ink-3); border-top: 1px solid var(--line); padding-top: 6px; margin-top: 2px; }
+
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 14px; align-items: start; }
+@media (max-width: 1240px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); box-shadow: var(--sh-1); min-width: 0; }
+.phead { display: flex; flex-wrap: wrap; row-gap: 10px; gap: 12px; align-items: flex-start; padding: 14px 16px 0; }
+.phead > div:first-child { flex: 1 1 220px; min-width: 0; }
+.phead h2 { margin: 0; font-size: var(--fs-14); font-weight: 600; }
+.phead p { margin: 2px 0 0; font-size: var(--fs-12); color: var(--ink-3); }
+.phead .slot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.phead .slot > span { font-size: var(--fs-12); color: var(--ink-3); }
+.cbody { padding: 12px 16px 16px; }
+
+/* map */
+.mapbox { position: relative; border-radius: var(--r-sm); overflow: hidden; background: var(--sea); border: 1px solid var(--line); }
+#map { width: 100%; height: auto; display: block; }
+#map .land { fill: var(--land); stroke: var(--land-edge); stroke-width: .8; }
+#map .grat { fill: none; stroke: #EEEBF3; stroke-width: .7; }
+#map .site { cursor: pointer; stroke: #fff; stroke-width: 2.5; }
+#map .site:hover { stroke: var(--deep); }
+#map .site.off { display: none; }
+#map .sel-ring { fill: none; stroke: var(--purple-600); stroke-width: 3; }
+.mapsel { position: absolute; left: 12px; top: 12px; display: flex; align-items: center; gap: 10px; background: var(--deep); color: #fff; padding: 7px 12px; border-radius: var(--r-sm); box-shadow: var(--sh-2); font-size: var(--fs-11); max-width: calc(100% - 24px); }
+.mapsel b { display: block; font-size: var(--fs-125); font-weight: 600; }
+.mapsel span { color: var(--purple-200); }
+.legend { position: absolute; left: 12px; bottom: 12px; background: rgba(255,255,255,.94); border: 1px solid var(--line); border-radius: var(--r-pill); padding: 5px 12px; display: flex; align-items: center; gap: 10px; font-size: var(--fs-11); color: var(--ink-2); max-width: calc(100% - 24px); flex-wrap: wrap; }
+.legend .ramp { display: flex; width: 110px; height: 8px; border-radius: 4px; overflow: hidden; }
+.legend .ramp i { flex: 1; }
+.legend .mono { color: var(--ink-3); }
+.tview { margin-top: 10px; }
+.tview summary { cursor: pointer; font-size: var(--fs-12); color: var(--purple-600); font-weight: 500; }
+
+/* ranking */
+.rank { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 1px; }
+.rank li { display: grid; grid-template-columns: minmax(0, 10.5rem) minmax(0, 1fr) 4.5rem; gap: 10px; align-items: center; padding: 4px 6px; border-radius: var(--r-xs); cursor: pointer; font-size: var(--fs-125); }
+.rank li:hover { background: var(--bg-2); }
+.rank li.on { background: var(--purple-050); }
+.rank li.on .nm { color: var(--purple-600); font-weight: 600; }
+.rank .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rank .bar { height: 8px; background: var(--bg-2); border-radius: 0 var(--r-bar) var(--r-bar) 0; position: relative; }
+.rank .bar i { position: absolute; inset: 0 auto 0 0; border-radius: 0 var(--r-bar) var(--r-bar) 0; }
+.rank .val { text-align: right; font-family: var(--mono); font-size: var(--fs-12); color: var(--ink-2); }
+.empty { color: var(--ink-3); font-size: var(--fs-125); padding: 14px 4px; }
+
+/* site card */
+.site-h { padding: 14px 16px 0; display: grid; gap: 8px; }
+.site-h h2 { margin: 0; font-size: var(--fs-16); font-weight: 600; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: var(--fs-12); padding: 2px 10px; border-radius: var(--r-pill); background: var(--bg-2); color: var(--ink-2); }
+.chip b { color: var(--ink); font-weight: 600; }
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); padding: 10px 16px 0; overflow-x: auto; }
+.tabs button { border: 0; background: none; padding: 8px 10px; cursor: pointer; color: var(--ink-2); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; font-size: var(--fs-13); }
+.tabs button[aria-selected="true"] { color: var(--purple-600); border-bottom-color: var(--purple); font-weight: 600; }
+.pane { padding: 14px 16px 18px; display: grid; gap: 22px; }
+.pane > *, .main > *, .cols > * { min-width: 0; }
+.pane h3 { margin: 0 0 6px; font-size: var(--fs-13); font-weight: 600; }
+.pane h3 .sub { font-weight: 400; color: var(--ink-3); font-size: var(--fs-12); }
+.note { font-size: var(--fs-12); color: var(--ink-3); margin: 6px 0 0; max-width: 78ch; }
+
+/* tables */
+.tw { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: var(--fs-125); }
+th, td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; vertical-align: top; }
+th:first-child, td:first-child { text-align: left; white-space: normal; }
+thead th { font-size: var(--fs-11); font-weight: 600; color: var(--ink-3); vertical-align: bottom; line-height: 1.3; }
+thead th .k { display: inline-block; width: 10px; height: 3px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+thead th small { display: block; font-weight: 400; }
+tbody th { font-weight: 400; text-align: left; color: var(--ink); }
+td.v { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+td .rg { display: block; font-size: var(--fs-11); color: var(--ink-3); }
+td .up { color: var(--pink-600); font-weight: 500; }
+.prov { display: inline-block; font-size: var(--fs-105); font-weight: 600; color: var(--purple-600); background: var(--purple-050); border-radius: var(--r-pill); padding: 0 7px; margin-left: 6px; vertical-align: 1px; white-space: nowrap; }
+
+/* stacks */
+.stack-row { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr); gap: 10px; align-items: center; margin: 5px 0; }
+.stack-row .lab { font-size: var(--fs-12); color: var(--ink-2); line-height: 1.25; }
+.stack-row .lab small { display: block; color: var(--ink-3); font-size: var(--fs-11); }
+.stack { display: flex; height: 22px; gap: 2px; }
+.stack span { display: block; height: 100%; min-width: 0; }
+.stack span:first-child { border-radius: var(--r-bar) 0 0 var(--r-bar); }
+.stack span:last-child { border-radius: 0 var(--r-bar) var(--r-bar) 0; }
+.keys { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: var(--fs-11); color: var(--ink-2); margin-top: 6px; }
+.keys i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.utci-scale { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); border-radius: var(--r-sm); overflow: hidden; font-size: var(--fs-105); text-align: center; line-height: 1.25; }
+.utci-scale div { padding: 6px 2px; color: #111; }
+.utci-scale div.dk { color: #fff; }
+@media (max-width: 560px) { .utci-scale { font-size: var(--fs-10); } .stack-row { grid-template-columns: 6.5rem minmax(0, 1fr); } }
+
+/* charts */
+svg.chart { width: 100%; height: auto; display: block; overflow: visible; }
+svg.chart text { font-family: var(--mono); font-size: 11px; fill: var(--ink-3); }
+svg.chart .axis { stroke: var(--line-2); }
+svg.chart .gridl { stroke: var(--line); }
+.series-key { display: flex; gap: 14px; flex-wrap: wrap; font-size: var(--fs-12); color: var(--ink-2); margin-top: 4px; }
+.series-key i { display: inline-block; width: 16px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+.hmleg { display: flex; align-items: center; gap: 8px; font-size: var(--fs-11); color: var(--ink-3); margin-top: 4px; }
+.hmleg .ramp { display: flex; width: 140px; height: 8px; border-radius: 4px; overflow: hidden; }
+.hmleg .ramp i { flex: 1; }
+
+.tip { position: fixed; z-index: 20; pointer-events: none; background: var(--deep); color: #fff; padding: 6px 10px; border-radius: var(--r-xs); font-size: var(--fs-12); max-width: 260px; line-height: 1.4; display: none; box-shadow: var(--sh-2); }
+.about { display: grid; gap: 10px; max-width: 78ch; }
+.about p, .about li { color: var(--ink-2); }
+.about ul { margin: 0; padding-left: 18px; display: grid; gap: 5px; }
+footer { font-size: var(--fs-12); color: var(--ink-3); border-top: 1px solid var(--line); padding-top: 12px; display: grid; gap: 4px; }
+footer p { margin: 0; max-width: 120ch; }
+@media (prefers-reduced-motion: no-preference) { #map .site { transition: fill .25s var(--ease); } }
+</style>
+
+<div class="shell" id="shell">
+  <header class="pbar">
+    <div class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M10 13.5V5a2 2 0 1 1 4 0v8.5a4 4 0 1 1-4 0Z"/><path d="M12 9v6"/></svg></div>
+    <h1>European Plant Heat Risk<small>Illustrative aerospace portfolio · 15 sites · 4 countries</small></h1>
+    <span class="sp"></span>
+    <span class="ktag k-edit"><i class="d"></i>Prototype</span>
+    <span class="ktag k-look" title="WBGT and UTCI are shaded estimates until the full method is added"><i class="d"></i>Some metrics provisional</span>
+  </header>
+
+  <aside class="side" id="side" aria-label="Filters">
+    <div class="fhead"><h4>Filters</h4><button class="lnk quiet" id="freset" type="button">Reset</button><button class="fmin-btn" id="fmin" type="button" aria-label="Collapse filters" title="Collapse filters">«</button></div>
+    <button class="fbadge" id="fbadge" type="button" aria-label="Expand filters"></button>
+    <div class="fsum" id="fsum"></div>
+    <div class="facet" id="f-where">
+      <button class="fh" type="button" aria-expanded="true"><span class="cv"><svg viewBox="0 0 10 10"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></span><span class="t">Where</span><span class="s" id="where-s">All</span></button>
+      <div class="fb" id="tree"></div>
+    </div>
+    <div class="facet" id="f-sites">
+      <button class="fh" type="button" aria-expanded="true"><span class="cv"><svg viewBox="0 0 10 10"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></span><span class="t">Sites</span><span class="s">Find</span></button>
+      <div class="fb">
+        <label class="sr" for="fsearch" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Find a site</label>
+        <input class="fsearch" id="fsearch" type="search" placeholder="Find a site by name or country" autocomplete="off">
+        <div class="sres" id="sres" hidden></div>
+        <p class="fhint">Or click a site on the map.</p>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <section class="vbar" aria-label="View">
+      <span class="vl">View</span>
+      <div class="vgrp"><span>Scenario</span><div class="toggle" id="ctl-scen"><button data-v="ssp245">SSP2-4.5 middle</button><button data-v="ssp585">SSP5-8.5 high</button></div></div>
+      <div class="vgrp"><span>Period</span><div class="toggle" id="ctl-period"><button data-v="hist">Today</button><button data-v="2040">2040</button><button data-v="2050">2050</button></div></div>
+      <div class="vgrp"><span>Year</span><div class="toggle" id="ctl-yt"><button data-v="typical">Typical</button><button data-v="hot">Hot (1 in 10)</button></div></div>
+      <span class="cnt" id="cnt"></span>
+    </section>
+
+    <section class="kstrip" id="kstrip" aria-label="Headline figures"></section>
+
+    <div class="cols">
+      <section class="card" aria-labelledby="map-title">
+        <div class="phead">
+          <div><h2 id="map-title">Where the heat is</h2><p id="map-sub"></p></div>
+          <div class="slot"><span>Colour by</span>
+            <select class="ksel" id="ctl-layer" aria-label="Colour the map by">
+              <option value="days_tmax_gt30">Days above 30 °C</option>
+              <option value="op_wbgt_prov_degree_hours_gt_base">Worker heat stress (WBGT degree-hours)</option>
+              <option value="d_days30">Extra days above 30 °C vs today</option>
+              <option value="warming">Warming (annual mean)</option>
+            </select>
+          </div>
+        </div>
+        <div class="cbody">
+          <div class="mapbox">
+            <svg id="map" role="img" aria-label="Map of the selected sites coloured by the chosen heat indicator"></svg>
+            <div class="mapsel" id="mapsel"></div>
+            <div class="legend" id="legend"></div>
+          </div>
+          <details class="tview" open><summary>Ranking</summary><ol class="rank" id="rank"></ol></details>
+        </div>
+      </section>
+
+      <section class="card" id="panel" aria-live="polite">
+        <div class="site-h"><h2 id="s-name"></h2><div class="chips" id="s-chips"></div></div>
+        <div class="tabs" role="tablist" aria-label="Site detail">
+          <button role="tab" data-tab="summary">Summary</button>
+          <button role="tab" data-tab="temp">Temperature</button>
+          <button role="tab" data-tab="stress">Heat stress</button>
+          <button role="tab" data-tab="about">About the data</button>
+        </div>
+        <div class="pane" id="pane"></div>
+      </section>
+    </div>
+
+    <footer>
+      <p><b>Illustrative portfolio.</b> Site locations come from public sources on European aerospace manufacturing. This is a method demonstration, not an assessment by or of any company.</p>
+      <p>Data: ERA5 hourly reanalysis (Copernicus Climate Change Service, 2015–2025) · NASA NEX-GDDP-CMIP6 v2.0 (6 models, SSP2-4.5 and SSP5-8.5) · PVGIS (EU JRC) cross-check · Natural Earth base map. Generated <span id="gen"></span>.</p>
+    </footer>
+  </main>
+</div>
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script>
+const DATA = /*__DATA__*/null;
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const SVGNS = "http://www.w3.org/2000/svg";
+const S = { scen: "ssp245", period: "2050", yt: "typical", layer: "days_tmax_gt30", site: null, tab: "summary", sel: null, open: {} };
+const SITES = DATA.sites;
+const byId = Object.fromEntries(SITES.map(s => [s.id, s]));
+const COUNTRY = { FR: "France", DE: "Germany", ES: "Spain", GB: "United Kingdom" };
+const SCEN = { ssp245: "SSP2-4.5", ssp585: "SSP5-8.5" };
+const RAMP = ["#FDE4EF", "#FBC2DA", "#FF94BF", "#FF5FA0", "#FF3D8B", "#D91877", "#A3005A"];
+const TEMP_COLS = ["#0B41CD", "#9DB3F0", "#0FB86E", "#F6CFE0", "#FF8FBC", "#FF3D8B", "#A3005A"];
+const UTCI = [
+  ["Strong cold", "< −13", "#4f50ff", 1], ["Moderate cold", "−13 to 0", "#6f86e0", 1], ["Slight cold", "0 to 9", "#79b3c9", 0],
+  ["No thermal stress", "9 to 26", "#8bdcaa", 0], ["Slight heat", "26 to 28", "#b0b48c", 0], ["Moderate heat", "28 to 32", "#d9806e", 0],
+  ["Strong heat", "32 to 38", "#ff5555", 0], ["Very strong heat", "38 to 46", "#c0262d", 1], ["Extreme heat", "> 46", "#6e0f14", 1]];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const fmt = (v, d = 0) => v == null || Number.isNaN(v) ? "–" : Number(v).toLocaleString("en-GB", { maximumFractionDigits: d, minimumFractionDigits: d });
+const sgn = (v, d = 0) => v == null ? "–" : (v > 0 ? "+" : "") + fmt(v, d);
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+const ICON = {
+  pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg>',
+  sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 17l6-6 4 4 6-7"/><path d="M15 8h5v5"/></svg>',
+  therm: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M10 13.5V5a2 2 0 1 1 4 0v8.5a4 4 0 1 1-4 0Z"/></svg>',
+};
+
+/* ---------- tooltip ---------- */
+const tip = $("#tip");
+function moveTip(e) { const w = tip.offsetWidth, h = tip.offsetHeight; let x = e.clientX + 14, y = e.clientY + 14;
+  if (x + w > innerWidth - 8) x = e.clientX - w - 14; if (y + h > innerHeight - 8) y = e.clientY - h - 14; tip.style.left = x + "px"; tip.style.top = y + "px"; }
+function hover(el, html) { el.addEventListener("mouseenter", e => { tip.innerHTML = typeof html === "function" ? html() : html; tip.style.display = "block"; moveTip(e); });
+  el.addEventListener("mousemove", moveTip); el.addEventListener("mouseleave", () => tip.style.display = "none"); }
+
+/* ---------- values ---------- */
+function kpiVal(site, metric, period = S.period, scen = S.scen, yt = S.yt) {
+  const k = DATA.kpi[site][metric];
+  return period === "hist" ? [k.hist[yt], null, null] : k[`${scen}_${period}_${yt}`];
+}
+function layerVal(site, period = S.period, scen = S.scen) {
+  if (S.layer === "warming") return period === "hist" ? null : DATA.kpi[site].warming[`${scen}_${period}`][0];
+  if (S.layer === "d_days30") return period === "hist" ? null : kpiVal(site, "days_tmax_gt30", period, scen)[0] - DATA.kpi[site].days_tmax_gt30.hist[S.yt];
+  return kpiVal(site, S.layer, period, scen)[0];
+}
+const LAYER = {
+  days_tmax_gt30: { unit: "days", d: 0, sqrt: false, short: "Days above 30 °C" },
+  op_wbgt_prov_degree_hours_gt_base: { unit: "°C·h", d: 0, sqrt: true, short: "WBGT degree-hours", prov: true },
+  d_days30: { unit: "days", d: 0, sqrt: false, plus: true, short: "Extra days above 30 °C" },
+  warming: { unit: "°C", d: 1, sqrt: false, plus: true, short: "Warming" },
+};
+const lv = (v, info) => v == null ? "–" : (info.plus ? sgn(v, info.d) : fmt(v, info.d));
+function domain() { let mx = 0; for (const s of SITES) for (const p of ["hist", "2040", "2050"]) for (const sc of DATA.meta.scenarios) { const v = layerVal(s.id, p, sc); if (v != null) mx = Math.max(mx, v); } return mx || 1; }
+function colorFor(v, mx, sqrt) { if (v == null) return "#C9C4D3"; let t = Math.max(0, Math.min(1, v / mx)); if (sqrt) t = Math.sqrt(t); return RAMP[Math.min(RAMP.length - 1, Math.floor(t * RAMP.length))]; }
+const inView = () => SITES.filter(s => S.sel.has(s.id));
+
+/* ---------- filters ---------- */
+function countries() { const c = {}; for (const s of SITES) (c[s.country] ||= []).push(s); return Object.entries(c).sort((a, b) => b[1].length - a[1].length); }
+function state(ids) { const n = ids.filter(i => S.sel.has(i)).length; return n === 0 ? "" : n === ids.length ? "on" : "part"; }
+function renderTree() {
+  const all = SITES.map(s => s.id);
+  const chev = open => `<span class="cv ${open ? "" : "shut"}"><svg viewBox="0 0 10 10"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></span>`;
+  const row = (cls, key, label, ids, lvl, toggle) => `<div class="fo ${cls} l${lvl}" role="checkbox" aria-checked="${cls === "on" ? "true" : cls === "part" ? "mixed" : "false"}" tabindex="0" data-ids="${ids.join(",")}" data-key="${key}">
+      <span class="cb"></span><span class="nm">${toggle ? `<button class="tog" type="button" data-open="${key}" aria-label="Show or hide ${label}">${chev(S.open[key])}</button>` : ""}<span class="tx">${label}</span></span>
+      <span class="n">${ids.length}<span class="sh"><i style="width:${100 * ids.length / all.length}%"></i></span></span>
+      <button class="only" type="button" data-only="${ids.join(",")}">only</button></div>`;
+  let h = row(state(all), "EU", "Europe", all, 0, true);
+  if (S.open.EU) for (const [c, list] of countries()) {
+    const ids = list.map(s => s.id);
+    h += row(state(ids), c, COUNTRY[c], ids, 1, true);
+    if (S.open[c]) for (const s of [...list].sort((a, b) => a.name.localeCompare(b.name)))
+      h += row(state([s.id]), s.id, s.name, [s.id], 2, false).replace('class="fo ', `class="fo ${s.id === S.site ? "cur " : ""}`);
+  }
+  $("#tree").innerHTML = h;
+  const n = S.sel.size;
+  $("#where-s").textContent = n === SITES.length ? "All" : `${n} of ${SITES.length}`;
+  const cs = new Set(inView().map(s => s.country));
+  $("#fsum").innerHTML = `<b>${n} of ${SITES.length} sites</b> · ${cs.size} ${cs.size === 1 ? "country" : "countries"}<div class="bar"><i style="width:${100 * n / SITES.length}%"></i></div>`;
+  $("#fbadge").textContent = n;
+  $("#cnt").innerHTML = `<b>${n}</b> of ${SITES.length} sites`;
+}
+function toggleIds(ids) {
+  const allOn = ids.every(i => S.sel.has(i));
+  for (const i of ids) allOn ? S.sel.delete(i) : S.sel.add(i);
+  afterFilter();
+}
+function afterFilter() {
+  if (S.sel.size && !S.sel.has(S.site)) S.site = [...S.sel][0];
+  renderTree(); renderAll();
+}
+function bindFilters() {
+  $("#tree").addEventListener("click", e => {
+    const tog = e.target.closest("[data-open]"); if (tog) { e.stopPropagation(); S.open[tog.dataset.open] = !S.open[tog.dataset.open]; renderTree(); return; }
+    const only = e.target.closest("[data-only]"); if (only) { e.stopPropagation(); S.sel = new Set(only.dataset.only.split(",")); afterFilter(); return; }
+    const fo = e.target.closest(".fo"); if (fo) toggleIds(fo.dataset.ids.split(","));
+  });
+  $("#tree").addEventListener("keydown", e => { const fo = e.target.closest(".fo"); if (fo && (e.key === " " || e.key === "Enter") && e.target === fo) { e.preventDefault(); toggleIds(fo.dataset.ids.split(",")); } });
+  $("#freset").addEventListener("click", () => { S.sel = new Set(SITES.map(s => s.id)); afterFilter(); });
+  const shell = $("#shell");
+  const setMin = m => { shell.classList.toggle("fmin", m); $("#fmin").textContent = m ? "»" : "«"; $("#fmin").setAttribute("aria-label", m ? "Expand filters" : "Collapse filters"); store.set("cr-fmin", m ? "1" : ""); };
+  $("#fmin").addEventListener("click", () => setMin(!shell.classList.contains("fmin")));
+  $("#fbadge").addEventListener("click", () => setMin(false));
+  if (store.get("cr-fmin") === "1") setMin(true);
+  for (const f of $$(".facet")) f.querySelector(".fh").addEventListener("click", () => { f.classList.toggle("shut"); f.querySelector(".fh").setAttribute("aria-expanded", !f.classList.contains("shut")); });
+  const inp = $("#fsearch"), res = $("#sres");
+  inp.addEventListener("input", () => {
+    const q = inp.value.trim().toLowerCase();
+    if (!q) { res.hidden = true; return; }
+    const hits = SITES.filter(s => s.name.toLowerCase().includes(q) || COUNTRY[s.country].toLowerCase().includes(q));
+    res.hidden = false;
+    res.innerHTML = hits.length ? hits.map(s => `<button type="button" data-id="${s.id}"><span>${s.name}</span><small>${COUNTRY[s.country]}</small></button>`).join("") : `<p class="fhint" style="padding:6px 9px;margin:0">No site matches “${inp.value}”.</p>`;
+  });
+  res.addEventListener("click", e => { const b = e.target.closest("[data-id]"); if (!b) return; S.sel.add(b.dataset.id); inp.value = ""; res.hidden = true; S.open.EU = true; S.open[byId[b.dataset.id].country] = true; selectSite(b.dataset.id); renderTree(); });
+}
+
+/* ---------- KPI strip ---------- */
+function renderStrip() {
+  const v = inView(), info = LAYER[S.layer], n = v.length;
+  const per = S.period === "hist" ? "today" : `${S.period}, ${SCEN[S.scen]}`;
+  let top = null, rise = null;
+  for (const s of v) {
+    const x = layerVal(s.id); if (x != null && (!top || x > top.v)) top = { s, v: x };
+    const fut = S.period === "hist" ? null : kpiVal(s.id, "days_tmax_gt30")[0] - DATA.kpi[s.id].days_tmax_gt30.hist[S.yt];
+    if (fut != null && (!rise || fut > rise.v)) rise = { s, v: fut };
+  }
+  const days = v.map(s => kpiVal(s.id, "days_tmax_gt30")[0]);
+  const avg = days.length ? days.reduce((a, b) => a + b, 0) / days.length : null;
+  const avgToday = v.length ? v.reduce((a, s) => a + DATA.kpi[s.id].days_tmax_gt30.hist[S.yt], 0) / v.length : null;
+  const cs = new Set(v.map(s => s.country));
+  const tile = (ic, lab, val, foot) => `<div class="kstat"><div class="lab"><span class="ic">${ICON[ic]}</span>${lab}</div><div class="val">${val}</div><div class="foot">${foot}</div></div>`;
+  $("#kstrip").innerHTML =
+    tile("pin", "Sites in view", `${n}<small>of ${SITES.length}</small>`, `${cs.size} ${cs.size === 1 ? "country" : "countries"}: ${[...cs].map(c => COUNTRY[c]).join(", ") || "none"}`) +
+    tile("sun", "Average days above 30 °C", `${fmt(avg)}<small>days a year</small>`, S.period === "hist" ? `today, ${S.yt} year` : `${sgn(avg - avgToday)} vs today · ${per}`) +
+    tile("therm", `Most exposed site · ${info.short}`, top ? top.s.name.split(" (")[0] : "–", top ? `${lv(top.v, info)} ${info.unit} · ${per}` : (S.period === "hist" && info.plus ? "choose 2040 or 2050" : "no sites in view")) +
+    tile("up", "Largest rise in days above 30 °C", rise ? rise.s.name.split(" (")[0] : "–", rise ? `${sgn(rise.v)} days a year by ${S.period} · ${SCEN[S.scen]}` : "choose 2040 or 2050");
+}
+
+/* ---------- map ---------- */
+function drawMap() {
+  const svg = $("#map"), bm = DATA.basemap;
+  const xs = SITES.map(s => s.x), ys = SITES.map(s => s.y);
+  const x0 = Math.max(0, Math.min(...xs) - 120), x1 = Math.min(bm.width, Math.max(...xs) + 120);
+  const y0 = Math.max(0, Math.min(...ys) - 110), y1 = Math.min(bm.height, Math.max(...ys) + 130);
+  svg.setAttribute("viewBox", `${x0} ${y0} ${x1 - x0} ${y1 - y0}`);
+  let h = `<path class="grat" d="${bm.graticule}"/>` + bm.land.map(d => `<path class="land" d="${d}"/>`).join("");
+  h += `<circle id="ring" class="sel-ring" r="22"/><g id="sites">` + SITES.map(s => `<circle class="site" data-id="${s.id}" cx="${s.x}" cy="${s.y}" r="14" tabindex="0" role="button" aria-label="${s.name}"/>`).join("") + `</g>`;
+  svg.innerHTML = h;
+  for (const c of $$("#sites circle")) {
+    const id = c.dataset.id;
+    c.addEventListener("click", () => selectSite(id));
+    c.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectSite(id); } });
+    hover(c, () => { const info = LAYER[S.layer]; return `<b>${byId[id].name}</b><br>${info.short}: ${lv(layerVal(id), info)} ${info.unit}<br><span style="opacity:.7">Click for the site card</span>`; });
+  }
+}
+function updateMap() {
+  const info = LAYER[S.layer], mx = domain();
+  const per = S.period === "hist" ? "Today (2015–2025)" : `${S.period} · ${SCEN[S.scen]}`;
+  $("#map-sub").textContent = `${per} · ${S.yt === "typical" ? "typical year" : "hot year (1 in 10)"} · click a site for its card`;
+  for (const c of $$("#sites circle")) { const id = c.dataset.id; c.classList.toggle("off", !S.sel.has(id)); c.style.fill = colorFor(layerVal(id), mx, info.sqrt); }
+  const s = byId[S.site], ring = $("#ring");
+  ring.style.display = s && S.sel.has(s.id) ? "" : "none";
+  if (s) { ring.setAttribute("cx", s.x); ring.setAttribute("cy", s.y); }
+  $("#mapsel").hidden = !s;
+  if (s) $("#mapsel").innerHTML = `<div><b>${s.name}</b><span>${info.short}: ${lv(layerVal(s.id), info)} ${info.unit}</span></div>`;
+  const ticks = info.sqrt ? [0, mx / 4, mx] : [0, mx / 2, mx];
+  $("#legend").innerHTML = `<span>${info.short}</span><span class="ramp">${RAMP.map(c => `<i style="background:${c}"></i>`).join("")}</span><span class="mono">${ticks.map(t => lv(t, info)).join(" · ")} ${info.unit}</span>${info.sqrt ? "<span>√ scale</span>" : ""}${info.prov ? '<span class="prov">provisional</span>' : ""}`;
+  const rows = inView().map(x => ({ s: x, v: layerVal(x.id) })).sort((a, b) => (b.v ?? -1e9) - (a.v ?? -1e9));
+  const rmx = Math.max(...rows.map(r => r.v ?? 0), 1e-9);
+  $("#rank").innerHTML = rows.length ? rows.map(r => `<li data-id="${r.s.id}" class="${r.s.id === S.site ? "on" : ""}" tabindex="0">
+      <span class="nm">${r.s.name}</span><span class="bar"><i style="width:${r.v == null ? 0 : Math.max(1, 100 * Math.max(0, r.v) / rmx)}%;background:${colorFor(r.v, mx, info.sqrt)}"></i></span>
+      <span class="val">${lv(r.v, info)}</span></li>`).join("") : `<li class="empty">No sites in view. Tick a country or site in the filters.</li>`;
+  for (const li of $$("#rank li[data-id]")) { li.addEventListener("click", () => selectSite(li.dataset.id)); li.addEventListener("keydown", e => { if (e.key === "Enter") selectSite(li.dataset.id); }); }
+}
+
+/* ---------- site card ---------- */
+function columns() {
+  const s = byId[S.site];
+  return [
+    { key: "hist", label: "Today", sub: `${S.yt} year`, color: "var(--c-today)" },
+    { key: "hotref", label: `Hot year ${s.hot_year}`, sub: "actual, unadjusted", color: "var(--c-hot)" },
+    { key: "2040", label: "2040", sub: `${SCEN[S.scen]}, ${S.yt}`, color: "var(--c-2040)" },
+    { key: "2050", label: "2050", sub: `${SCEN[S.scen]}, ${S.yt}`, color: "var(--c-2050)" },
+  ];
+}
+const tmyKey = c => c === "hist" ? "hist" : c === "hotref" ? "hotref" : `${S.scen}_${c}`;
+function renderHeader() {
+  const s = byId[S.site], k = DATA.kpi[S.site];
+  $("#s-name").textContent = s.name;
+  $("#s-chips").innerHTML = `<span class="chip">${COUNTRY[s.country]} · ${s.lat.toFixed(3)}, ${s.lon.toFixed(3)}</span>
+    <span class="chip">Hot reference year <b>${s.hot_year}</b></span>
+    <span class="chip">${SCEN[S.scen]} warming <b>${sgn(k.warming[`${S.scen}_2040`][0], 1)} °C</b> by 2040 · <b>${sgn(k.warming[`${S.scen}_2050`][0], 1)} °C</b> by 2050</span>`;
+}
+function cell(id, m, col, d) {
+  const k = DATA.kpi[id][m];
+  if (col === "hist") return `<td class="v">${fmt(k.hist[S.yt], d)}</td>`;
+  if (col === "hotref") return `<td class="v">${fmt(k.hotref, d)}</td>`;
+  const v = k[`${S.scen}_${col}_${S.yt}`], up = v[0] > k.hist[S.yt] + (d ? .05 : .5) ? "up" : "";
+  return `<td class="v"><span class="${up}">${fmt(v[0], d)}</span><span class="rg">${fmt(v[1], d)}–${fmt(v[2], d)}</span></td>`;
+}
+function thead(cols, first) { return `<thead><tr><th>${first}</th>${cols.map(c => `<th><span class="k" style="background:${c.color}"></span>${c.label}<small>${c.sub}</small></th>`).join("")}</tr></thead>`; }
+function renderSummary() {
+  const cols = columns(), id = S.site;
+  const rows = [["Days above 30 °C", "days_tmax_gt30", 0], ["Days above 35 °C", "days_tmax_gt35", 0], ["Warm nights (minimum above 20 °C)", "nights_tmin_gt20", 0],
+    ["Highest temperature (°C)", "temp_max", 1], ["Worker heat stress: WBGT degree-hours above 25 °C in working hours", "op_wbgt_prov_degree_hours_gt_base", 0, 1],
+    ["Working hours with WBGT above 28 °C (moderate-work limit)", "op_hours_wbgt_prov_gt_threshold", 0, 1], ["Cooling degree-hours above 24 °C", "cdh24", 0], ["Heating degree-hours below 19 °C", "hdh19", 0]];
+  return `<div><h3>Key heat indicators</h3><div class="tw"><table>${thead(cols, "Indicator")}<tbody>${rows.map(([l, m, d, p]) => `<tr><th scope="row">${l}${p ? '<span class="prov">provisional</span>' : ""}</th>${cols.map(c => cell(id, m, c.key, d)).join("")}</tr>`).join("")}</tbody></table></div>
+    <p class="note">From all 11 years (2015–2025) and their 2040/2050 versions. Future values: median of ${DATA.meta.models.length} climate models, range below. Working hours ${DATA.meta.operating_hours.start}–${DATA.meta.operating_hours.end} local time. WBGT is a shaded estimate that reads low until the full method is added.</p></div>
+    <div><h3>Hours of the year in each temperature band <span class="sub">typical year</span></h3>${stackRows(c => DATA.tmy[id][tmyKey(c.key)].temp_bands, TEMP_COLS, DATA.meta.temp_bands, " °C")}</div>`;
+}
+function stackRows(get, colors, labels, unit) {
+  return columns().map(c => { const v = get(c), t = v.reduce((a, b) => a + b, 0);
+    const sub = c.key === "hotref" ? "actual year" : c.key === "hist" ? "typical year" : `${SCEN[S.scen]}, typical`;
+    return `<div class="stack-row"><div class="lab">${c.label}<small>${sub}</small></div><div class="stack">${v.map((x, i) => x > 0 ? `<span data-t="${labels[i]}${unit}: ${fmt(x)} h (${fmt(100 * x / t, 1)} %)" style="flex:${x} 1 0;background:${colors[i]}"></span>` : "").join("")}</div></div>`; }).join("")
+    + `<div class="keys">${labels.map((l, i) => `<span><i style="background:${colors[i]}"></i>${l}${unit}</span>`).join("")}</div>`;
+}
+function niceStep(r) { const p = Math.pow(10, Math.floor(Math.log10(r || 1))), f = r / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; }
+function lineChart({ series, xLabels, unit, w = 640, h = 220, xTicks, bars }) {
+  const m = { l: 44, r: 10, t: 10, b: 26 }, all = series.flatMap(s => s.values).concat(bars ? bars.values : []);
+  let lo = Math.min(0, ...all), hi = Math.max(...all); const st = niceStep((hi - lo) / 4); hi = Math.ceil(hi / st) * st; lo = Math.floor(lo / st) * st;
+  const n = xLabels.length, cw = (w - m.l - m.r) / n, X = i => m.l + cw * (i + .5), Y = v => m.t + (h - m.t - m.b) * (1 - (v - lo) / (hi - lo || 1));
+  let o = `<svg class="chart" viewBox="0 0 ${w} ${h}" role="img">`;
+  for (let v = lo; v <= hi + 1e-9; v += st) o += `<line class="gridl" x1="${m.l}" x2="${w - m.r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${m.l - 6}" y="${Y(v) + 4}" text-anchor="end">${fmt(v, st < 1 ? 1 : 0)}</text>`;
+  o += `<line class="axis" x1="${m.l}" x2="${w - m.r}" y1="${Y(lo)}" y2="${Y(lo)}"/>`;
+  (xTicks || xLabels.map((_, i) => i)).forEach(i => o += `<text x="${X(i)}" y="${h - 8}" text-anchor="middle">${xLabels[i]}</text>`);
+  if (bars) bars.values.forEach((v, i) => o += `<rect x="${X(i) - cw / 2 + .5}" y="${Y(Math.max(v, 0))}" width="${Math.max(cw - 1, .5)}" height="${Math.abs(Y(v) - Y(0))}" fill="${bars.color}" opacity=".55"/>`);
+  for (const s of series) o += `<path d="${s.values.map((v, i) => `${i ? "L" : "M"}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join("")}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" ${s.dash ? 'stroke-dasharray="5 4"' : ""}/>`;
+  for (let i = 0; i < n; i++) o += `<rect x="${X(i) - cw / 2}" y="${m.t}" width="${cw}" height="${h - m.t - m.b}" fill="transparent" data-t="${xLabels[i]}<br>${bars ? `${bars.name}: ${fmt(bars.values[i], 1)} ${unit}<br>` : ""}${series.map(s => `${s.name}: ${fmt(s.values[i], 1)} ${unit}`).join("<br>")}"/>`;
+  return o + `</svg>`;
+}
+const skey = items => `<div class="series-key">${items.map(([c, l, d]) => `<span><i style="background:${d ? `repeating-linear-gradient(90deg,${c} 0 5px,transparent 5px 8px)` : c}"></i>${l}</span>`).join("")}</div>`;
+function heatmap(grid, unit) {
+  const w = 640, h = 250, m = { l: 34, r: 10, t: 6, b: 24 }, cw = (w - m.l - m.r) / 24, ch = (h - m.t - m.b) / 12, mx = Math.max(...grid.flat(), .1);
+  let o = `<svg class="chart" viewBox="0 0 ${w} ${h}" role="img">`;
+  grid.forEach((row, mi) => row.forEach((v, hi) => o += `<rect x="${m.l + hi * cw}" y="${m.t + mi * ch}" width="${cw - 1.5}" height="${ch - 1.5}" rx="2" fill="${v <= 0 ? "var(--bg-2)" : RAMP[Math.min(6, Math.floor(v / mx * 7))]}" data-t="${MONTHS[mi]}, ${String(hi).padStart(2, "0")}:00<br>${sgn(v, 2)} ${unit}"/>`));
+  MONTHS.forEach((mn, i) => o += `<text x="${m.l - 6}" y="${m.t + i * ch + ch / 2 + 4}" text-anchor="end">${mn}</text>`);
+  [0, 6, 12, 18, 23].forEach(x => o += `<text x="${m.l + x * cw + cw / 2}" y="${h - 8}" text-anchor="middle">${String(x).padStart(2, "0")}h</text>`);
+  return o + `</svg><div class="hmleg"><span class="ramp">${RAMP.map(c => `<i style="background:${c}"></i>`).join("")}</span><span class="mono">0 · +${fmt(mx / 2, 1)} · +${fmt(mx, 1)} ${unit}</span></div>`;
+}
+function renderTemp() {
+  const id = S.site, T = DATA.tmy[id], sc = S.scen, hy = byId[id].hot_year;
+  const pct = a => { const t = a.reduce((x, y) => x + y, 0); return a.map(v => 100 * v / t); };
+  const bins = Array.from({ length: 56 }, (_, i) => i - 10);
+  const hist = lineChart({ xLabels: bins.map(b => `${b} °C`), unit: "% of hours", xTicks: [0, 10, 20, 30, 40, 50],
+    bars: { name: "Today (typical)", values: pct(T.hist.temp_hist), color: "var(--c-today)" },
+    series: [{ name: `2040 ${SCEN[sc]}`, values: pct(T[`${sc}_2040`].temp_hist), color: "var(--c-2040)" }, { name: `2050 ${SCEN[sc]}`, values: pct(T[`${sc}_2050`].temp_hist), color: "var(--c-2050)" }] });
+  const diff = T[`${sc}_2050`].month_hour_t.map((r, mi) => r.map((v, hi) => v - T.hist.month_hour_t[mi][hi]));
+  const mon = lineChart({ xLabels: MONTHS, unit: "°C", series: [
+    { name: "Today (typical)", values: T.hist.monthly_tmax, color: "var(--c-today)" }, { name: `Hot year ${hy}`, values: T.hotref.monthly_tmax, color: "var(--c-hot)", dash: true },
+    { name: `2040 ${SCEN[sc]}`, values: T[`${sc}_2040`].monthly_tmax, color: "var(--c-2040)" }, { name: `2050 ${SCEN[sc]}`, values: T[`${sc}_2050`].monthly_tmax, color: "var(--c-2050)" }] });
+  return `<div><h3>Share of hours at each temperature <span class="sub">typical year</span></h3>${hist}${skey([["var(--c-today)", "Today (bars)"], ["var(--c-2040)", `2040 ${SCEN[sc]}`], ["var(--c-2050)", `2050 ${SCEN[sc]}`]])}</div>
+    <div><h3>When the warming happens <span class="sub">2050 ${SCEN[sc]} minus today, by month and hour of day</span></h3>${heatmap(diff, "°C")}<p class="note">Local time, median of ${DATA.meta.models.length} models applied to the typical year. Afternoon warming adds directly to the work-time heat load.</p></div>
+    <div><h3>Average daily maximum temperature by month</h3>${mon}${skey([["var(--c-today)", "Today (typical)"], ["var(--c-hot)", `Hot year ${hy} (actual)`, 1], ["var(--c-2040)", `2040 ${SCEN[sc]}`], ["var(--c-2050)", `2050 ${SCEN[sc]}`]])}</div>`;
+}
+function renderStress() {
+  const id = S.site, T = DATA.tmy[id], cols = columns(), hy = byId[id].hot_year;
+  const sr = (l, sh, k) => `<tr><th scope="row">${l}</th>${cols.map(c => { const v = T[tmyKey(c.key)].shifts[sh][k]; return Array.isArray(v) ? `<td class="v">${fmt(v[0])}<span class="rg">${fmt(v[1])}–${fmt(v[2])}</span></td>` : `<td class="v">${fmt(v)}</td>`; }).join("")}</tr>`;
+  const up = (c, ix) => { const v = T[tmyKey(c.key)].utci_bands, t = v.reduce((a, b) => a + b, 0); return ix.reduce((a, i) => a + v[i], 0) / t * 100; };
+  const ur = [["Heat stress (UTCI above 28)", [5, 6, 7, 8]], ["Cold stress (UTCI below 0)", [0, 1]], ["Comfortable (9 to 26)", [3]], ["Comfortable for short periods only (0–9, 26–28)", [2, 4]]];
+  const hrs = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, "0")}:00`);
+  const byHour = lineChart({ xLabels: hrs, unit: "h a year", xTicks: [0, 6, 12, 18, 23], series: cols.map(c => ({ name: c.label, values: T[tmyKey(c.key)].utci_heat_by_hour, color: c.color, dash: c.key === "hotref" })) });
+  return `<div><h3>Work heat stress by shift: ISO 7243 WBGT, moderate work<span class="prov">provisional</span></h3>
+      <div class="tw"><table>${thead(cols, "Hours a year")}<tbody>${sr("Early shift 06–14 · WBGT above 28 °C", "early", "wbgt_gt28")}${sr("Late shift 14–22 · WBGT above 28 °C", "late", "wbgt_gt28")}${sr("Night shift 22–06 · WBGT above 28 °C", "night", "wbgt_gt28")}${sr("Late shift · WBGT above 26 °C (not acclimatised)", "late", "wbgt_gt26")}</tbody></table></div>
+      <p class="note">Typical year for today and the future; the hot year is the actual ${hy} weather. Shaded WBGT with indoor = outdoor, estimated from temperature and humidity. It reads low until the full method (sun and shade) is added.</p></div>
+    <div><h3>UTCI thermal stress scale</h3><div class="utci-scale">${UTCI.map(u => `<div class="${u[3] ? "dk" : ""}" style="background:${u[2]}">${u[0]}<br>${u[1]}</div>`).join("")}</div></div>
+    <div><h3>Condition of person: share of hours in each UTCI band<span class="prov">provisional · shade</span></h3>${stackRows(c => T[tmyKey(c.key)].utci_bands, UTCI.map(u => u[2]), UTCI.map(u => u[0]), "")}</div>
+    <div><h3>UTCI comfort and stress</h3><div class="tw"><table>${thead(cols, "Share of the year")}<tbody>${ur.map(([l, ix]) => `<tr><th scope="row">${l}</th>${cols.map(c => `<td class="v">${fmt(up(c, ix), 1)} %</td>`).join("")}</tr>`).join("")}</tbody></table></div></div>
+    <div><h3>Hours of UTCI heat stress (above 28) by hour of day</h3>${byHour}${skey(cols.map(c => [c.color, c.label, c.key === "hotref"]))}<p class="note">UTCI in shade (radiant temperature = air temperature). Sun exposure for outdoor work is added in the next step.</p></div>`;
+}
+function renderAbout() {
+  const s = byId[S.site];
+  return `<div class="about"><h3>How these numbers are made</h3><ul>
+    <li><b>Today:</b> hourly ERA5 reanalysis for 2015–2025 at the nearest 0.25° grid point (${s.grid[0]}, ${s.grid[1]}; ${fmt(s.grid[2], 1)} km from the site).</li>
+    <li><b>Typical year:</b> an ISO 15927-4 typical meteorological year built from the same record, used for the hourly charts.</li>
+    <li><b>Hot year:</b> the site's hottest actual year (${s.hot_year}), ranked by working-hour WBGT degree-hours above 25 °C, shown unadjusted.</li>
+    <li><b>2040 and 2050:</b> every historical year adjusted with changes from ${DATA.meta.models.length} NEX-GDDP-CMIP6 models (${DATA.meta.models.join(", ")}). Hot days receive the hot-day warming. 2040 = 2031–2050 and 2050 = 2041–2060, both against 2015–2025.</li>
+    <li><b>Typical vs hot:</b> the median year and the 90th-percentile year (about 1 in 10) of the 11 years.</li>
+    <li><b>Provisional:</b> WBGT and UTCI are shaded estimates with indoor = outdoor. Next: the full WBGT method (sun and shade), UTCI in sun, process limits and indoor adjustments.</li></ul>
+    <p>Known limits: ERA5's ~25 km grid smooths local peaks, and Getafe and Illescas share one grid cell, so their historical weather is identical. Climate models disagree; the ranges show that spread.</p></div>`;
+}
+function renderPanel() {
+  if (!S.site) return;
+  renderHeader();
+  for (const b of $$(".tabs button")) b.setAttribute("aria-selected", b.dataset.tab === S.tab);
+  const pane = $("#pane");
+  pane.innerHTML = { summary: renderSummary, temp: renderTemp, stress: renderStress, about: renderAbout }[S.tab]();
+  for (const el of $$("[data-t]", pane)) hover(el, el.dataset.t);
+}
+
+/* ---------- wiring ---------- */
+function renderAll() { renderStrip(); updateMap(); renderPanel(); }
+function selectSite(id) {
+  if (!byId[id]) return;
+  S.site = id;
+  if (location.hash !== "#" + id) history.replaceState(null, "", "#" + id);
+  renderTree(); renderAll();
+}
+function bindToggle(id, key) {
+  for (const b of $$(`#${id} button`)) {
+    b.setAttribute("aria-pressed", b.dataset.v === S[key]);
+    b.addEventListener("click", () => { S[key] = b.dataset.v; for (const x of $$(`#${id} button`)) x.setAttribute("aria-pressed", x === b); store.set("cr-" + key, S[key]); renderAll(); });
+  }
+}
+function init() {
+  for (const k of ["scen", "period", "yt", "layer", "tab"]) { const v = store.get("cr-" + k); if (v) S[k] = v; }
+  S.sel = new Set(SITES.map(s => s.id));
+  S.open = { EU: true };
+  bindToggle("ctl-scen", "scen"); bindToggle("ctl-period", "period"); bindToggle("ctl-yt", "yt");
+  $("#ctl-layer").value = S.layer;
+  $("#ctl-layer").addEventListener("change", e => { S.layer = e.target.value; store.set("cr-layer", S.layer); renderStrip(); updateMap(); });
+  for (const b of $$(".tabs button")) b.addEventListener("click", () => { S.tab = b.dataset.tab; store.set("cr-tab", S.tab); renderPanel(); });
+  $("#gen").textContent = DATA.meta.generated;
+  bindFilters(); drawMap();
+  const h = location.hash.slice(1);
+  S.site = byId[h] ? h : "SVQ";
+  if (byId[h]) S.open[byId[h].country] = true;
+  renderTree(); renderAll();
+  addEventListener("hashchange", () => { const x = location.hash.slice(1); if (byId[x] && x !== S.site) selectSite(x); });
+}
+init();
+</script>

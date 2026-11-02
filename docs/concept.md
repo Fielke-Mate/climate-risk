@@ -283,9 +283,9 @@ The dashboard is built **around an interactive map of the portfolio**:
 |---|---|---|
 | 0 | Concept & framework | This document, agreed |
 | 1 ✅ | Historical weather files | ERA5 hourly 2015–2025 + TMY + hot reference year for every pilot site; PVGIS TMY cross-check; standard format; quick plots. **Done**: see [`phase1/README.md`](phase1/README.md) |
-| 2 ✅ | Future weather files | CMIP6 deltas + morphing → 2040/2050 ensembles. **Done with 5 of 6 models** (NorESM2-MM pending): see [`phase2/README.md`](phase2/README.md) |
+| 2 ✅ | Future weather files | CMIP6 deltas + morphing → 2040/2050 ensembles (6 models). See [`phase2/README.md`](phase2/README.md) |
 | 3 | Heat analysis | ISO 7243 WBGT, thresholds, days/hours over, ranges |
-| 4 | Dashboard | Interactive portfolio map, click-through site panel, site weather summary pages, period/scenario/year-type comparison |
+| 4 (prototype ✅) | Dashboard | Prototype brought forward: published page (`dashboard/`), PDE design tokens, Europe › country › site filters, map, KPI strip, site card (summary, temperature, heat stress). Metrics from Phase 3 still provisional |
 | 5 | Extensions | Risk rating scale, indoor offsets from engineering estimates, more hazards, financial effects, client sharing |
 
 ## 12. Decisions log
@@ -335,12 +335,14 @@ The dashboard is built **around an interactive map of the portfolio**:
 | D42 | Hot reference year ranked by WBGT degree-hours above 25 °C in working hours (replaces the hours > 28 °C ranking from D30) |
 | D43 | Phase 2 deltas from NEX-GDDP-CMIP6 (6 models, via NASA THREDDS subsetting); quantile-based morphing of all 11 baseline years and the TMY |
 | D44 | Temperature quantile deltas capped at the 95th percentile (the 99th is too noisy with an 11-year baseline) |
+| D45 | Dashboard built as one self-contained HTML page (claude.ai page now; GitHub Pages later), styled with the PDE design tokens (no PDE logo) |
+| D46 | Dashboard prototype built before Phase 3; WBGT/UTCI labelled provisional until then |
 | D33 | Site coordinates checked against published sources (airfield reference points or addresses; see sites CSV). Precision of ~1–3 km is enough, as ERA5 grid cells are ~9–30 km |
 
 ## 13. Open questions
 
-1. **NorESM2-MM:** finish the remaining ~11 min of download and re-run Phase 2 with all 6 models? (Recommended: it is the lowest-sensitivity model.)
-2. **Getafe / Illescas:** they share one ERA5 grid cell (identical historical weather; their NEX cells differ, so their future deltas differ slightly). Accept for the proof of concept, or test ERA5-Land (~9 km) later?
+1. **Getafe / Illescas:** they share one ERA5 grid cell, so their historical weather is identical. Accept for the proof of concept, or test ERA5-Land (~9 km) later?
+2. **Dashboard feedback:** layers, charts and wording to refine after the first review.
 
 ## 14. Notes for productisation
 
