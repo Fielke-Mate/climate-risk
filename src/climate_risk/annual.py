@@ -15,7 +15,7 @@ def add_derived(hourly: pd.DataFrame) -> pd.DataFrame:
 
 
 def annual_summary(hourly: pd.DataFrame, timezone: str, op_hours: dict, wbgt_threshold: float = 28.0,
-                   hdh_base: float = 19.0, cdh_base: float = 24.0) -> pd.DataFrame:
+                   hdh_base: float = 19.0, cdh_base: float = 24.0, wbgt_dh_base: float = 25.0) -> pd.DataFrame:
     """One row per calendar year (local time) with headline heat indicators."""
     df = add_derived(hourly)
     starts_local = (df.index - pd.Timedelta(hours=1)).tz_convert(timezone)
@@ -42,6 +42,8 @@ def annual_summary(hourly: pd.DataFrame, timezone: str, op_hours: dict, wbgt_thr
         "wbgt_prov_max": g["wbgt_shade_prov"].max().round(1),
         "op_hours_wbgt_prov_gt_threshold": df[df["op"]].groupby("year")["wbgt_shade_prov"].apply(
             lambda s: int((s > wbgt_threshold).sum())),
+        "op_wbgt_prov_degree_hours_gt_base": df[df["op"]].groupby("year")["wbgt_shade_prov"].apply(
+            lambda s: float(np.clip(s - wbgt_dh_base, 0, None).sum())).round(1),
         "hdh19": g["temp_air"].apply(lambda s: float(np.clip(hdh_base - s, 0, None).sum())).round(0),
         "cdh24": g["temp_air"].apply(lambda s: float(np.clip(s - cdh_base, 0, None).sum())).round(0),
     }).join(dy)
@@ -51,6 +53,9 @@ def annual_summary(hourly: pd.DataFrame, timezone: str, op_hours: dict, wbgt_thr
 
 
 def select_hot_year(summary: pd.DataFrame) -> int:
-    """Hottest year by working hours above the WBGT threshold; ties broken by hours > 30 C."""
-    ranked = summary.sort_values(["op_hours_wbgt_prov_gt_threshold", "hours_t_gt30", "temp_max"], ascending=False)
+    """Hottest year by WBGT degree-hours above the base (default 25 C) in working hours (D42).
+
+    Ties (e.g. all zero at very cool sites) are broken by hours above 30 C, then annual max temperature.
+    """
+    ranked = summary.sort_values(["op_wbgt_prov_degree_hours_gt_base", "hours_t_gt30", "temp_max"], ascending=False)
     return int(ranked.index[0])

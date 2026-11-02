@@ -97,7 +97,7 @@ A single typical year smooths out heatwaves. Instead of building one artificial 
 
 1. **Historical:** compute the hourly metrics (WBGT, UTCI, thresholds) for each of the 11 actual years 2015–2025. Report the **median year** ("typical") and the **90th percentile year** ("hot").
 2. **Future:** adjust each of the 11 years to 2040 and 2050 (per model and scenario), then analyse and report them the same way.
-3. **Hot reference year (per site):** each site's hottest actual year (ranked by hours of WBGT > 28 °C, Class 2), **unadjusted**, as a real-world reference that clients will remember.
+3. **Hot reference year (per site):** each site's hottest actual year (ranked by WBGT degree-hours above 25 °C in working hours, D42), **unadjusted**, as a real-world reference that clients will remember.
 
 **Why this works:** heatwaves that actually happened (2019, 2022, 2023…) are kept exactly as observed. No selection rule is needed, and results come straight from hour-by-hour counts.
 
@@ -327,12 +327,12 @@ The dashboard is built **around an interactive map of the portfolio**:
 | D39 | Operating hours default 06:00–22:00 daily, user-adjustable for sensitivity tests |
 | D40 | All site coordinates refined to OpenStreetMap plant features (Nov 2026) |
 | D41 | ERA5 from Copernicus CDS (time-series product); API key held as environment secret `CDSAPI_KEY` |
+| D42 | Hot reference year ranked by WBGT degree-hours above 25 °C in working hours (replaces the hours > 28 °C ranking from D30) |
 | D33 | Site coordinates checked against published sources (airfield reference points or addresses; see sites CSV). Precision of ~1–3 km is enough, as ERA5 grid cells are ~9–30 km |
 
 ## 13. Open questions
 
-1. **Hot-year ranking metric:** shaded WBGT rarely exceeds 28 °C at most sites, so "hours > 28" can't separate years. Switch to WBGT degree-hours above 25 °C in working hours? (Recommended; see `phase1/README.md`.)
-2. **Getafe / Illescas:** they share one ERA5 grid cell, so their weather is identical. Accept for the proof of concept, or test ERA5-Land (~9 km) later?
+1. **Getafe / Illescas:** they share one ERA5 grid cell, so their weather is identical. Accept for the proof of concept, or test ERA5-Land (~9 km) later?
 
 ## 14. Notes for productisation
 

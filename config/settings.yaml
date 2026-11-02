@@ -32,8 +32,10 @@ tmy:
   blend_hours: 8          # smoothing either side of month joins
 
 hot_year:
-  # D30: per-site hottest year, ranked by hours of WBGT > 28 C (Class 2) in operating hours.
+  # D42 (replaces D30 ranking): per-site hottest year ranked by WBGT degree-hours above 25 C
+  # in operating hours (sum of WBGT - 25 over hours above 25). Hours above 28 C still reported.
   wbgt_threshold_c: 28.0
+  wbgt_degree_hour_base_c: 25.0
   # Phase 1 uses a provisional shaded WBGT (0.7 * wet bulb + 0.3 * air temp);
   # replaced by the full Liljegren method in Phase 3.
 

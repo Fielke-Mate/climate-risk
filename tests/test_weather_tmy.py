@@ -82,3 +82,13 @@ def test_hot_year_is_the_warmest_synthetic_year():
     hourly["relative_humidity"] = weather.relative_humidity_from_dewpoint(hourly["temp_air"], hourly["temp_dew"])
     summary = annual_summary(hourly, "Europe/Madrid", {"start": "06:00", "end": "22:00", "days": list(range(7))})
     assert select_hot_year(summary) == 2019
+
+
+def test_hot_year_degree_hours_separates_years_without_exceedances():
+    hourly = _synthetic()
+    hourly["temp_air"] += 9  # WBGT reaches the mid-20s but not 28
+    hourly["temp_dew"] = hourly["temp_air"] - 6
+    hourly["relative_humidity"] = weather.relative_humidity_from_dewpoint(hourly["temp_air"], hourly["temp_dew"])
+    summary = annual_summary(hourly, "Europe/Madrid", {"start": "06:00", "end": "22:00", "days": list(range(7))})
+    assert summary["op_wbgt_prov_degree_hours_gt_base"].nunique() > 1
+    assert select_hot_year(summary) == 2019
