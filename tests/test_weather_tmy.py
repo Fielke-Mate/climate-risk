@@ -4,6 +4,7 @@ import pytest
 
 from climate_risk import tmy, weather
 from climate_risk.annual import annual_summary, select_hot_year
+from climate_risk.config import settings
 
 
 def test_relative_humidity_bounds_and_saturation():
@@ -80,7 +81,7 @@ def test_hot_year_is_the_warmest_synthetic_year():
     hourly["temp_air"] += 12  # push summer working hours above WBGT 28
     hourly["temp_dew"] = hourly["temp_air"] - 4
     hourly["relative_humidity"] = weather.relative_humidity_from_dewpoint(hourly["temp_air"], hourly["temp_dew"])
-    summary = annual_summary(hourly, "Europe/Madrid", {"start": "06:00", "end": "22:00", "days": list(range(7))})
+    summary = annual_summary(hourly, 40.3, -3.7, "Europe/Madrid", settings())
     assert select_hot_year(summary) == 2019
 
 
@@ -89,6 +90,6 @@ def test_hot_year_degree_hours_separates_years_without_exceedances():
     hourly["temp_air"] += 9  # WBGT reaches the mid-20s but not 28
     hourly["temp_dew"] = hourly["temp_air"] - 6
     hourly["relative_humidity"] = weather.relative_humidity_from_dewpoint(hourly["temp_air"], hourly["temp_dew"])
-    summary = annual_summary(hourly, "Europe/Madrid", {"start": "06:00", "end": "22:00", "days": list(range(7))})
-    assert summary["op_wbgt_prov_degree_hours_gt_base"].nunique() > 1
+    summary = annual_summary(hourly, 40.3, -3.7, "Europe/Madrid", settings())
+    assert summary["op_wbgt_shade_degree_hours_gt_base"].nunique() > 1
     assert select_hot_year(summary) == 2019

@@ -21,7 +21,10 @@ import requests
 from pythermalcomfort.models import utci as utci_model
 
 from climate_risk.config import ROOT, WEATHER_DIR, load_sites, settings
-from climate_risk.weather import operating_hours_mask, wbgt_shaded_provisional
+from concurrent.futures import ProcessPoolExecutor
+
+from climate_risk.heat import heat_frame, wbgt_liljegren
+from climate_risk.weather import operating_hours_mask
 
 DASH = ROOT / "dashboard"
 BASEMAP = DASH / "basemap.json"
@@ -29,7 +32,7 @@ WORLD_ATLAS = "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-50m.json
 
 # Map frame (degrees) and projection: Lambert azimuthal equal-area centred on the portfolio
 LON0, LAT0 = 3.0, 46.0
-BBOX = (-11.5, 34.5, 17.5, 57.5)  # lon_min, lat_min, lon_max, lat_max
+BBOX = (-24.0, 33.0, 30.0, 59.0)  # lon_min, lat_min, lon_max, lat_max (wide, so the map can be landscape)
 MAP_W = 1000
 
 TEMP_BANDS = [(-99, 16, "< 16"), (16, 21, "16–21"), (21, 24, "21–24 optimal"), (24, 25, "24–25"),
@@ -37,7 +40,14 @@ TEMP_BANDS = [(-99, 16, "< 16"), (16, 21, "16–21"), (21, 24, "21–24 optimal"
 UTCI_BANDS = [(-99, -13), (-13, 0), (0, 9), (9, 26), (26, 28), (28, 32), (32, 38), (38, 46), (46, 99)]
 SHIFTS = {"early": ("06:00", "14:00"), "late": ("14:00", "22:00"), "night": ("22:00", "06:00")}
 KPI_METRICS = ["days_tmax_gt30", "days_tmax_gt35", "hours_t_gt30", "nights_tmin_gt20", "temp_max", "temp_mean",
-               "op_wbgt_prov_degree_hours_gt_base", "op_hours_wbgt_prov_gt_threshold", "cdh24", "hdh19"]
+               "op_days_wbgt_sun_gt_ref", "op_days_wbgt_shade_gt_ref", "op_hours_wbgt_sun_gt_ref", "op_hours_wbgt_shade_gt_ref",
+               "op_hours_wbgt_shade_gt_ref_unacc", "op_wbgt_shade_degree_hours_gt_base", "wbgt_sun_max", "wbgt_shade_max",
+               "op_days_wbgt_in2_gt_ref", "op_days_wbgt_in4_gt_ref", "op_hours_wbgt_in2_gt_ref", "op_hours_wbgt_in4_gt_ref",
+               "op_hours_wbgt_in2_gt_ref_unacc", "op_hours_wbgt_in4_gt_ref_unacc",
+               "hours_utci_shade_gt28", "hours_utci_sun_gt32", "hours_utci_sun_gt38",
+               "proc_hours_paint_application_max_temp", "proc_hours_paint_application_max_rh", "proc_hours_composite_room_cooling",
+               "cdh24", "hdh19"]
+INDOOR_OFFSETS = [0.0, 2.0, 4.0]
 
 
 # --------------------------------------------------------------------------- projection / basemap
@@ -105,10 +115,10 @@ def build_basemap() -> dict:
             paths.append("".join(d))
     # graticule
     grat = []
-    for lon in range(-10, 21, 5):
+    for lon in range(-25, 36, 5):
         x, y = to_px(np.full(40, lon), np.linspace(BBOX[1] - 2, BBOX[3] + 2, 40))
         grat.append("M" + "L".join(f"{a:.1f},{b:.1f}" for a, b in zip(x, y)))
-    for lat in range(35, 61, 5):
+    for lat in range(30, 66, 5):
         x, y = to_px(np.linspace(BBOX[0] - 4, BBOX[2] + 4, 60), np.full(60, lat))
         grat.append("M" + "L".join(f"{a:.1f},{b:.1f}" for a, b in zip(x, y)))
     return {"width": MAP_W, "height": h, "land": paths, "graticule": "".join(grat),
@@ -120,32 +130,53 @@ def hour_start_local(index, tz):
     return (index - pd.Timedelta(hours=1)).tz_convert(tz)
 
 
-def tmy_stats(df: pd.DataFrame, tz: str) -> dict:
+def tmy_stats(df: pd.DataFrame, site) -> dict:
+    tz = site.timezone
+    df = df.astype({c: "float64" for c in df.columns if df[c].dtype == "float32"})
     t = df["temp_air"].to_numpy(float)
-    rh = df["relative_humidity"].to_numpy(float)
-    wind = np.clip(df["wind_speed"].to_numpy(float), 0.5, 17.0)
     local = hour_start_local(df.index, tz)
     month, hour = local.month.to_numpy(), local.hour.to_numpy()
-
-    u = np.asarray(utci_model(tdb=t, tr=t, v=wind, rh=rh, limit_inputs=False).utci, float)
-    wbgt = wbgt_shaded_provisional(t, rh)
+    hf = heat_frame(df, site.lat, site.lon)
+    u_sh, u_su = hf["utci_shade"].to_numpy(), hf["utci_sun"].to_numpy()
+    w_su = hf["wbgt_sun"].to_numpy()
+    w_in = {off: (hf["wbgt_shade"].to_numpy() if off == 0 else
+                  wbgt_liljegren(df, site.lat, site.lon, sun=False, indoor_offset=off)["wbgt"].to_numpy())
+            for off in INDOOR_OFFSETS}
     daily = pd.DataFrame({"t": t}, index=local.normalize()).groupby(level=0)["t"].max()
-
     shifts = {}
     for name, (a, b) in SHIFTS.items():
         m = operating_hours_mask(df.index, tz, a, b)
-        shifts[name] = {"wbgt_gt28": int((wbgt[m] > 28).sum()), "wbgt_gt26": int((wbgt[m] > 26).sum()),
-                        "utci_gt28": int((u[m] > 28).sum())}
+        sh = {"sun_gt28": int((w_su[m] > 28).sum())}
+        for off, w in w_in.items():
+            sh[f"in{int(off)}_gt28"] = int((w[m] > 28).sum())
+            sh[f"in{int(off)}_gt26"] = int((w[m] > 26).sum())
+        shifts[name] = sh
     hist_bins = np.arange(-10, 47)
     return {
         "temp_bands": [int(((t >= lo) & (t < hi)).sum()) for lo, hi, _ in TEMP_BANDS],
         "temp_hist": np.histogram(np.clip(t, -10, 45.99), bins=hist_bins)[0].tolist(),
         "month_hour_t": [[round(float(t[(month == m) & (hour == h)].mean()), 2) for h in range(24)] for m in range(1, 13)],
         "monthly_tmax": [round(float(daily[daily.index.month == m].mean()), 2) for m in range(1, 13)],
-        "utci_bands": [int(((u >= lo) & (u < hi)).sum()) for lo, hi in UTCI_BANDS],
-        "utci_heat_by_hour": [int(((u > 28) & (hour == h)).sum()) for h in range(24)],
+        "utci_bands": [int(((u_sh >= lo) & (u_sh < hi)).sum()) for lo, hi in UTCI_BANDS],
+        "utci_bands_sun": [int(((u_su >= lo) & (u_su < hi)).sum()) for lo, hi in UTCI_BANDS],
+        "utci_heat_by_hour": [int(((u_sh > 28) & (hour == h)).sum()) for h in range(24)],
+        "utci_heat_by_hour_sun": [int(((u_su > 28) & (hour == h)).sum()) for h in range(24)],
         "shifts": shifts,
     }
+
+
+def site_tmy_block(job):
+    """All weather-summary statistics for one site (runs in a worker process)."""
+    sid, hot_year, models, scenarios, periods = job
+    site = next(s for s in load_sites() if s.site_id == sid)
+    t = {"hist": tmy_stats(pd.read_parquet(WEATHER_DIR / "tmy" / f"{sid}_tmy.parquet"), site),
+         "hotref": tmy_stats(pd.read_parquet(WEATHER_DIR / "hot_year" / f"{sid}_{hot_year}.parquet"), site)}
+    for sc in scenarios:
+        for per in periods:
+            t[f"{sc}_{per}"] = combine([tmy_stats(pd.read_parquet(WEATHER_DIR / "future" / "tmy" / f"{sid}_{m}_{sc}_{per}.parquet"), site)
+                                        for m in models])
+    print(f"{sid}: ok", flush=True)
+    return sid, t
 
 
 def combine(stats_list: list[dict]) -> dict:
@@ -156,10 +187,11 @@ def combine(stats_list: list[dict]) -> dict:
         if key == "shifts":
             out[key] = {sh: {k: [float(np.median([v[sh][k] for v in vals])), float(min(v[sh][k] for v in vals)),
                                   float(max(v[sh][k] for v in vals))] for k in vals[0][sh]} for sh in vals[0]}
+            continue
         else:
             arr = np.array(vals, dtype=float)
             out[key] = np.round(np.median(arr, axis=0), 2).tolist()
-            if key in ("temp_bands", "utci_bands"):
+            if key in ("temp_bands", "utci_bands", "utci_bands_sun"):
                 out[key + "_min"] = np.round(arr.min(axis=0), 1).tolist()
                 out[key + "_max"] = np.round(arr.max(axis=0), 1).tolist()
     return out
@@ -208,17 +240,10 @@ def main() -> None:
                         for (sc, per), v in c.groupby(["scenario", "period"])["annual_warming_model_tas"]}
         kpi[s.site_id] = k
 
-        # weather-summary statistics from typical years (TMY) and the hot reference year
-        hist_tmy = pd.read_parquet(WEATHER_DIR / "tmy" / f"{s.site_id}_tmy.parquet").astype("float64", errors="ignore")
-        hot_df = pd.read_parquet(WEATHER_DIR / "hot_year" / f"{s.site_id}_{hy}.parquet")
-        t = {"hist": tmy_stats(hist_tmy, s.timezone), "hotref": tmy_stats(hot_df, s.timezone)}
-        for sc in fc["scenarios"]:
-            for per in fc["periods"]:
-                per_model = [tmy_stats(pd.read_parquet(WEATHER_DIR / "future" / "tmy" / f"{s.site_id}_{m}_{sc}_{per}.parquet"), s.timezone)
-                             for m in models]
-                t[f"{sc}_{per}"] = combine(per_model)
-        tmy[s.site_id] = t
-        print(f"{s.site_id}: ok", flush=True)
+
+    with ProcessPoolExecutor(max_workers=4) as pool:
+        jobs = [(x["id"], x["hot_year"], models, fc["scenarios"], list(fc["periods"])) for x in site_rows]
+        tmy = dict(pool.map(site_tmy_block, jobs))
 
     data = {
         "meta": {
@@ -227,6 +252,8 @@ def main() -> None:
             "models": models, "scenarios": fc["scenarios"], "periods": list(fc["periods"]),
             "temp_bands": [b[2] for b in TEMP_BANDS],
             "operating_hours": cfg["operating_hours"],
+            "indoor_offsets": INDOOR_OFFSETS,
+            "process_limits": {k: v["label"] for k, v in cfg["heat"]["process_limits"].items()},
         },
         "basemap": basemap, "sites": site_rows, "kpi": kpi, "tmy": tmy,
     }

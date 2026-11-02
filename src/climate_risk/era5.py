@@ -87,7 +87,7 @@ def standardise(raw: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     ghi = (df["ssrd"] / 3600.0).clip(lower=0)
     direct_h = (df["fdir"] / 3600.0).clip(lower=0).clip(upper=ghi)
     mid_hour = df.index - pd.Timedelta(minutes=30)
-    solpos = pvlib.solarposition.get_solarposition(mid_hour, grid["grid_lat"], grid["grid_lon"])
+    solpos = pvlib.solarposition.get_solarposition(mid_hour, grid["grid_lat"], grid["grid_lon"], method="nrel_numba")
     cos_z = np.cos(np.radians(solpos["apparent_zenith"].to_numpy()))
     dni = np.where(cos_z > np.cos(np.radians(87.0)), direct_h.to_numpy() / np.maximum(cos_z, 1e-6), 0.0)
     out["ghi"] = ghi

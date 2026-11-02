@@ -111,6 +111,7 @@ button { font-family: inherit; }
 .toggle { display: flex; height: 30px; padding: 2px; gap: 2px; border-radius: 8px; background: var(--bg-2); }
 .toggle button { height: 26px; padding: 0 10px; border: 0; background: none; border-radius: 6px; font-size: var(--fs-12); color: var(--ink-2); cursor: pointer; white-space: nowrap; }
 .toggle button[aria-pressed="true"] { background: #fff; color: var(--ink); box-shadow: 0 1px 2px rgba(28,16,44,.14); font-weight: 600; }
+.toggle button:disabled { cursor: not-allowed; }
 .vbar .cnt { margin-left: auto; font-size: var(--fs-12); color: var(--ink-3); }
 .vbar .cnt b { color: var(--ink); }
 select.ksel { height: 30px; font: inherit; font-size: var(--fs-125); padding: 0 8px; border: 1px solid var(--line-2); border-radius: 8px; background: #fff; color: var(--ink); cursor: pointer; max-width: 100%; }
@@ -150,8 +151,9 @@ select.ksel { height: 30px; font: inherit; font-size: var(--fs-125); padding: 0 
 .mapsel b { display: block; font-size: var(--fs-125); font-weight: 600; }
 .mapsel span { color: var(--purple-200); }
 .legend { position: absolute; left: 12px; bottom: 12px; background: rgba(255,255,255,.94); border: 1px solid var(--line); border-radius: var(--r-pill); padding: 5px 12px; display: flex; align-items: center; gap: 10px; font-size: var(--fs-11); color: var(--ink-2); max-width: calc(100% - 24px); flex-wrap: wrap; }
-.legend .ramp { display: flex; width: 110px; height: 8px; border-radius: 4px; overflow: hidden; }
-.legend .ramp i { flex: 1; }
+.legend .bands { display: flex; gap: 2px 8px; flex-wrap: wrap; }
+.legend .bands span { display: inline-flex; align-items: center; gap: 4px; font-family: var(--mono); font-size: var(--fs-105); color: var(--ink-2); }
+.legend .bands i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 .legend .mono { color: var(--ink-3); }
 .tview { margin-top: 10px; }
 .tview summary { cursor: pointer; font-size: var(--fs-12); color: var(--purple-600); font-weight: 500; }
@@ -195,6 +197,10 @@ tbody th { font-weight: 400; text-align: left; color: var(--ink); }
 td.v { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 td .rg { display: block; font-size: var(--fs-11); color: var(--ink-3); }
 td .up { color: var(--pink-600); font-weight: 500; }
+.seg-s { display: inline-flex; height: 26px; padding: 2px; gap: 2px; border-radius: 7px; background: var(--bg-2); margin: 0 0 8px; flex-wrap: wrap; }
+.seg-s button { height: 22px; padding: 0 9px; border: 0; background: none; border-radius: 5px; font-size: var(--fs-12); color: var(--ink-2); cursor: pointer; }
+.seg-s button[aria-pressed="true"] { background: #fff; color: var(--ink); box-shadow: 0 1px 2px rgba(28,16,44,.14); font-weight: 600; }
+.ph { display: inline-block; font-size: var(--fs-105); font-weight: 600; color: var(--ink); background: var(--need-bg); border: 1px solid var(--need-line); border-radius: var(--r-pill); padding: 0 7px; margin-left: 6px; vertical-align: 1px; white-space: nowrap; }
 .prov { display: inline-block; font-size: var(--fs-105); font-weight: 600; color: var(--purple-600); background: var(--purple-050); border-radius: var(--r-pill); padding: 0 7px; margin-left: 6px; vertical-align: 1px; white-space: nowrap; }
 
 /* stacks */
@@ -238,7 +244,7 @@ footer p { margin: 0; max-width: 120ch; }
     <h1>European Plant Heat Risk<small>Illustrative aerospace portfolio · 15 sites · 4 countries</small></h1>
     <span class="sp"></span>
     <span class="ktag k-edit"><i class="d"></i>Prototype</span>
-    <span class="ktag k-look" title="WBGT and UTCI are shaded estimates until the full method is added"><i class="d"></i>Some metrics provisional</span>
+    <span class="ktag k-look" title="Process limits use placeholder thresholds until real specifications are supplied"><i class="d"></i>Process limits are placeholders</span>
   </header>
 
   <aside class="side" id="side" aria-label="Filters">
@@ -266,6 +272,8 @@ footer p { margin: 0; max-width: 120ch; }
       <div class="vgrp"><span>Scenario</span><div class="toggle" id="ctl-scen"><button data-v="ssp245">SSP2-4.5 middle</button><button data-v="ssp585">SSP5-8.5 high</button></div></div>
       <div class="vgrp"><span>Period</span><div class="toggle" id="ctl-period"><button data-v="hist">Today</button><button data-v="2040">2040</button><button data-v="2050">2050</button></div></div>
       <div class="vgrp"><span>Year</span><div class="toggle" id="ctl-yt"><button data-v="typical">Typical</button><button data-v="hot">Hot (1 in 10)</button></div></div>
+      <div class="vgrp"><span>Exposure</span><div class="toggle" id="ctl-expo"><button data-v="in">Indoor</button><button data-v="sun">Outdoor, in sun</button></div></div>
+      <div class="vgrp" id="hallgrp"><span>Hall heat gain</span><div class="toggle" id="ctl-hall"><button data-v="0">+0 °C</button><button data-v="2">+2 °C</button><button data-v="4">+4 °C</button></div></div>
       <span class="cnt" id="cnt"></span>
     </section>
 
@@ -277,8 +285,9 @@ footer p { margin: 0; max-width: 120ch; }
           <div><h2 id="map-title">Where the heat is</h2><p id="map-sub"></p></div>
           <div class="slot"><span>Colour by</span>
             <select class="ksel" id="ctl-layer" aria-label="Colour the map by">
+              <option value="worker_days">Worker heat-safety days (WBGT above 28 °C)</option>
               <option value="days_tmax_gt30">Days above 30 °C</option>
-              <option value="op_wbgt_prov_degree_hours_gt_base">Worker heat stress (WBGT degree-hours)</option>
+              <option value="op_wbgt_shade_degree_hours_gt_base">Indoor heat stress (WBGT degree-hours, hall = outside)</option>
               <option value="d_days30">Extra days above 30 °C vs today</option>
               <option value="warming">Warming (annual mean)</option>
             </select>
@@ -319,12 +328,17 @@ const DATA = /*__DATA__*/null;
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const SVGNS = "http://www.w3.org/2000/svg";
-const S = { scen: "ssp245", period: "2050", yt: "typical", layer: "days_tmax_gt30", site: null, tab: "summary", sel: null, open: {} };
+const S = { scen: "ssp245", period: "2050", yt: "typical", layer: "worker_days", site: null, tab: "summary", sel: null, open: {}, expo: "in", hall: "0" };
+/* exposure -> metric keys. Indoor: no solar radiation (shaded WBGT, UTCI with radiant temperature = air), hall at outdoor temperature plus the chosen heat gain. */
+const EXPO = () => S.expo === "sun" ? { tag: "sun", days: "op_days_wbgt_sun_gt_ref", hours: "op_hours_wbgt_sun_gt_ref", unacc: null, shift: "sun", label: "outdoor, in sun" }
+  : S.hall === "0" ? { tag: "in0", days: "op_days_wbgt_shade_gt_ref", hours: "op_hours_wbgt_shade_gt_ref", unacc: "op_hours_wbgt_shade_gt_ref_unacc", shift: "in0", label: "indoor, hall = outside" }
+  : { tag: "in" + S.hall, days: `op_days_wbgt_in${S.hall}_gt_ref`, hours: `op_hours_wbgt_in${S.hall}_gt_ref`, unacc: `op_hours_wbgt_in${S.hall}_gt_ref_unacc`, shift: "in" + S.hall, label: `indoor, hall +${S.hall} °C` };
 const SITES = DATA.sites;
 const byId = Object.fromEntries(SITES.map(s => [s.id, s]));
 const COUNTRY = { FR: "France", DE: "Germany", ES: "Spain", GB: "United Kingdom" };
 const SCEN = { ssp245: "SSP2-4.5", ssp585: "SSP5-8.5" };
-const RAMP = ["#FDE4EF", "#FBC2DA", "#FF94BF", "#FF5FA0", "#FF3D8B", "#D91877", "#A3005A"];
+const RAMP = ["#FDE4EF", "#FBC2DA", "#FF94BF", "#FF5FA0", "#FF3D8B", "#D91877", "#A3005A"];   /* warming heatmap only */
+const RISK = ["#0B41CD", "#7C97E8", "#C7D3F6", "#FF9EC4", "#FF3D8B", "#A3005A"];                /* blue (low) -> magenta (high), as in the temperature bars */
 const TEMP_COLS = ["#0B41CD", "#9DB3F0", "#0FB86E", "#F6CFE0", "#FF8FBC", "#FF3D8B", "#A3005A"];
 const UTCI = [
   ["Strong cold", "< −13", "#4f50ff", 1], ["Moderate cold", "−13 to 0", "#6f86e0", 1], ["Slight cold", "0 to 9", "#79b3c9", 0],
@@ -350,23 +364,28 @@ function hover(el, html) { el.addEventListener("mouseenter", e => { tip.innerHTM
 
 /* ---------- values ---------- */
 function kpiVal(site, metric, period = S.period, scen = S.scen, yt = S.yt) {
+  if (metric === "worker_days") metric = EXPO().days;
   const k = DATA.kpi[site][metric];
   return period === "hist" ? [k.hist[yt], null, null] : k[`${scen}_${period}_${yt}`];
 }
 function layerVal(site, period = S.period, scen = S.scen) {
   if (S.layer === "warming") return period === "hist" ? null : DATA.kpi[site].warming[`${scen}_${period}`][0];
+  if (S.layer === "worker_days") return kpiVal(site, "worker_days", period, scen)[0];
   if (S.layer === "d_days30") return period === "hist" ? null : kpiVal(site, "days_tmax_gt30", period, scen)[0] - DATA.kpi[site].days_tmax_gt30.hist[S.yt];
   return kpiVal(site, S.layer, period, scen)[0];
 }
 const LAYER = {
-  days_tmax_gt30: { unit: "days", d: 0, sqrt: false, short: "Days above 30 °C" },
-  op_wbgt_prov_degree_hours_gt_base: { unit: "°C·h", d: 0, sqrt: true, short: "WBGT degree-hours", prov: true },
-  d_days30: { unit: "days", d: 0, sqrt: false, plus: true, short: "Extra days above 30 °C" },
-  warming: { unit: "°C", d: 1, sqrt: false, plus: true, short: "Warming" },
+  worker_days: { unit: "days", d: 0, short: "Worker heat-safety days", breaks: [1, 5, 15, 35, 70] },
+  days_tmax_gt30: { unit: "days", d: 0, short: "Days above 30 °C", breaks: [5, 15, 30, 60, 100] },
+  op_wbgt_shade_degree_hours_gt_base: { unit: "°C·h", d: 0, short: "Indoor WBGT degree-hours", breaks: [10, 50, 150, 400, 800] },
+  d_days30: { unit: "days", d: 0, plus: true, short: "Extra days above 30 °C", breaks: [2, 5, 10, 15, 25] },
+  warming: { unit: "°C", d: 1, plus: true, short: "Warming", breaks: [0.5, 0.8, 1.1, 1.4, 1.7] },
 };
 const lv = (v, info) => v == null ? "–" : (info.plus ? sgn(v, info.d) : fmt(v, info.d));
-function domain() { let mx = 0; for (const s of SITES) for (const p of ["hist", "2040", "2050"]) for (const sc of DATA.meta.scenarios) { const v = layerVal(s.id, p, sc); if (v != null) mx = Math.max(mx, v); } return mx || 1; }
-function colorFor(v, mx, sqrt) { if (v == null) return "#C9C4D3"; let t = Math.max(0, Math.min(1, v / mx)); if (sqrt) t = Math.sqrt(t); return RAMP[Math.min(RAMP.length - 1, Math.floor(t * RAMP.length))]; }
+function band(v, info) { if (v == null) return -1; let i = 0; while (i < info.breaks.length && v >= info.breaks[i]) i++; return i; }
+function colorFor(v, info) { const i = band(v, info); return i < 0 ? "#C9C4D3" : RISK[i]; }
+function bandLabels(info) { const b = info.breaks, u = info.d ? 1 : 0, f = x => (info.plus ? "+" : "") + fmt(x, u);
+  return [`< ${f(b[0])}`, ...b.slice(0, -1).map((x, i) => `${f(x)}–${f(b[i + 1])}`), `≥ ${f(b[b.length - 1])}`]; }
 const inView = () => SITES.filter(s => S.sel.has(s.id));
 
 /* ---------- filters ---------- */
@@ -438,14 +457,15 @@ function renderStrip() {
     const fut = S.period === "hist" ? null : kpiVal(s.id, "days_tmax_gt30")[0] - DATA.kpi[s.id].days_tmax_gt30.hist[S.yt];
     if (fut != null && (!rise || fut > rise.v)) rise = { s, v: fut };
   }
-  const days = v.map(s => kpiVal(s.id, "days_tmax_gt30")[0]);
-  const avg = days.length ? days.reduce((a, b) => a + b, 0) / days.length : null;
-  const avgToday = v.length ? v.reduce((a, s) => a + DATA.kpi[s.id].days_tmax_gt30.hist[S.yt], 0) / v.length : null;
+  const W = "worker_days", cur = byId[S.site];
+  const curV = cur ? kpiVal(cur.id, W)[0] : null, curToday = cur ? kpiVal(cur.id, W, "hist")[0] : null;
+  const avgW = v.length ? v.reduce((a, s) => a + kpiVal(s.id, W)[0], 0) / v.length : null;
   const cs = new Set(v.map(s => s.country));
   const tile = (ic, lab, val, foot) => `<div class="kstat"><div class="lab"><span class="ic">${ICON[ic]}</span>${lab}</div><div class="val">${val}</div><div class="foot">${foot}</div></div>`;
   $("#kstrip").innerHTML =
     tile("pin", "Sites in view", `${n}<small>of ${SITES.length}</small>`, `${cs.size} ${cs.size === 1 ? "country" : "countries"}: ${[...cs].map(c => COUNTRY[c]).join(", ") || "none"}`) +
-    tile("sun", "Average days above 30 °C", `${fmt(avg)}<small>days a year</small>`, S.period === "hist" ? `today, ${S.yt} year` : `${sgn(avg - avgToday)} vs today · ${per}`) +
+    tile("sun", `${cur ? cur.name.split(" (")[0] : "Site"} · worker heat-safety days`, `${fmt(curV)}<small>days a year</small>`,
+      `Days with a working hour above WBGT 28 °C, ${EXPO().label} · ${per}<br>Portfolio in view: ${fmt(avgW)} on average${S.period !== "hist" && curV != null ? ` · site ${sgn(curV - curToday)} vs today` : ""}`) +
     tile("therm", `Most exposed site · ${info.short}`, top ? top.s.name.split(" (")[0] : "–", top ? `${lv(top.v, info)} ${info.unit} · ${per}` : (S.period === "hist" && info.plus ? "choose 2040 or 2050" : "no sites in view")) +
     tile("up", "Largest rise in days above 30 °C", rise ? rise.s.name.split(" (")[0] : "–", rise ? `${sgn(rise.v)} days a year by ${S.period} · ${SCEN[S.scen]}` : "choose 2040 or 2050");
 }
@@ -454,9 +474,10 @@ function renderStrip() {
 function drawMap() {
   const svg = $("#map"), bm = DATA.basemap;
   const xs = SITES.map(s => s.x), ys = SITES.map(s => s.y);
-  const x0 = Math.max(0, Math.min(...xs) - 120), x1 = Math.min(bm.width, Math.max(...xs) + 120);
-  const y0 = Math.max(0, Math.min(...ys) - 110), y1 = Math.min(bm.height, Math.max(...ys) + 130);
-  svg.setAttribute("viewBox", `${x0} ${y0} ${x1 - x0} ${y1 - y0}`);
+  /* landscape frame (1.6 : 1) around the sites: the card keeps its width but is much shorter */
+  const yA = Math.min(...ys) - 55, yB = Math.max(...ys) + 75, h = yB - yA, w = h * 1.6;
+  const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+  svg.setAttribute("viewBox", `${(cx - w / 2).toFixed(1)} ${yA.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}`);
   let h = `<path class="grat" d="${bm.graticule}"/>` + bm.land.map(d => `<path class="land" d="${d}"/>`).join("");
   h += `<circle id="ring" class="sel-ring" r="22"/><g id="sites">` + SITES.map(s => `<circle class="site" data-id="${s.id}" cx="${s.x}" cy="${s.y}" r="14" tabindex="0" role="button" aria-label="${s.name}"/>`).join("") + `</g>`;
   svg.innerHTML = h;
@@ -468,21 +489,20 @@ function drawMap() {
   }
 }
 function updateMap() {
-  const info = LAYER[S.layer], mx = domain();
+  const info = LAYER[S.layer];
   const per = S.period === "hist" ? "Today (2015–2025)" : `${S.period} · ${SCEN[S.scen]}`;
-  $("#map-sub").textContent = `${per} · ${S.yt === "typical" ? "typical year" : "hot year (1 in 10)"} · click a site for its card`;
-  for (const c of $$("#sites circle")) { const id = c.dataset.id; c.classList.toggle("off", !S.sel.has(id)); c.style.fill = colorFor(layerVal(id), mx, info.sqrt); }
+  $("#map-sub").textContent = `${per} · ${S.yt === "typical" ? "typical year" : "hot year (1 in 10)"}${S.layer === "worker_days" ? " · " + EXPO().label : ""} · click a site for its card`;
+  for (const c of $$("#sites circle")) { const id = c.dataset.id; c.classList.toggle("off", !S.sel.has(id)); c.style.fill = colorFor(layerVal(id), info); }
   const s = byId[S.site], ring = $("#ring");
   ring.style.display = s && S.sel.has(s.id) ? "" : "none";
   if (s) { ring.setAttribute("cx", s.x); ring.setAttribute("cy", s.y); }
   $("#mapsel").hidden = !s;
   if (s) $("#mapsel").innerHTML = `<div><b>${s.name}</b><span>${info.short}: ${lv(layerVal(s.id), info)} ${info.unit}</span></div>`;
-  const ticks = info.sqrt ? [0, mx / 4, mx] : [0, mx / 2, mx];
-  $("#legend").innerHTML = `<span>${info.short}</span><span class="ramp">${RAMP.map(c => `<i style="background:${c}"></i>`).join("")}</span><span class="mono">${ticks.map(t => lv(t, info)).join(" · ")} ${info.unit}</span>${info.sqrt ? "<span>√ scale</span>" : ""}${info.prov ? '<span class="prov">provisional</span>' : ""}`;
+  $("#legend").innerHTML = `<span>${info.short} (${info.unit})</span><span class="bands">${bandLabels(info).map((l, i) => `<span><i style="background:${RISK[i]}"></i>${l}</span>`).join("")}</span>`;
   const rows = inView().map(x => ({ s: x, v: layerVal(x.id) })).sort((a, b) => (b.v ?? -1e9) - (a.v ?? -1e9));
   const rmx = Math.max(...rows.map(r => r.v ?? 0), 1e-9);
   $("#rank").innerHTML = rows.length ? rows.map(r => `<li data-id="${r.s.id}" class="${r.s.id === S.site ? "on" : ""}" tabindex="0">
-      <span class="nm">${r.s.name}</span><span class="bar"><i style="width:${r.v == null ? 0 : Math.max(1, 100 * Math.max(0, r.v) / rmx)}%;background:${colorFor(r.v, mx, info.sqrt)}"></i></span>
+      <span class="nm">${r.s.name}</span><span class="bar"><i style="width:${r.v == null ? 0 : Math.max(1, 100 * Math.max(0, r.v) / rmx)}%;background:${colorFor(r.v, info)}"></i></span>
       <span class="val">${lv(r.v, info)}</span></li>`).join("") : `<li class="empty">No sites in view. Tick a country or site in the filters.</li>`;
   for (const li of $$("#rank li[data-id]")) { li.addEventListener("click", () => selectSite(li.dataset.id)); li.addEventListener("keydown", e => { if (e.key === "Enter") selectSite(li.dataset.id); }); }
 }
@@ -514,12 +534,16 @@ function cell(id, m, col, d) {
 }
 function thead(cols, first) { return `<thead><tr><th>${first}</th>${cols.map(c => `<th><span class="k" style="background:${c.color}"></span>${c.label}<small>${c.sub}</small></th>`).join("")}</tr></thead>`; }
 function renderSummary() {
-  const cols = columns(), id = S.site;
+  const cols = columns(), id = S.site, E = EXPO();
   const rows = [["Days above 30 °C", "days_tmax_gt30", 0], ["Days above 35 °C", "days_tmax_gt35", 0], ["Warm nights (minimum above 20 °C)", "nights_tmin_gt20", 0],
-    ["Highest temperature (°C)", "temp_max", 1], ["Worker heat stress: WBGT degree-hours above 25 °C in working hours", "op_wbgt_prov_degree_hours_gt_base", 0, 1],
-    ["Working hours with WBGT above 28 °C (moderate-work limit)", "op_hours_wbgt_prov_gt_threshold", 0, 1], ["Cooling degree-hours above 24 °C", "cdh24", 0], ["Heating degree-hours below 19 °C", "hdh19", 0]];
+    ["Highest temperature (°C)", "temp_max", 1],
+    [`Worker heat-safety days: a working hour above WBGT 28 °C (${E.label})`, E.days, 0],
+    [`Working hours above WBGT 28 °C (${E.label})`, E.hours, 0],
+    ...(E.unacc ? [[`Working hours above WBGT 26 °C, not acclimatised (${E.label})`, E.unacc, 0]] : []),
+    ["Hours of strong UTCI heat stress in sun (above 32)", "hours_utci_sun_gt32", 0],
+    ["Cooling degree-hours above 24 °C", "cdh24", 0], ["Heating degree-hours below 19 °C", "hdh19", 0]];
   return `<div><h3>Key heat indicators</h3><div class="tw"><table>${thead(cols, "Indicator")}<tbody>${rows.map(([l, m, d, p]) => `<tr><th scope="row">${l}${p ? '<span class="prov">provisional</span>' : ""}</th>${cols.map(c => cell(id, m, c.key, d)).join("")}</tr>`).join("")}</tbody></table></div>
-    <p class="note">From all 11 years (2015–2025) and their 2040/2050 versions. Future values: median of ${DATA.meta.models.length} climate models, range below. Working hours ${DATA.meta.operating_hours.start}–${DATA.meta.operating_hours.end} local time. WBGT is a shaded estimate that reads low until the full method is added.</p></div>
+    <p class="note">From all 11 years (2015–2025) and their 2040/2050 versions. Future values: median of ${DATA.meta.models.length} climate models, range below. Working hours ${DATA.meta.operating_hours.start}–${DATA.meta.operating_hours.end} local time. WBGT: Liljegren model, ISO 7243 reference 28 °C for moderate work (acclimatised).</p></div>
     <div><h3>Hours of the year in each temperature band <span class="sub">typical year</span></h3>${stackRows(c => DATA.tmy[id][tmyKey(c.key)].temp_bands, TEMP_COLS, DATA.meta.temp_bands, " °C")}</div>`;
 }
 function stackRows(get, colors, labels, unit) {
@@ -566,20 +590,35 @@ function renderTemp() {
     <div><h3>When the warming happens <span class="sub">2050 ${SCEN[sc]} minus today, by month and hour of day</span></h3>${heatmap(diff, "°C")}<p class="note">Local time, median of ${DATA.meta.models.length} models applied to the typical year. Afternoon warming adds directly to the work-time heat load.</p></div>
     <div><h3>Average daily maximum temperature by month</h3>${mon}${skey([["var(--c-today)", "Today (typical)"], ["var(--c-hot)", `Hot year ${hy} (actual)`, 1], ["var(--c-2040)", `2040 ${SCEN[sc]}`], ["var(--c-2050)", `2050 ${SCEN[sc]}`]])}</div>`;
 }
+function seg(id, opts, cur) { return `<div class="seg-s" data-seg="${id}">${opts.map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${v === cur}">${l}</button>`).join("")}</div>`; }
 function renderStress() {
   const id = S.site, T = DATA.tmy[id], cols = columns(), hy = byId[id].hot_year;
-  const sr = (l, sh, k) => `<tr><th scope="row">${l}</th>${cols.map(c => { const v = T[tmyKey(c.key)].shifts[sh][k]; return Array.isArray(v) ? `<td class="v">${fmt(v[0])}<span class="rg">${fmt(v[1])}–${fmt(v[2])}</span></td>` : `<td class="v">${fmt(v)}</td>`; }).join("")}</tr>`;
-  const up = (c, ix) => { const v = T[tmyKey(c.key)].utci_bands, t = v.reduce((a, b) => a + b, 0); return ix.reduce((a, i) => a + v[i], 0) / t * 100; };
+  const ex = EXPO().shift;
+  const cellOf = v => Array.isArray(v) ? `<td class="v">${fmt(v[0])}<span class="rg">${fmt(v[1])}–${fmt(v[2])}</span></td>` : `<td class="v">${fmt(v)}</td>`;
+  const sr = (l, sh, k) => `<tr><th scope="row">${l}</th>${cols.map(c => cellOf(T[tmyKey(c.key)].shifts[sh][k])).join("")}</tr>`;
+  const k28 = ex === "sun" ? "sun_gt28" : `${ex}_gt28`;
+  const rows = sr("Early shift 06–14 · WBGT above 28 °C", "early", k28) + sr("Late shift 14–22 · WBGT above 28 °C", "late", k28) + sr("Night shift 22–06 · WBGT above 28 °C", "night", k28)
+    + (ex === "sun" ? "" : sr("Late shift · WBGT above 26 °C (not acclimatised)", "late", `${ex}_gt26`));
+  const expoNote = ex === "sun" ? "Outdoor work in direct sun: Liljegren WBGT including solar radiation." :
+    `Indoor work, no solar radiation: shaded WBGT with the hall ${ex === "in0" ? "at outdoor temperature (the current assumption)" : `${ex.slice(2)} °C warmer than outside (same moisture)`}. The real heat gain needs engineering estimates per hall. Change exposure in the View bar.`;
+  const sunU = S.expo === "sun";
+  const ub = sunU ? "utci_bands_sun" : "utci_bands", uh = sunU ? "utci_heat_by_hour_sun" : "utci_heat_by_hour";
+  const up = (c, ix) => { const v = T[tmyKey(c.key)][ub], t = v.reduce((a, b) => a + b, 0); return ix.reduce((a, i) => a + v[i], 0) / t * 100; };
   const ur = [["Heat stress (UTCI above 28)", [5, 6, 7, 8]], ["Cold stress (UTCI below 0)", [0, 1]], ["Comfortable (9 to 26)", [3]], ["Comfortable for short periods only (0–9, 26–28)", [2, 4]]];
   const hrs = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, "0")}:00`);
-  const byHour = lineChart({ xLabels: hrs, unit: "h a year", xTicks: [0, 6, 12, 18, 23], series: cols.map(c => ({ name: c.label, values: T[tmyKey(c.key)].utci_heat_by_hour, color: c.color, dash: c.key === "hotref" })) });
-  return `<div><h3>Work heat stress by shift: ISO 7243 WBGT, moderate work<span class="prov">provisional</span></h3>
-      <div class="tw"><table>${thead(cols, "Hours a year")}<tbody>${sr("Early shift 06–14 · WBGT above 28 °C", "early", "wbgt_gt28")}${sr("Late shift 14–22 · WBGT above 28 °C", "late", "wbgt_gt28")}${sr("Night shift 22–06 · WBGT above 28 °C", "night", "wbgt_gt28")}${sr("Late shift · WBGT above 26 °C (not acclimatised)", "late", "wbgt_gt26")}</tbody></table></div>
-      <p class="note">Typical year for today and the future; the hot year is the actual ${hy} weather. Shaded WBGT with indoor = outdoor, estimated from temperature and humidity. It reads low until the full method (sun and shade) is added.</p></div>
+  const byHour = lineChart({ xLabels: hrs, unit: "h a year", xTicks: [0, 6, 12, 18, 23], series: cols.map(c => ({ name: c.label, values: T[tmyKey(c.key)][uh], color: c.color, dash: c.key === "hotref" })) });
+  const procRows = Object.entries(DATA.meta.process_limits).map(([k, label]) => `<tr><th scope="row">${label}</th>${cols.map(c => cell(id, "proc_hours_" + k, c.key, 0)).join("")}</tr>`).join("");
+  return `<div><h3>Work heat stress by shift: ISO 7243 WBGT, moderate work <span class="sub">${EXPO().label}</span></h3>
+      <div class="tw"><table>${thead(cols, "Hours a year")}<tbody>${rows}</tbody></table></div>
+      <p class="note">${expoNote} Typical year for today and the future; the hot year is the actual ${hy} weather.</p></div>
     <div><h3>UTCI thermal stress scale</h3><div class="utci-scale">${UTCI.map(u => `<div class="${u[3] ? "dk" : ""}" style="background:${u[2]}">${u[0]}<br>${u[1]}</div>`).join("")}</div></div>
-    <div><h3>Condition of person: share of hours in each UTCI band<span class="prov">provisional · shade</span></h3>${stackRows(c => T[tmyKey(c.key)].utci_bands, UTCI.map(u => u[2]), UTCI.map(u => u[0]), "")}</div>
-    <div><h3>UTCI comfort and stress</h3><div class="tw"><table>${thead(cols, "Share of the year")}<tbody>${ur.map(([l, ix]) => `<tr><th scope="row">${l}</th>${cols.map(c => `<td class="v">${fmt(up(c, ix), 1)} %</td>`).join("")}</tr>`).join("")}</tbody></table></div></div>
-    <div><h3>Hours of UTCI heat stress (above 28) by hour of day</h3>${byHour}${skey(cols.map(c => [c.color, c.label, c.key === "hotref"]))}<p class="note">UTCI in shade (radiant temperature = air temperature). Sun exposure for outdoor work is added in the next step.</p></div>`;
+    <div><h3>Condition of person: share of hours in each UTCI band <span class="sub">${sunU ? "in sun" : "indoor / shade, hall = outside"}</span></h3>
+      ${stackRows(c => T[tmyKey(c.key)][ub], UTCI.map(u => u[2]), UTCI.map(u => u[0]), "")}</div>
+    <div><h3>UTCI comfort and stress <span class="sub">${sunU ? "in sun" : "indoor / shade"}</span></h3><div class="tw"><table>${thead(cols, "Share of the year")}<tbody>${ur.map(([l, ix]) => `<tr><th scope="row">${l}</th>${cols.map(c => `<td class="v">${fmt(up(c, ix), 1)} %</td>`).join("")}</tr>`).join("")}</tbody></table></div></div>
+    <div><h3>Hours of UTCI heat stress (above 28) by hour of day <span class="sub">${sunU ? "in sun" : "indoor / shade"}</span></h3>${byHour}${skey(cols.map(c => [c.color, c.label, c.key === "hotref"]))}
+      <p class="note">${sunU ? "In sun, ASHRAE 55 SolarCal adds the radiant load on a standing person." : "Indoors there is no solar gain: radiant temperature equals air temperature. UTCI does not yet include the hall heat gain."}</p></div>
+    <div><h3>Process limits <span class="ph">placeholder thresholds</span></h3><div class="tw"><table>${thead(cols, "Hours a year")}<tbody>${procRows}</tbody></table></div>
+      <p class="note">Outdoor air conditions against example limits. Replace them with the real paint, coating and composite specifications to make this meaningful.</p></div>`;
 }
 function renderAbout() {
   const s = byId[S.site];
@@ -589,7 +628,10 @@ function renderAbout() {
     <li><b>Hot year:</b> the site's hottest actual year (${s.hot_year}), ranked by working-hour WBGT degree-hours above 25 °C, shown unadjusted.</li>
     <li><b>2040 and 2050:</b> every historical year adjusted with changes from ${DATA.meta.models.length} NEX-GDDP-CMIP6 models (${DATA.meta.models.join(", ")}). Hot days receive the hot-day warming. 2040 = 2031–2050 and 2050 = 2041–2060, both against 2015–2025.</li>
     <li><b>Typical vs hot:</b> the median year and the 90th-percentile year (about 1 in 10) of the 11 years.</li>
-    <li><b>Provisional:</b> WBGT and UTCI are shaded estimates with indoor = outdoor. Next: the full WBGT method (sun and shade), UTCI in sun, process limits and indoor adjustments.</li></ul>
+    <li><b>WBGT:</b> Liljegren et al. (2008) model, run with sun for outdoor work and without solar radiation for shade and indoor work. Reference 28 °C for moderate work (ISO 7243, acclimatised), 26 °C if not acclimatised.</li>
+    <li><b>UTCI:</b> in shade the radiant temperature equals air temperature; in sun, ASHRAE 55 SolarCal adds the radiant load on a standing person.</li>
+    <li><b>Exposure:</b> "Indoor" uses no solar radiation (shaded WBGT; UTCI with radiant temperature = air temperature) and the hall at outdoor temperature plus the chosen heat gain (+0, +2 or +4 °C, same moisture). "Outdoor, in sun" includes solar radiation for work outside.</li>
+    <li><b>Process limits</b> use placeholder thresholds.</li></ul>
     <p>Known limits: ERA5's ~25 km grid smooths local peaks, and Getafe and Illescas share one grid cell, so their historical weather is identical. Climate models disagree; the ranges show that spread.</p></div>`;
 }
 function renderPanel() {
@@ -599,10 +641,11 @@ function renderPanel() {
   const pane = $("#pane");
   pane.innerHTML = { summary: renderSummary, temp: renderTemp, stress: renderStress, about: renderAbout }[S.tab]();
   for (const el of $$("[data-t]", pane)) hover(el, el.dataset.t);
+  for (const g of $$("[data-seg]", pane)) g.addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S[g.dataset.seg] = b.dataset.v; store.set("cr-" + g.dataset.seg, b.dataset.v); renderPanel(); });
 }
 
 /* ---------- wiring ---------- */
-function renderAll() { renderStrip(); updateMap(); renderPanel(); }
+function renderAll() { $("#hallgrp").style.opacity = S.expo === "sun" ? .4 : 1; for (const b of $$("#ctl-hall button")) b.disabled = S.expo === "sun"; renderStrip(); updateMap(); renderPanel(); }
 function selectSite(id) {
   if (!byId[id]) return;
   S.site = id;
@@ -616,10 +659,12 @@ function bindToggle(id, key) {
   }
 }
 function init() {
-  for (const k of ["scen", "period", "yt", "layer", "tab"]) { const v = store.get("cr-" + k); if (v) S[k] = v; }
+  for (const k of ["scen", "period", "yt", "layer", "tab", "expo", "hall"]) { const v = store.get("cr-" + k); if (v) S[k] = v; }
+  if (!LAYER[S.layer]) S.layer = "worker_days";
+  if (!["in", "sun"].includes(S.expo)) S.expo = "in";
   S.sel = new Set(SITES.map(s => s.id));
   S.open = { EU: true };
-  bindToggle("ctl-scen", "scen"); bindToggle("ctl-period", "period"); bindToggle("ctl-yt", "yt");
+  bindToggle("ctl-scen", "scen"); bindToggle("ctl-period", "period"); bindToggle("ctl-yt", "yt"); bindToggle("ctl-expo", "expo"); bindToggle("ctl-hall", "hall");
   $("#ctl-layer").value = S.layer;
   $("#ctl-layer").addEventListener("change", e => { S.layer = e.target.value; store.set("cr-layer", S.layer); renderStrip(); updateMap(); });
   for (const b of $$(".tabs button")) b.addEventListener("click", () => { S.tab = b.dataset.tab; store.set("cr-tab", S.tab); renderPanel(); });

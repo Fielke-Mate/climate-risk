@@ -26,6 +26,7 @@ from climate_risk import deltas as dl  # noqa: E402
 from climate_risk import morph, weather  # noqa: E402
 from climate_risk.annual import annual_summary  # noqa: E402
 from climate_risk.config import ROOT, WEATHER_DIR, load_sites, settings  # noqa: E402
+from concurrent.futures import ProcessPoolExecutor  # noqa: E402
 
 OUT = ROOT / "outputs" / "phase2"
 FIG = ROOT / "docs" / "phase2" / "figures"
@@ -33,7 +34,13 @@ FUT = WEATHER_DIR / "future"
 SERIES = ["#2a78d6", "#eb6834", "#1baf7a"]
 INK, INK2, GRID = "#0b0b0b", "#52514e", "#e4e3df"
 METRICS = ["temp_mean", "temp_max", "hours_t_gt30", "days_tmax_gt30", "days_tmax_gt35", "nights_tmin_gt20",
-           "op_hours_wbgt_prov_gt_threshold", "op_wbgt_prov_degree_hours_gt_base", "cdh24", "hdh19"]
+           "op_hours_wbgt_shade_gt_ref", "op_hours_wbgt_shade_gt_ref_unacc", "op_hours_wbgt_sun_gt_ref",
+           "op_days_wbgt_shade_gt_ref", "op_days_wbgt_sun_gt_ref", "op_wbgt_shade_degree_hours_gt_base",
+           "op_days_wbgt_in2_gt_ref", "op_days_wbgt_in4_gt_ref", "op_hours_wbgt_in2_gt_ref", "op_hours_wbgt_in4_gt_ref",
+           "op_hours_wbgt_in2_gt_ref_unacc", "op_hours_wbgt_in4_gt_ref_unacc",
+           "wbgt_shade_max", "wbgt_sun_max", "hours_utci_shade_gt28", "hours_utci_sun_gt32", "hours_utci_sun_gt38",
+           "proc_hours_paint_application_max_temp", "proc_hours_paint_application_max_rh", "proc_hours_composite_room_cooling",
+           "cdh24", "hdh19"]
 
 
 def style(ax):
@@ -46,16 +53,57 @@ def style(ax):
     ax.set_axisbelow(True)
 
 
+def process_site(job):
+    """Deltas, morphed years, annual indicators and morphed TMYs for one site (runs in a worker)."""
+    site_id, fc = job
+    cfg = settings()
+    b = cfg["baseline"]
+    site = next(s for s in load_sites() if s.site_id == site_id)
+    hourly = pd.read_parquet(WEATHER_DIR / "hourly" / f"{site.site_id}_era5_{b['start_year']}_{b['end_year']}.parquet")
+    hourly = hourly.astype({c: "float64" for c in hourly.columns if hourly[c].dtype == "float32"})
+    tmy_hist = pd.read_parquet(WEATHER_DIR / "tmy" / f"{site.site_id}_tmy.parquet")
+    base_daily = morph.baseline_daily_table(hourly)
+    starts = hourly.index - pd.Timedelta(hours=1)
+    hist_monthly = hourly["temp_air"].groupby(starts.month).mean()
+    delta_frames, annual_rows, checks = [], [], []
+    for model in fc["models"]:
+        for scen in fc["scenarios"]:
+            for period, window in fc["periods"].items():
+                d = dl.site_deltas(site.site_id, model, scen, tuple(fc["baseline_years"]), tuple(window),
+                                   fc["temperature_quantiles"])
+                delta_frames.append(d.assign(site_id=site.site_id, model=model, scenario=scen, period=period))
+                fut = morph.morph(hourly, d, base_daily)
+                probs = weather.validate(fut)
+                fut_monthly = fut["temp_air"].groupby(starts.month).mean()
+                tas = d[d.variable == "tas"].set_index("month")["value"]
+                diff = (fut_monthly - hist_monthly) - tas
+                checks.append({"site_id": site.site_id, "model": model, "scenario": scen, "period": period,
+                               "annual_warming_morphed": round(float((fut_monthly - hist_monthly).mean()), 3),
+                               "annual_warming_model_tas": round(float(tas.mean()), 3),
+                               "max_abs_monthly_diff": round(float(diff.abs().max()), 3),
+                               "rh_max": round(float(fut["relative_humidity"].max()), 2),
+                               "issues": "; ".join(probs)})
+                summ = annual_summary(fut, site.lat, site.lon, site.timezone, cfg)
+                annual_rows += [{"site_id": site.site_id, "model": model, "scenario": scen, "period": period,
+                                 "source_year": y, **r} for y, r in summ.to_dict("index").items()]
+                tmy_f = morph.morph(tmy_hist, d, base_daily)
+                tmy_f["source_year"] = tmy_hist["source_year"].to_numpy()
+                tmy_f.astype({c: "float32" for c in tmy_f.columns if tmy_f[c].dtype == "float64"}).to_parquet(
+                    FUT / "tmy" / f"{site.site_id}_{model}_{scen}_{period}.parquet")
+    print(f"{site.site_id}: done", flush=True)
+    return delta_frames, annual_rows, checks
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--sites", default="")
     ap.add_argument("--models", default="", help="comma list; default all configured models")
     ap.add_argument("--out", default="", help="override output folder (for trial runs)")
+    ap.add_argument("--workers", type=int, default=4)
     args = ap.parse_args()
 
     cfg = settings()
     fc, op, b = cfg["future"], cfg["operating_hours"], cfg["baseline"]
-    thr, dh_base = cfg["hot_year"]["wbgt_threshold_c"], cfg["hot_year"]["wbgt_degree_hour_base_c"]
     sites = sorted(load_sites(), key=lambda s: s.lat)
     if args.sites:
         sites = [s for s in sites if s.site_id in args.sites.split(",")]
@@ -67,43 +115,12 @@ def main() -> None:
     for d in (OUT, FIG, FUT / "tmy"):
         d.mkdir(parents=True, exist_ok=True)
 
-    delta_frames, annual_rows, checks = [], [], []
-    for site in sites:
-        hourly = pd.read_parquet(WEATHER_DIR / "hourly" / f"{site.site_id}_era5_{b['start_year']}_{b['end_year']}.parquet")
-        hourly = hourly.astype({c: "float64" for c in hourly.columns if hourly[c].dtype == "float32"})
-        tmy_hist = pd.read_parquet(WEATHER_DIR / "tmy" / f"{site.site_id}_tmy.parquet")
-        base_daily = morph.baseline_daily_table(hourly)
-        starts = hourly.index - pd.Timedelta(hours=1)
-        hist_monthly = hourly["temp_air"].groupby(starts.month).mean()
-
-        for model in fc["models"]:
-            for scen in fc["scenarios"]:
-                for period, window in fc["periods"].items():
-                    d = dl.site_deltas(site.site_id, model, scen, tuple(fc["baseline_years"]), tuple(window),
-                                       fc["temperature_quantiles"])
-                    delta_frames.append(d.assign(site_id=site.site_id, model=model, scenario=scen, period=period))
-
-                    fut = morph.morph(hourly, d, base_daily)
-                    probs = weather.validate(fut)
-                    fut_monthly = fut["temp_air"].groupby(starts.month).mean()
-                    tas = d[d.variable == "tas"].set_index("month")["value"]
-                    diff = (fut_monthly - hist_monthly) - tas
-                    checks.append({"site_id": site.site_id, "model": model, "scenario": scen, "period": period,
-                                   "annual_warming_morphed": round(float((fut_monthly - hist_monthly).mean()), 3),
-                                   "annual_warming_model_tas": round(float(tas.mean()), 3),
-                                   "max_abs_monthly_diff": round(float(diff.abs().max()), 3),
-                                   "rh_max": round(float(fut["relative_humidity"].max()), 2),
-                                   "issues": "; ".join(probs)})
-
-                    summ = annual_summary(fut, site.timezone, op, wbgt_threshold=thr, wbgt_dh_base=dh_base)
-                    annual_rows += [{"site_id": site.site_id, "model": model, "scenario": scen, "period": period,
-                                     "source_year": y, **r} for y, r in summ.to_dict("index").items()]
-
-                    tmy_f = morph.morph(tmy_hist, d, base_daily)
-                    tmy_f["source_year"] = tmy_hist["source_year"].to_numpy()
-                    tmy_f.astype({c: "float32" for c in tmy_f.columns if tmy_f[c].dtype == "float64"}).to_parquet(
-                        FUT / "tmy" / f"{site.site_id}_{model}_{scen}_{period}.parquet")
-        print(f"{site.site_id}: done", flush=True)
+    jobs = [(site.site_id, fc) for site in sites]
+    with ProcessPoolExecutor(max_workers=min(args.workers, len(jobs))) as pool:
+        results = list(pool.map(process_site, jobs))
+    delta_frames = [f for r in results for f in r[0]]
+    annual_rows = [x for r in results for x in r[1]]
+    checks = [x for r in results for x in r[2]]
 
     deltas_all = pd.concat(delta_frames, ignore_index=True)
     deltas_all.to_parquet(OUT / "deltas.parquet", index=False)
@@ -153,7 +170,8 @@ def main() -> None:
     plt.close(fig)
 
     for metric, label, fname in [("days_tmax_gt30", "Days with max temperature above 30 °C", "days_tmax30_projection.png"),
-                                 ("op_wbgt_prov_degree_hours_gt_base", "WBGT degree-hours above 25 °C in working hours (provisional shaded WBGT)", "wbgt_degree_hours_projection.png")]:
+                                 ("op_wbgt_shade_degree_hours_gt_base", "WBGT degree-hours above 25 °C in working hours (shade, Liljegren)", "wbgt_degree_hours_projection.png"),
+                                 ("op_days_wbgt_shade_gt_ref", "Days with a working hour above WBGT 28 °C (shade, moderate work)", "wbgt_days_projection.png")]:
         fig, axes = plt.subplots(1, 2, figsize=(12, 6.2), sharey=True, sharex=True)
         for ax, scen in zip(axes, fc["scenarios"]):
             style(ax)

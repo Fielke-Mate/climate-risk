@@ -97,15 +97,14 @@ def main() -> None:
         to_float32(t).to_parquet(WEATHER_DIR / "tmy" / f"{site.site_id}_tmy.parquet")
         selection_rows += [{"site_id": site.site_id, **r} for r in sel.to_dict("records")]
 
-        summ = annual_summary(hourly, site.timezone, op, wbgt_threshold=thr,
-                              wbgt_dh_base=cfg["hot_year"]["wbgt_degree_hour_base_c"])
+        summ = annual_summary(hourly, site.lat, site.lon, site.timezone, cfg)
         hot = select_hot_year(summ)
         local_year = (hourly.index - pd.Timedelta(hours=1)).tz_convert(site.timezone).year
         to_float32(hourly[local_year == hot]).to_parquet(WEATHER_DIR / "hot_year" / f"{site.site_id}_{hot}.parquet")
         annual_rows += [{"site_id": site.site_id, "year": y, **r} for y, r in summ.to_dict("index").items()]
         hot_rows.append({"site_id": site.site_id, "name": site.name, "hot_year": hot,
-                         **{f"hot_{k}": v for k, v in summ.loc[hot, ["op_wbgt_prov_degree_hours_gt_base", "op_hours_wbgt_prov_gt_threshold", "hours_t_gt30", "temp_max", "days_tmax_gt35"]].items()},
-                         "median_op_hours_wbgt_prov_gt_threshold": float(summ["op_hours_wbgt_prov_gt_threshold"].median())})
+                         **{f"hot_{k}": v for k, v in summ.loc[hot, ["op_wbgt_shade_degree_hours_gt_base", "op_hours_wbgt_shade_gt_ref", "op_days_wbgt_shade_gt_ref", "hours_t_gt30", "temp_max", "days_tmax_gt35"]].items()},
+                         "median_op_hours_wbgt_shade_gt_ref": float(summ["op_hours_wbgt_shade_gt_ref"].median())})
 
         profiles = {"ERA5 2015-2025 mean": monthly_profile(hourly), "TMY (this tool)": monthly_profile(t)}
         if not args.skip_pvgis:
@@ -158,8 +157,8 @@ def main() -> None:
     # Figures 2-3: site x year heatmaps with the hot reference year outlined
     cmap = LinearSegmentedColormap.from_list("blues", ["#ffffff"] + BLUES)
     for metric, title, fname in [
-        ("op_wbgt_prov_degree_hours_gt_base", "WBGT degree-hours above 25 °C in working hours (06–22), provisional shaded WBGT", "heatmap_wbgt_degree_hours.png"),
-        ("op_hours_wbgt_prov_gt_threshold", f"Working hours (06–22) above WBGT {thr:g} °C (provisional shaded WBGT)", "heatmap_wbgt_hours.png"),
+        ("op_wbgt_shade_degree_hours_gt_base", "WBGT degree-hours above 25 °C in working hours (06–22), shaded WBGT (Liljegren)", "heatmap_wbgt_degree_hours.png"),
+        ("op_days_wbgt_shade_gt_ref", f"Days with a working hour above WBGT {thr:g} °C (shade, moderate work)", "heatmap_wbgt_days.png"),
         ("days_tmax_gt30", "Days with maximum air temperature above 30 °C", "heatmap_days_tmax30.png"),
     ]:
         piv = annual.pivot(index="site_id", columns="year", values=metric).loc[order]
