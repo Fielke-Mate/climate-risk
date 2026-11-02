@@ -8,7 +8,7 @@ The first focus is **extreme heat**: risk to **worker health and productivity** 
 - Weather summary dashboard design: [`docs/weather_summary_dashboard.md`](docs/weather_summary_dashboard.md)
 - Phase 1 (historical weather files): [`docs/phase1/README.md`](docs/phase1/README.md)
 - Phase 2 (future weather files): [`docs/phase2/README.md`](docs/phase2/README.md)
-- Dashboard prototype: `dashboard/index.html` (self-contained; open in a browser or host on GitHub Pages). Rebuild with `scripts/build_dashboard.py`.
+- Operational Heat Risk Explorer (dashboard prototype): `dashboard/index.html` (self-contained; open in a browser or host on GitHub Pages). Rebuild with `scripts/build_dashboard.py`.
 
 ## Setup
 
