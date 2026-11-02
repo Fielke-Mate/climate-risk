@@ -8,6 +8,8 @@ The first focus is **extreme heat**: risk to **worker health and productivity** 
 - Weather summary dashboard design: [`docs/weather_summary_dashboard.md`](docs/weather_summary_dashboard.md)
 - Phase 1 (historical weather files): [`docs/phase1/README.md`](docs/phase1/README.md)
 - Phase 2 (future weather files): [`docs/phase2/README.md`](docs/phase2/README.md)
+- Phase 3 (heat-stress metrics): [`docs/phase3/README.md`](docs/phase3/README.md)
+- Methodology review (building services): [`docs/methodology_review.md`](docs/methodology_review.md)
 - Dashboard prototype: `dashboard/index.html` (self-contained; open in a browser or host on GitHub Pages). Rebuild with `scripts/build_dashboard.py`.
 
 ## Setup

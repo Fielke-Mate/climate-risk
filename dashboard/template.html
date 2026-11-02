@@ -150,7 +150,7 @@ select.ksel { height: 30px; font: inherit; font-size: var(--fs-125); padding: 0 
 .mapsel { position: absolute; left: 12px; top: 12px; display: flex; align-items: center; gap: 10px; background: var(--deep); color: #fff; padding: 7px 12px; border-radius: var(--r-sm); box-shadow: var(--sh-2); font-size: var(--fs-11); max-width: calc(100% - 24px); }
 .mapsel b { display: block; font-size: var(--fs-125); font-weight: 600; }
 .mapsel span { color: var(--purple-200); }
-.legend { position: absolute; left: 12px; bottom: 12px; background: rgba(255,255,255,.94); border: 1px solid var(--line); border-radius: var(--r-pill); padding: 5px 12px; display: flex; align-items: center; gap: 10px; font-size: var(--fs-11); color: var(--ink-2); max-width: calc(100% - 24px); flex-wrap: wrap; }
+.legend { margin-top: 8px; display: flex; align-items: center; gap: 6px 12px; font-size: var(--fs-11); color: var(--ink-2); flex-wrap: wrap; }
 .legend .bands { display: flex; gap: 2px 8px; flex-wrap: wrap; }
 .legend .bands span { display: inline-flex; align-items: center; gap: 4px; font-family: var(--mono); font-size: var(--fs-105); color: var(--ink-2); }
 .legend .bands i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
@@ -297,8 +297,8 @@ footer p { margin: 0; max-width: 120ch; }
           <div class="mapbox">
             <svg id="map" role="img" aria-label="Map of the selected sites coloured by the chosen heat indicator"></svg>
             <div class="mapsel" id="mapsel"></div>
-            <div class="legend" id="legend"></div>
           </div>
+          <div class="legend" id="legend"></div>
           <details class="tview" open><summary>Ranking</summary><ol class="rank" id="rank"></ol></details>
         </div>
       </section>
@@ -475,9 +475,9 @@ function drawMap() {
   const svg = $("#map"), bm = DATA.basemap;
   const xs = SITES.map(s => s.x), ys = SITES.map(s => s.y);
   /* landscape frame (1.6 : 1) around the sites: the card keeps its width but is much shorter */
-  const yA = Math.min(...ys) - 55, yB = Math.max(...ys) + 75, h = yB - yA, w = h * 1.6;
+  const yA = Math.min(...ys) - 70, yB = Math.max(...ys) + 45, fh = yB - yA, fw = fh * 1.3;
   const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
-  svg.setAttribute("viewBox", `${(cx - w / 2).toFixed(1)} ${yA.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}`);
+  svg.setAttribute("viewBox", `${(cx - fw / 2).toFixed(1)} ${yA.toFixed(1)} ${fw.toFixed(1)} ${fh.toFixed(1)}`);
   let h = `<path class="grat" d="${bm.graticule}"/>` + bm.land.map(d => `<path class="land" d="${d}"/>`).join("");
   h += `<circle id="ring" class="sel-ring" r="22"/><g id="sites">` + SITES.map(s => `<circle class="site" data-id="${s.id}" cx="${s.x}" cy="${s.y}" r="14" tabindex="0" role="button" aria-label="${s.name}"/>`).join("") + `</g>`;
   svg.innerHTML = h;

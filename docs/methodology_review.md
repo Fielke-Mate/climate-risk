@@ -37,6 +37,8 @@ The indoor case uses outdoor wind adjusted to 2 m (median 1.8–2.9 m/s, floor ~
 
 **Reading:** air speed is a second-order issue (≈ +0.1–0.2 °C). **The hall's heat gain over outdoor is first-order.** That is where the modelling effort should go.
 
+The Phase 3 future results show the same pattern. For Sevilla by 2050 (SSP5-8.5, typical year), worker heat-safety days are **20 / 37 / 56** with the hall at +0 / +2 / +4 °C, against **107** for outdoor work in sun ([Phase 3 results](phase3/README.md)). The spread from the hall assumption is larger than the spread between climate scenarios.
+
 ### 2b. ERA5 against airport weather stations (Meteostat, 2015–2025)
 
 | | Sevilla | Toulouse | Hamburg (Fuhlsbüttel, ~10 km) | Hawarden (Broughton) |

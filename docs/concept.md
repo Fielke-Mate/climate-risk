@@ -284,7 +284,7 @@ The dashboard is built **around an interactive map of the portfolio**:
 | 0 | Concept & framework | This document, agreed |
 | 1 ✅ | Historical weather files | ERA5 hourly 2015–2025 + TMY + hot reference year for every pilot site; PVGIS TMY cross-check; standard format; quick plots. **Done**: see [`phase1/README.md`](phase1/README.md) |
 | 2 ✅ | Future weather files | CMIP6 deltas + morphing → 2040/2050 ensembles (6 models). See [`phase2/README.md`](phase2/README.md) |
-| 3 | Heat analysis | ISO 7243 WBGT, thresholds, days/hours over, ranges |
+| 3 ✅ | Heat analysis | Liljegren WBGT (sun/shade), UTCI (SolarCal in sun), indoor +2/+4 °C sensitivity, process placeholders. See [`phase3/README.md`](phase3/README.md); reviewed in [`methodology_review.md`](methodology_review.md) |
 | 4 (prototype ✅) | Dashboard | Prototype brought forward: published page (`dashboard/`), PDE design tokens, Europe › country › site filters, map, KPI strip, site card (summary, temperature, heat stress). Metrics from Phase 3 still provisional |
 | 5 | Extensions | Risk rating scale, indoor offsets from engineering estimates, more hazards, financial effects, client sharing |
 
@@ -337,12 +337,17 @@ The dashboard is built **around an interactive map of the portfolio**:
 | D44 | Temperature quantile deltas capped at the 95th percentile (the 99th is too noisy with an 11-year baseline) |
 | D45 | Dashboard built as one self-contained HTML page (claude.ai page now; GitHub Pages later), styled with the PDE design tokens (no PDE logo) |
 | D46 | Dashboard prototype built before Phase 3; WBGT/UTCI labelled provisional until then |
+| D47 | WBGT by the Liljegren model (pywbgt): sun for outdoor work, no solar for indoor/shade |
+| D48 | UTCI in sun uses ASHRAE 55 SolarCal radiant gain; in shade radiant temperature = air |
+| D49 | Dashboard exposure toggle: Indoor (default; hall heat gain +0/+2/+4 °C) or Outdoor in sun; drives map, headline tile and tables |
+| D50 | Map colours: fixed risk bands, blue (low) to magenta (high), matching the temperature bars |
 | D33 | Site coordinates checked against published sources (airfield reference points or addresses; see sites CSV). Precision of ~1–3 km is enough, as ERA5 grid cells are ~9–30 km |
 
 ## 13. Open questions
 
-1. **Getafe / Illescas:** they share one ERA5 grid cell, so their historical weather is identical. Accept for the proof of concept, or test ERA5-Land (~9 km) later?
-2. **Dashboard feedback:** layers, charts and wording to refine after the first review.
+1. **Headline tiles 3 and 4:** options A–E (recommended: A sites at high risk, D working time above the safe limit), plus provisional High / Very high cut-offs.
+2. **Methodology review actions** ([`methodology_review.md`](methodology_review.md)): which improvements to take forward first (recommended: indoor hall model / BMS calibration, EPW export, station bias correction).
+3. **Getafe / Illescas** share one ERA5 cell (identical historical weather).
 
 ## 14. Notes for productisation
 
