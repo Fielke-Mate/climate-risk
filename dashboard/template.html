@@ -330,9 +330,9 @@ const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const SVGNS = "http://www.w3.org/2000/svg";
 const S = { scen: "ssp245", period: "2050", yt: "typical", layer: "worker_days", site: null, tab: "summary", sel: null, open: {}, expo: "in", hall: "0" };
 /* exposure -> metric keys. Indoor: no solar radiation (shaded WBGT, UTCI with radiant temperature = air), hall at outdoor temperature plus the chosen heat gain. */
-const EXPO = () => S.expo === "sun" ? { tag: "sun", days: "op_days_wbgt_sun_gt_ref", hours: "op_hours_wbgt_sun_gt_ref", unacc: null, shift: "sun", label: "outdoor, in sun" }
-  : S.hall === "0" ? { tag: "in0", days: "op_days_wbgt_shade_gt_ref", hours: "op_hours_wbgt_shade_gt_ref", unacc: "op_hours_wbgt_shade_gt_ref_unacc", shift: "in0", label: "indoor, hall = outside" }
-  : { tag: "in" + S.hall, days: `op_days_wbgt_in${S.hall}_gt_ref`, hours: `op_hours_wbgt_in${S.hall}_gt_ref`, unacc: `op_hours_wbgt_in${S.hall}_gt_ref_unacc`, shift: "in" + S.hall, label: `indoor, hall +${S.hall} °C` };
+const EXPO = () => S.expo === "sun" ? { tag: "sun", days: "op_days_wbgt_sun_gt_ref", hours: "op_hours_wbgt_sun_gt_ref", unacc: null, shift: "sun", utci32: "op_hours_utci_sun_gt32", label: "outdoor, in sun" }
+  : S.hall === "0" ? { tag: "in0", days: "op_days_wbgt_shade_gt_ref", hours: "op_hours_wbgt_shade_gt_ref", unacc: "op_hours_wbgt_shade_gt_ref_unacc", shift: "in0", utci32: "op_hours_utci_in0_gt32", label: "indoor, hall = outside" }
+  : { tag: "in" + S.hall, days: `op_days_wbgt_in${S.hall}_gt_ref`, hours: `op_hours_wbgt_in${S.hall}_gt_ref`, unacc: `op_hours_wbgt_in${S.hall}_gt_ref_unacc`, shift: "in" + S.hall, utci32: `op_hours_utci_in${S.hall}_gt32`, label: `indoor, hall +${S.hall} °C` };
 const SITES = DATA.sites;
 const byId = Object.fromEntries(SITES.map(s => [s.id, s]));
 const COUNTRY = { FR: "France", DE: "Germany", ES: "Spain", GB: "United Kingdom" };
@@ -540,7 +540,7 @@ function renderSummary() {
     [`Worker heat-safety days: a working hour above WBGT 28 °C (${E.label})`, E.days, 0],
     [`Working hours above WBGT 28 °C (${E.label})`, E.hours, 0],
     ...(E.unacc ? [[`Working hours above WBGT 26 °C, not acclimatised (${E.label})`, E.unacc, 0]] : []),
-    ["Hours of strong UTCI heat stress in sun (above 32)", "hours_utci_sun_gt32", 0],
+    [`Working hours of strong UTCI heat stress, above 32 (${E.label})`, E.utci32, 0],
     ["Cooling degree-hours above 24 °C", "cdh24", 0], ["Heating degree-hours below 19 °C", "hdh19", 0]];
   return `<div><h3>Key heat indicators</h3><div class="tw"><table>${thead(cols, "Indicator")}<tbody>${rows.map(([l, m, d, p]) => `<tr><th scope="row">${l}${p ? '<span class="prov">provisional</span>' : ""}</th>${cols.map(c => cell(id, m, c.key, d)).join("")}</tr>`).join("")}</tbody></table></div>
     <p class="note">From all 11 years (2015–2025) and their 2040/2050 versions. Future values: median of ${DATA.meta.models.length} climate models, range below. Working hours ${DATA.meta.operating_hours.start}–${DATA.meta.operating_hours.end} local time. WBGT: Liljegren model, ISO 7243 reference 28 °C for moderate work (acclimatised).</p></div>
@@ -602,7 +602,7 @@ function renderStress() {
   const expoNote = ex === "sun" ? "Outdoor work in direct sun: Liljegren WBGT including solar radiation." :
     `Indoor work, no solar radiation: shaded WBGT with the hall ${ex === "in0" ? "at outdoor temperature (the current assumption)" : `${ex.slice(2)} °C warmer than outside (same moisture)`}. The real heat gain needs engineering estimates per hall. Change exposure in the View bar.`;
   const sunU = S.expo === "sun";
-  const ub = sunU ? "utci_bands_sun" : "utci_bands", uh = sunU ? "utci_heat_by_hour_sun" : "utci_heat_by_hour";
+  const ub = sunU ? "utci_bands_sun" : `utci_bands_${ex}`, uh = sunU ? "utci_heat_by_hour_sun" : `utci_heat_by_hour_${ex}`;
   const up = (c, ix) => { const v = T[tmyKey(c.key)][ub], t = v.reduce((a, b) => a + b, 0); return ix.reduce((a, i) => a + v[i], 0) / t * 100; };
   const ur = [["Heat stress (UTCI above 28)", [5, 6, 7, 8]], ["Cold stress (UTCI below 0)", [0, 1]], ["Comfortable (9 to 26)", [3]], ["Comfortable for short periods only (0–9, 26–28)", [2, 4]]];
   const hrs = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, "0")}:00`);
@@ -612,11 +612,11 @@ function renderStress() {
       <div class="tw"><table>${thead(cols, "Hours a year")}<tbody>${rows}</tbody></table></div>
       <p class="note">${expoNote} Typical year for today and the future; the hot year is the actual ${hy} weather.</p></div>
     <div><h3>UTCI thermal stress scale</h3><div class="utci-scale">${UTCI.map(u => `<div class="${u[3] ? "dk" : ""}" style="background:${u[2]}">${u[0]}<br>${u[1]}</div>`).join("")}</div></div>
-    <div><h3>Condition of person: share of hours in each UTCI band <span class="sub">${sunU ? "in sun" : "indoor / shade, hall = outside"}</span></h3>
+    <div><h3>Condition of person: share of hours in each UTCI band <span class="sub">${EXPO().label}</span></h3>
       ${stackRows(c => T[tmyKey(c.key)][ub], UTCI.map(u => u[2]), UTCI.map(u => u[0]), "")}</div>
-    <div><h3>UTCI comfort and stress <span class="sub">${sunU ? "in sun" : "indoor / shade"}</span></h3><div class="tw"><table>${thead(cols, "Share of the year")}<tbody>${ur.map(([l, ix]) => `<tr><th scope="row">${l}</th>${cols.map(c => `<td class="v">${fmt(up(c, ix), 1)} %</td>`).join("")}</tr>`).join("")}</tbody></table></div></div>
-    <div><h3>Hours of UTCI heat stress (above 28) by hour of day <span class="sub">${sunU ? "in sun" : "indoor / shade"}</span></h3>${byHour}${skey(cols.map(c => [c.color, c.label, c.key === "hotref"]))}
-      <p class="note">${sunU ? "In sun, ASHRAE 55 SolarCal adds the radiant load on a standing person." : "Indoors there is no solar gain: radiant temperature equals air temperature. UTCI does not yet include the hall heat gain."}</p></div>
+    <div><h3>UTCI comfort and stress <span class="sub">${EXPO().label}</span></h3><div class="tw"><table>${thead(cols, "Share of the year")}<tbody>${ur.map(([l, ix]) => `<tr><th scope="row">${l}</th>${cols.map(c => `<td class="v">${fmt(up(c, ix), 1)} %</td>`).join("")}</tr>`).join("")}</tbody></table></div></div>
+    <div><h3>Hours of UTCI heat stress (above 28) by hour of day <span class="sub">${EXPO().label}</span></h3>${byHour}${skey(cols.map(c => [c.color, c.label, c.key === "hotref"]))}
+      <p class="note">${sunU ? "In sun, ASHRAE 55 SolarCal adds the radiant load on a standing person." : "Indoors (naturally ventilated hall): hall air temperature including the heat gain, radiant temperature equal to air temperature (roof radiant heat not yet included) and still air (~0.3 m/s at body height)."}</p></div>
     <div><h3>Process limits <span class="ph">placeholder thresholds</span></h3><div class="tw"><table>${thead(cols, "Hours a year")}<tbody>${procRows}</tbody></table></div>
       <p class="note">Outdoor air conditions against example limits. Replace them with the real paint, coating and composite specifications to make this meaningful.</p></div>`;
 }
@@ -629,7 +629,7 @@ function renderAbout() {
     <li><b>2040 and 2050:</b> every historical year adjusted with changes from ${DATA.meta.models.length} NEX-GDDP-CMIP6 models (${DATA.meta.models.join(", ")}). Hot days receive the hot-day warming. 2040 = 2031–2050 and 2050 = 2041–2060, both against 2015–2025.</li>
     <li><b>Typical vs hot:</b> the median year and the 90th-percentile year (about 1 in 10) of the 11 years.</li>
     <li><b>WBGT:</b> Liljegren et al. (2008) model, run with sun for outdoor work and without solar radiation for shade and indoor work. Reference 28 °C for moderate work (ISO 7243, acclimatised), 26 °C if not acclimatised.</li>
-    <li><b>UTCI:</b> in shade the radiant temperature equals air temperature; in sun, ASHRAE 55 SolarCal adds the radiant load on a standing person.</li>
+    <li><b>UTCI:</b> used for naturally ventilated, unconditioned halls and outdoor work. Indoors it uses the hall air temperature (with the chosen heat gain), radiant temperature equal to air and still air; in sun, ASHRAE 55 SolarCal adds the radiant load on a standing person. PMV / adaptive comfort suit mechanically conditioned rooms only.</li>
     <li><b>Exposure:</b> "Indoor" uses no solar radiation (shaded WBGT; UTCI with radiant temperature = air temperature) and the hall at outdoor temperature plus the chosen heat gain (+0, +2 or +4 °C, same moisture). "Outdoor, in sun" includes solar radiation for work outside.</li>
     <li><b>Process limits</b> use placeholder thresholds.</li></ul>
     <p>Known limits: ERA5's ~25 km grid smooths local peaks, and Getafe and Illescas share one grid cell, so their historical weather is identical. Climate models disagree; the ranges show that spread.</p></div>`;

@@ -9,7 +9,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from .heat import heat_frame, wbgt_liljegren
+from .heat import heat_frame, utci_indoor, wbgt_liljegren
 from .weather import operating_hours_mask
 
 
@@ -28,6 +28,7 @@ def annual_summary(hourly: pd.DataFrame, lat: float, lon: float, timezone: str, 
     offsets = [float(o) for o in hc.get("indoor_offsets_sensitivity", [])]
     for off in offsets:  # indoor sensitivity: hall warmer than outside by `off` C, no solar (shade)
         df[f"wbgt_in{int(off)}"] = wbgt_liljegren(hourly, lat, lon, sun=False, indoor_offset=off)["wbgt"].to_numpy()
+        df[f"utci_in{int(off)}"] = utci_indoor(hourly, off, hc.get("indoor_wind_10m_equiv", 0.5))
     starts_local = (df.index - pd.Timedelta(hours=1)).tz_convert(timezone)
     df["year"] = starts_local.year
     df["date"] = starts_local.normalize()
@@ -69,6 +70,13 @@ def annual_summary(hourly: pd.DataFrame, lat: float, lon: float, timezone: str, 
         "hours_utci_sun_gt32": g["utci_sun"].apply(lambda s: _count(s, 32)),
         "hours_utci_sun_gt38": g["utci_sun"].apply(lambda s: _count(s, 38)),
     }).join(dy).join(od)
+    summary["op_hours_utci_in0_gt28"] = go["utci_indoor"].apply(lambda s: _count(s, 28))
+    summary["op_hours_utci_in0_gt32"] = go["utci_indoor"].apply(lambda s: _count(s, 32))
+    summary["op_hours_utci_sun_gt32"] = go["utci_sun"].apply(lambda s: _count(s, 32))
+    for o in offsets:
+        tag = f"in{int(o)}"
+        summary[f"op_hours_utci_{tag}_gt28"] = go[f"utci_{tag}"].apply(lambda s: _count(s, 28))
+        summary[f"op_hours_utci_{tag}_gt32"] = go[f"utci_{tag}"].apply(lambda s: _count(s, 32))
     for c, tag in in_cols.items():
         summary[f"op_hours_wbgt_{tag}_gt_ref"] = go[c].apply(lambda s: _count(s, ref))
         summary[f"op_hours_wbgt_{tag}_gt_ref_unacc"] = go[c].apply(lambda s: _count(s, ref_u))

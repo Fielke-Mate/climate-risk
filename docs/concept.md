@@ -341,6 +341,7 @@ The dashboard is built **around an interactive map of the portfolio**:
 | D48 | UTCI in sun uses ASHRAE 55 SolarCal radiant gain; in shade radiant temperature = air |
 | D49 | Dashboard exposure toggle: Indoor (default; hall heat gain +0/+2/+4 °C) or Outdoor in sun; drives map, headline tile and tables |
 | D50 | Map colours: fixed risk bands, blue (low) to magenta (high), matching the temperature bars |
+| D51 | Indoor comfort in naturally ventilated / unconditioned halls uses UTCI with indoor inputs (hall temperature incl. heat gain, still air 0.5 m/s at 10 m, radiant = air); PMV / adaptive only for conditioned rooms |
 | D33 | Site coordinates checked against published sources (airfield reference points or addresses; see sites CSV). Precision of ~1–3 km is enough, as ERA5 grid cells are ~9–30 km |
 
 ## 13. Open questions

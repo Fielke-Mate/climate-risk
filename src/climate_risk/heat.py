@@ -10,7 +10,11 @@ point, pressure, wind (10 m, adjusted to 2 m) and global solar radiation.
 The reference for moderate work (ISO 7243 Class 2, acclimatised) is 28 C (D22).
 
 UTCI: `pythermalcomfort` (Broede et al. 2012 polynomial).
-  * shade: mean radiant temperature = air temperature
+  * indoor (naturally ventilated / unconditioned halls, D51): hall air temperature (outdoor +
+           heat gain, same moisture), radiant temperature = air, still air (0.5 m/s at the 10 m
+           reference height, ~0.3 m/s at body height). PMV / adaptive comfort are kept for
+           mechanically conditioned rooms only.
+  * shade: mean radiant temperature = air temperature, outdoor wind
   * sun:   mean radiant temperature = air temperature + the solar gain to a standing
            person from ASHRAE 55 SolarCal (direct-beam radiation, sun position, side-on
            to the sun, short-wave absorptivity 0.7, ground reflectance 0.2). The 2-inch
@@ -98,6 +102,14 @@ def utci(ta, tmrt, v10, rh):
     return np.asarray(utci_model(tdb=ta, tr=tmrt, v=v, rh=np.asarray(rh, float), limit_inputs=False).utci, float)
 
 
+def utci_indoor(df: pd.DataFrame, offset: float = 0.0, wind_10m_equiv: float = 0.5) -> np.ndarray:
+    """UTCI inside a naturally ventilated hall: air = outdoor + offset (same moisture), Tmrt = air, still air."""
+    from .weather import relative_humidity_from_dewpoint
+    t = df["temp_air"].to_numpy(float) + offset
+    rh = relative_humidity_from_dewpoint(t, np.minimum(df["temp_dew"].to_numpy(float), t))
+    return utci(t, t, np.full(len(t), wind_10m_equiv), rh)
+
+
 def heat_frame(df: pd.DataFrame, lat: float, lon: float, indoor_offset: float = 0.0) -> pd.DataFrame:
     """All Phase 3 hourly heat variables for one weather record."""
     sun = wbgt_liljegren(df, lat, lon, sun=True)
@@ -110,4 +122,5 @@ def heat_frame(df: pd.DataFrame, lat: float, lon: float, indoor_offset: float = 
     out["tmrt_sun"] = ta + d_mrt
     out["utci_sun"] = utci(ta, ta + d_mrt, v10, rh)
     out["utci_shade"] = utci(ta, ta, v10, rh)
+    out["utci_indoor"] = utci_indoor(df, indoor_offset)
     return out

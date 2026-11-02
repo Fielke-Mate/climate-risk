@@ -14,7 +14,7 @@
 | Future climate | **Sound**, with known limits (heatwave length not changed; 6-model sample) | Probably slightly conservative on persistence |
 | Outdoor worker heat stress (WBGT in sun) | **Appropriate.** Liljegren is the reference outdoor model | Slight underestimate (ERA5 peaks, no hot ground surfaces) |
 | **Indoor worker heat stress** | **Not yet representative of a factory hall.** "Indoor = outdoor + fixed offset" ignores how buildings behave | **Main uncertainty.** Indoor results are very sensitive to the offset (Sevilla: 3 → 37 days a year from +0 → +4 °C) |
-| UTCI indoors | **Wrong tool.** UTCI is an outdoor index | Use operative temperature / PMV / adaptive comfort indoors |
+| UTCI indoors | **Appropriate for naturally ventilated / unconditioned halls** (warehouses, hangars), provided it gets indoor inputs. The first version used outdoor wind, which overstated cooling | Fixed: hall temperature with heat gain, still air, radiant = air (roof radiant heat still to add). PMV / adaptive only for conditioned rooms |
 | Process limits | **Not meaningful as built.** Conditioned processes depend on HVAC plant capacity, not on outdoor air temperature directly | Reframe as plant design-condition exceedance |
 | Degree-hours | Fine as a direction-of-travel signal; sensible-only | Understates latent (humidity) cooling load |
 
@@ -135,13 +135,25 @@ The Phase 3 future results show the same pattern. For Sevilla by 2050 (SSP5-8.5,
 
 ### 3.6 Thermal comfort (UTCI)
 
-**Issues**
-- **UTCI is an outdoor index** (wind at 10 m, outdoor clothing model). It is not designed for indoor environments.
-- Outdoor-in-sun assumptions: SolarCal with ground reflectance 0.2 and no long-wave from hot ground. Concrete and asphalt aprons at 45–60 °C add substantially to outdoor radiant temperature, so outdoor UTCI in sun is likely understated.
+*Revised after discussion with the consultant.* An earlier draft of this review recommended PMV indoors. For **naturally ventilated, unconditioned spaces** such as warehouses, logistics halls and assembly hangars, **UTCI is the better index**:
+- PMV (ISO 7730) assumes near-steady, moderate conditions (roughly 10–30 °C air, PMV within ±2), with clothing and activity entered as fixed values. It is designed for conditioned, mostly sedentary spaces and becomes unreliable in hot, variable, radiant-asymmetric halls.
+- UTCI's multi-node physiological model handles strong heat, radiation and air-movement swings. Its reference activity (~135 W/m², walking about 4 km/h) is closer to warehouse and assembly work than office PMV.
+- Adaptive comfort (EN 16798-1 / ASHRAE 55) targets occupants who can open windows and change clothing at low activity, so it also doesn't fit industrial work.
 
-**Suggestions**
-1. **Indoors:** report **operative temperature** exceedance against CIBSE Guide A / EN 16798-1 categories for industrial work, and/or **PMV** with task metabolic rate and clothing (ISO 7730). Keep UTCI for outdoor work only.
-2. **Outdoors:** include ground long-wave (surface temperature from an energy balance or a simple sol-air approach), or use a six-direction radiation model (e.g. SOLWEIG-type) for aprons.
+**Conditions for using UTCI indoors** (implemented as decision D51 after this review):
+- **Air movement:** UTCI's wind input is at 10 m. Indoor air speed (typically 0.1–0.3 m/s at 1.1 m) must be converted (×~1.5); 0.5 m/s at 10 m is UTCI's lower bound and is used for still halls. The first version fed the *outdoor* wind (median ~2–3 m/s), which overstated cooling. Test: still air raises UTCI by +0.2 to +1.2 °C in hot hours, and working hours above UTCI 32 rise ~20 % at Sevilla (453 → 542 a year).
+- **Hall temperature:** air temperature with the hall heat gain, same moisture. At Sevilla, hours above UTCI 32 rise to 832 at +2 °C and 1,144 at +4 °C, so again the heat gain dominates.
+- **Radiant temperature:** currently equal to air temperature. Roof soffits and hot process surfaces raise it in summer (section 3.4). Add this once a hall model exists.
+- **Clothing:** UTCI's clothing model adapts to temperature (outdoor behaviour). Workwear and PPE do not adapt, so UTCI may understate stress for workers in coveralls. For PPE groups, rely on WBGT with clothing adjustment values (3.5).
+
+**Where each index fits**
+| Space | Thermal stress / comfort index | Occupational limit |
+|---|---|---|
+| Outdoor work (aprons, yards, logistics) | UTCI in sun (SolarCal + ground long-wave to add) | WBGT in sun (ISO 7243) |
+| Naturally ventilated / unconditioned halls and warehouses | **UTCI with indoor inputs** | WBGT indoor (ISO 7243 indoor formula) |
+| Mechanically conditioned rooms (offices, clean rooms, paint booths) | PMV/PPD (ISO 7730) or operative-temperature bands (EN 16798-1 / CIBSE Guide A) | Usually not limiting while the plant keeps up (see 3.7) |
+
+**Outdoor in sun:** SolarCal with ground reflectance 0.2 and no long-wave from hot ground. Concrete and asphalt aprons at 45–60 °C add substantially to outdoor radiant temperature, so outdoor UTCI in sun is likely understated. *Suggestion:* include ground long-wave (surface temperature from an energy balance or a simple sol-air approach), or use a six-direction radiation model (e.g. SOLWEIG-type) for aprons.
 
 ### 3.7 Process limits and plant resilience
 
@@ -173,7 +185,7 @@ Cooling degree-hours above 24 °C and heating degree-hours below 19 °C are sens
 | 3 | **Bias-correct ERA5 to airport stations** (temperature, dew point) | Removes ~1 °C peak bias at some sites (2b) | Low–medium | – |
 | 4 | **Plant resilience metrics**: design-condition drift, hours above plant design DB/WB/dew point | Reframes process risk in engineering terms | Low–medium | Plant design bases |
 | 5 | **Workforce groups**: metabolic class, PPE clothing adjustment, indoor ISO 7243 formula | Captures the real at-risk groups (paint, composite, outdoor logistics) | Low | Task and PPE profiles |
-| 6 | **Indoor comfort**: operative temperature / PMV instead of UTCI | Correct index for indoor spaces | Low | – |
+| 6 | **Indoor comfort by space type**: UTCI with indoor inputs for naturally ventilated halls (done, D51; add roof radiant heat with the hall model); PMV / operative temperature for conditioned rooms | Right index per space | Low | Which halls are conditioned |
 | 7 | **Design Summer Years (CIBSE TM49)** alongside TMY and the hot year | Recognised overheating reference | Medium | – |
 | 8 | **Work–rest / lost-time** outputs | Turns exceedance into operational impact | Medium | Headcount by group (later) |
 | 9 | **Heatwave persistence**, GWL view, more model members | Future-climate robustness | Medium–high | – |

@@ -23,7 +23,7 @@ from pythermalcomfort.models import utci as utci_model
 from climate_risk.config import ROOT, WEATHER_DIR, load_sites, settings
 from concurrent.futures import ProcessPoolExecutor
 
-from climate_risk.heat import heat_frame, wbgt_liljegren
+from climate_risk.heat import heat_frame, utci_indoor, wbgt_liljegren
 from climate_risk.weather import operating_hours_mask
 
 DASH = ROOT / "dashboard"
@@ -44,6 +44,8 @@ KPI_METRICS = ["days_tmax_gt30", "days_tmax_gt35", "hours_t_gt30", "nights_tmin_
                "op_hours_wbgt_shade_gt_ref_unacc", "op_wbgt_shade_degree_hours_gt_base", "wbgt_sun_max", "wbgt_shade_max",
                "op_days_wbgt_in2_gt_ref", "op_days_wbgt_in4_gt_ref", "op_hours_wbgt_in2_gt_ref", "op_hours_wbgt_in4_gt_ref",
                "op_hours_wbgt_in2_gt_ref_unacc", "op_hours_wbgt_in4_gt_ref_unacc",
+               "op_hours_utci_in0_gt28", "op_hours_utci_in0_gt32", "op_hours_utci_in2_gt28", "op_hours_utci_in2_gt32",
+               "op_hours_utci_in4_gt28", "op_hours_utci_in4_gt32", "op_hours_utci_sun_gt32",
                "hours_utci_shade_gt28", "hours_utci_sun_gt32", "hours_utci_sun_gt38",
                "proc_hours_paint_application_max_temp", "proc_hours_paint_application_max_rh", "proc_hours_composite_room_cooling",
                "cdh24", "hdh19"]
@@ -138,6 +140,7 @@ def tmy_stats(df: pd.DataFrame, site) -> dict:
     month, hour = local.month.to_numpy(), local.hour.to_numpy()
     hf = heat_frame(df, site.lat, site.lon)
     u_sh, u_su = hf["utci_shade"].to_numpy(), hf["utci_sun"].to_numpy()
+    u_in = {off: utci_indoor(df, off) for off in INDOOR_OFFSETS}
     w_su = hf["wbgt_sun"].to_numpy()
     w_in = {off: (hf["wbgt_shade"].to_numpy() if off == 0 else
                   wbgt_liljegren(df, site.lat, site.lon, sun=False, indoor_offset=off)["wbgt"].to_numpy())
@@ -161,6 +164,8 @@ def tmy_stats(df: pd.DataFrame, site) -> dict:
         "utci_bands_sun": [int(((u_su >= lo) & (u_su < hi)).sum()) for lo, hi in UTCI_BANDS],
         "utci_heat_by_hour": [int(((u_sh > 28) & (hour == h)).sum()) for h in range(24)],
         "utci_heat_by_hour_sun": [int(((u_su > 28) & (hour == h)).sum()) for h in range(24)],
+        **{f"utci_bands_in{int(o)}": [int(((u >= lo) & (u < hi)).sum()) for lo, hi in UTCI_BANDS] for o, u in u_in.items()},
+        **{f"utci_heat_by_hour_in{int(o)}": [int(((u > 28) & (hour == h)).sum()) for h in range(24)] for o, u in u_in.items()},
         "shifts": shifts,
     }
 
@@ -191,7 +196,7 @@ def combine(stats_list: list[dict]) -> dict:
         else:
             arr = np.array(vals, dtype=float)
             out[key] = np.round(np.median(arr, axis=0), 2).tolist()
-            if key in ("temp_bands", "utci_bands", "utci_bands_sun"):
+            if key.startswith("temp_bands") or key.startswith("utci_bands"):
                 out[key + "_min"] = np.round(arr.min(axis=0), 1).tolist()
                 out[key + "_max"] = np.round(arr.max(axis=0), 1).tolist()
     return out
