@@ -40,7 +40,7 @@ Each site's **baseline is the actual hourly record for 2015–2025** (11 years).
 | Period | Data analysed | Reported |
 |---|---|---|
 | **Historical** | 11 actual years, 2015–2025 | Typical (median year) and **hot (90th percentile year)** |
-| **Historical hot reference year** | One actual, **unadjusted** year per site: the site's hottest year, ranked by hours of WBGT > 28 °C | Its values, labelled with the year (may differ between sites) |
+| **Historical hot reference year** | One actual, **unadjusted** year per site: the site's hottest year, ranked by WBGT degree-hours above 25 °C in working hours (D42) | Its values, labelled with the year (may differ between sites) |
 | **2040** | Each of the 11 years adjusted to 2031–2050 climate, per model & scenario | Typical and 90th percentile, with model range |
 | **2050** | Each of the 11 years adjusted to 2041–2060 climate, per model & scenario | Typical and 90th percentile, with model range |
 
