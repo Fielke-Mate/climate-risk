@@ -1,6 +1,6 @@
-# Concept & Framework (v0.2, draft)
+# Concept & Framework (v0.3, draft)
 
-> A working document. Items marked **[OPEN]** still need a decision. Section 11 records the decisions taken so far.
+> A working document. Items marked **[OPEN]** still need a decision. Section 12 records the decisions taken so far.
 
 ## 1. Problem & vision
 
@@ -28,19 +28,22 @@ We follow the IPCC AR6 risk framing: **Risk = f(Hazard, Exposure, Vulnerability)
 ```
  HAZARD                     EXPOSURE                 VULNERABILITY                IMPACT (v1: physical metrics, no $)
  ──────                     ────────                 ─────────────                ───────────────────────────────────
- Hourly weather file   x    Site, workforce,    x    Work intensity, indoor/  ->  Days & hours above worker and
- (TMY / 2040 / 2050)        process lines            outdoor, process limits      process thresholds → house risk rating
+ Hourly weather files  x    Site, workforce,    x    Work intensity,          ->  Days & hours above worker and
+ (typical + extreme         process lines            process limits               process thresholds → risk rating
+  × hist / 2040 / 2050)                                                           (scale to be defined)
 ```
 
 ### Time periods & scenarios
 
-| Period | What it is | Climate window |
-|---|---|---|
-| **Historical** | Typical Meteorological Year (TMY) for the site | Source's period (PVGIS: roughly 2005–2023) |
-| **2040** | TMY "morphed" to the projected 2040 climate | 2031–2050 model mean vs baseline |
-| **2050** | TMY "morphed" to the projected 2050 climate | 2041–2060 model mean vs baseline |
+Each site gets two kinds of year, typical and extreme warm, for three periods:
 
-- **Scenarios (proposed):** SSP2-4.5 (middle) and SSP5-8.5 (high). ESRS E1 expects a high-emissions scenario for physical risk. By 2040–2050 the scenarios differ less than they do later in the century, so SSP1-2.6 is optional.
+| Period | Typical year | Extreme warm year | Climate window |
+|---|---|---|---|
+| **Historical** | TMY | XMY (section 4c) | Baseline record (e.g. 2005–2023) |
+| **2040** | TMY morphed to 2040 | XMY morphed to 2040 | 2031–2050 vs baseline |
+| **2050** | TMY morphed to 2050 | XMY morphed to 2050 | 2041–2060 vs baseline |
+
+- **Scenarios (decided):** SSP2-4.5 (middle) and SSP5-8.5 (high). ESRS E1 expects a high-emissions scenario for physical risk.
 - **Range:** each future year is produced once per climate model (an ensemble of roughly 5–10 CMIP6 models). Results are reported as the **median with a range** (e.g. min–max or 10th–90th percentile across models).
 
 ## 4. Weather-file workflow (core of v1)
@@ -70,11 +73,30 @@ The weather file is the central object. Every hazard metric is computed from an 
 - **Delta source (proposed):** NASA NEX-GDDP-CMIP6, which is open, global, daily and bias-corrected. It provides tas, tasmax, tasmin, hurs, rsds and sfcWind. The deltas are computed between the future window and a model baseline that **matches the TMY's period**, so changes aren't double-counted.
 - **Result per site:** 1 historical file + (2 periods × 2 scenarios × N models) future files.
 
-### 4c. Known limitation: "typical" years under-represent extremes
+### 4c. Extreme warm year (XMY): keeping the peaks
 
-A TMY is built from the most *average* months, so it smooths out heatwaves. A morphed TMY is a typical *future* year, not a bad one. For heat risk this means **results understate peak exposure**.
+**Problem:** A TMY is built by picking, for each calendar month, the historical month whose statistics are *closest to the long-term average*. That smooths out heatwaves. A morphed TMY is a typical future year, so on its own it **understates peak heat exposure**.
 
-**Recommended addition [OPEN]:** add a **"hot year"** alongside the TMY, e.g. a recent extreme year for each site such as 2019, 2022 or 2023 from PVGIS/ERA5 hourly data. Morph it the same way. That gives "typical" vs "hot" conditions for each period, which is far more useful for worker-safety planning.
+**Approach:** build a second file **the same way as a TMY, but select for heat instead of typicality**. This is an established concept, variously called the Extreme Meteorological Year (XMY), Extreme Warm Year (EWY), or a Design Summer Year (CIBSE). It is used in building-overheating and resilient-cooling work (e.g. IEA EBC Annex 80).
+
+1. **Get a multi-year hourly record** for each site (e.g. 2005–2023) from the same source as the TMY, so the two files are consistent.
+2. **Score every historical month** on a heat-relevant statistic, e.g. mean daily max temperature or hours above a WBGT/temperature level (cooling-degree-hours).
+3. **For each calendar month, pick the month at a high percentile** (e.g. the 90th or 95th) of that statistic, not the median.
+4. **Stitch the selected months** into one hourly year. Smooth the joins over a few hours, as TMY methods do.
+
+**Why this works:**
+- The hourly and day-to-day sequences are real observed weather. Heatwaves keep their actual shape, duration and humidity.
+- It isn't tied to one specific year, so no single year's oddities (e.g. a cool June in an otherwise hot year) dilute it.
+- It goes through the same morphing and analysis pipeline as the TMY.
+
+**Design choices to pin down in Phase 1:**
+- **Warm season only:** apply the extreme selection to May–September and keep typical months for the rest. Otherwise the year is extreme in every month at once, which is harsher than any real year. Recommended default.
+- **Percentile:** 90th = "a hot year that happens about 1 in 10 years". 95th = more severe. Make it configurable.
+- **Month boundaries:** a heatwave spanning two months can get split. This is acceptable for a proof of concept, and worth noting in the methodology.
+
+**Future extremes warm faster than means in much of Europe** (especially Iberia and central Europe). So morphing with mean monthly changes alone would underestimate future peaks. For the XMY, the "stretch" part of morphing should use the projected change in *upper* temperatures (e.g. the change in each month's 90th percentile daily max), not just the mean.
+
+**Cross-check (optional):** with the full multi-year record we can also compute "days over threshold" for every historical year directly. That gives a distribution, e.g. median and 1-in-10-year values, to check that the TMY and XMY land where expected.
 
 ## 5. Heat analysis (v1 scope)
 
@@ -85,7 +107,7 @@ The headline result is **days per year above a threshold**, with hours above the
 | Threshold set | Basis | Variable | Example values (to confirm) |
 |---|---|---|---|
 | General heat | Common climate indicators | Daily max air temperature | Tmax > 30 / 35 / 40 °C; warm nights Tmin > 20 °C |
-| Worker heat stress | ISO 7243 WBGT reference values, by work intensity & acclimatisation | Hourly WBGT | e.g. ~28 °C (light), ~26 °C (moderate), ~25 °C (heavy), acclimatised |
+| **Worker heat stress (v1 default)** | ISO 7243 WBGT reference values, by work intensity & acclimatisation | Hourly WBGT | Values taken from the standard's metabolic-rate classes; confirm exact figures in Phase 3 |
 | Workplace regulation (DE example) | ASR A3.5 indoor air temperature levels | Indoor air temperature | 26 / 30 / 35 °C |
 | Process limits | User-defined per process | Air temp, RH, or wet-bulb | e.g. paint/sealant cure limit, chiller design ambient, composite layup room spec |
 
@@ -94,9 +116,9 @@ A "day over threshold" counts a day where the threshold is exceeded for at least
 ### 5b. Use case A: worker heat stress
 
 - Compute **hourly WBGT** from the weather file. The Liljegren method is the standard physically based approach and uses temperature, humidity, solar radiation, wind and pressure, all of which are in the file.
-- **Indoor vs outdoor:** most aerospace manufacturing is indoors (hangars, assembly halls). For v1, indoor conditions = outdoor air temperature + a configurable **indoor offset**, with no solar load. A building model is out of scope.
+- **Indoor vs outdoor:** most aerospace manufacturing is indoors (hangars, assembly halls). **For v1, indoor conditions = outdoor conditions** (offset = 0 °C). The code still includes an `indoor_offset` parameter per workforce group and process, so it can later be set from **engineering estimates** without changing the method. A building model is out of scope.
 - **Shifts:** count exceedances only during working hours (e.g. day shift 06:00–14:00, late shift 14:00–22:00, night shift).
-- **Outputs:** days/hours above each threshold per workforce group, by period and scenario, with ranges.
+- **Outputs:** days/hours above each threshold per workforce group, by period, scenario and year type (typical / extreme warm), with ranges.
 
 ### 5c. Use case B: process operating limits
 
@@ -105,7 +127,7 @@ A "day over threshold" counts a day where the threshold is exceeded for at least
 
 ### 5d. Risk rating
 
-Results map to the consultant's **house risk rating scale** (to be supplied) using configurable bands, e.g. "days over threshold" → rating level. Kept as a separate, easily changed config, as the scale may be reworked later.
+**Left blank for v1.** The concept is shown with raw metrics (days/hours over threshold, change vs historical). The code keeps a placeholder `rating_scale.yaml` so a house scale can be dropped in later without changes elsewhere.
 
 ## 6. Pilot portfolio: European aerospace manufacturing
 
@@ -157,7 +179,7 @@ Since this is a single-user proof of concept you'll run yourself, and it will be
 - **Language:** Python only.
 - **Core libraries:** pandas / xarray (data), pvlib (PVGIS fetch + EPW reading), thermofeel or a WBGT implementation (Liljegren), s3fs for NEX-GDDP-CMIP6 on AWS open data.
 - **Storage:** plain files (CSV/YAML for config, Parquet for weather files and results). No database.
-- **Dashboard:** Streamlit, with a map, site drill-down and period/scenario comparison. Run it locally. For client sharing, use a password-protected Streamlit deployment or a static HTML export. **[OPEN]**
+- **Dashboard:** Streamlit, map-centred (see 10a). Runs locally. No client sharing or password protection for now.
 - **Structure:**
   ```
   config/      thresholds.yaml, rating_scale.yaml, scenarios.yaml
@@ -168,16 +190,25 @@ Since this is a single-user proof of concept you'll run yourself, and it will be
   app/         Streamlit dashboard
   ```
 
+### 10a. Interactive map (target experience)
+
+The dashboard is built **around an interactive map of the portfolio**:
+
+- **Map:** every site as a marker, with switchable visual layers showing risk. Candidate options to work through later: markers coloured or sized by days over threshold; toggles for period, scenario and year type; change-vs-historical views; optional background climate layers.
+- **Click a site** → a **side panel next to the map** shows that site's dashboard: metrics by period and scenario with ranges, threshold exceedance charts, and worker vs process results.
+- **Portfolio summary** sits alongside the map, e.g. sites ranked by exposure.
+- The specific visualisations will be designed in a later step. Streamlit supports this with map components (e.g. pydeck or folium) that report which site was clicked.
+
 ## 11. Roadmap
 
 | Phase | Goal | Deliverable |
 |---|---|---|
 | 0 | Concept & framework | This document, agreed |
-| 1 | Historical weather files | Fetch/load TMY for every pilot site; standard format; quick plots |
+| 1 | Historical weather files | Multi-year hourly record + TMY + XMY for every pilot site; standard format; quick plots |
 | 2 | Future weather files | CMIP6 deltas + morphing → 2040/2050 ensembles; sanity checks vs published projections |
-| 3 | Heat analysis | WBGT, thresholds, days/hours over, ranges, house rating |
-| 4 | Dashboard | Portfolio map, site drill-down, period/scenario comparison, shareable |
-| 5 | Extensions | Hot-year files, more hazards, financial effects |
+| 3 | Heat analysis | ISO 7243 WBGT, thresholds, days/hours over, ranges |
+| 4 | Dashboard | Interactive portfolio map, click-through site panel, period/scenario/year-type comparison |
+| 5 | Extensions | Risk rating scale, indoor offsets from engineering estimates, more hazards, financial effects, client sharing |
 
 ## 12. Decisions log
 
@@ -190,14 +221,19 @@ Since this is a single-user proof of concept you'll run yourself, and it will be
 | D5 | Future years produced by morphing the TMY with climate-model deltas; results reported as a range across models |
 | D6 | Pilot geography: European aerospace manufacturing sites (based on public Airbus locations) |
 | D7 | No $ figures in v1; headline metric is days (and hours) over configurable worker/process thresholds |
-| D8 | Use the house risk rating scale for now; may be reworked |
+| D8 | ~~Use the house risk rating scale~~ → superseded by D12 |
 | D9 | Non-commercial proof of concept, self-maintained; simple Python stack, rebuild if productised |
+| D10 | Add an Extreme Warm Year (XMY) built TMY-style with high-percentile month selection, alongside the TMY |
+| D11 | Worker heat stress uses ISO 7243 WBGT as the first approach |
+| D12 | Risk rating left blank for v1; show raw metrics |
+| D13 | Scenarios: SSP2-4.5 and SSP5-8.5 |
+| D14 | Indoor = outdoor for v1; keep an `indoor_offset` parameter to set later from engineering estimates |
+| D15 | No client sharing / password for now |
+| D16 | The dashboard will centre on an interactive map with risk layers and a click-through site panel; visuals to be designed later |
 
 ## 13. Open questions
 
-1. **House rating scale:** what are its levels and definitions, so we can set bands for "days over threshold"?
-2. **Thresholds:** which worker and process thresholds do you want as defaults? Are ISO 7243 WBGT plus a typical process limit (e.g. ~30 °C indoor) a sensible start?
-3. **Hot year:** add a "hot year" alongside the TMY (section 4c)?
-4. **Scenarios:** SSP2-4.5 + SSP5-8.5, or also SSP1-2.6?
-5. **Indoor offset:** use one default (e.g. +3 °C over outdoor) for all halls, or set it per site?
-6. **Client sharing:** password-protected hosted Streamlit, or a static HTML report?
+1. **XMY defaults:** warm-season-only extreme selection (May–Sep) at the 90th percentile, scored on mean daily max temperature? (Proposed.)
+2. **Baseline record:** PVGIS hourly series (~2005–2023, no account needed) vs ERA5 from Copernicus (1991–present, free account, longer and closer to a standard 30-year climate period). To check in Phase 1: does PVGIS's hourly series include humidity? If not, ERA5 is needed.
+3. **Process thresholds:** any specific aerospace process limits you want as examples (e.g. sealant/paint application, composite layup rooms)?
+4. **Work intensity:** which ISO 7243 work classes and acclimatisation assumption to show by default?
