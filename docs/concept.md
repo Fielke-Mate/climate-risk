@@ -83,13 +83,18 @@ The XMY needs a multi-year hourly record **with humidity**, so PVGIS alone isn't
 
 **Alternative / override:** load any EPW or CSV file (e.g. climate.onebuilding.org TMYx, Meteonorm, or a client's own data) through the same parser into the same standard format. Each file is stored with metadata: source, period, coordinates, and the distance from the source grid point to the site.
 
-### 4b. Future weather files (morphing)
+### 4b. Future weather files (morphing), as implemented in Phase 2
 
-- **Method:** the "morphing" approach (Belcher, Hacker & Powell, 2005), the established way to make future building-design weather files. The TMY's hourly values are **shifted** by the projected monthly mean change and **stretched** by the change in the monthly daily range. This keeps the realistic hourly and day-to-day pattern of the historical year.
-  - Temperature: shift + stretch using changes in mean, max and min
-  - Relative humidity, radiation, wind: shift or scale by the monthly change
-- **Delta source (proposed):** NASA NEX-GDDP-CMIP6, which is open, global, daily and bias-corrected. It provides tas, tasmax, tasmin, hurs, rsds and sfcWind. The deltas are computed between the future window and a model baseline that **matches the TMY's period**, so changes aren't double-counted.
-- **Result per site:** 1 historical file + (2 periods × 2 scenarios × N models) future files.
+- **Method:** "morphing" (Belcher, Hacker & Powell, 2005), adapted to be quantile-based so peaks are projected properly (D19). It is applied to **every year of the 2015–2025 ERA5 record** and to the TMY:
+  - **Temperature:** each day's min and max are shifted by the model's change **at the matching percentile** of that month's distribution, and the hours in between are stretched linearly. Hot days receive the hot-day warming.
+  - **Humidity:** vapour pressure is scaled by the specific-humidity ratio (capped at saturation); dew point and RH are recomputed against the new temperature.
+  - **Solar radiation (GHI, DNI, DHI), longwave radiation, wind speed:** scaled by monthly ratios (bounded to plausible limits).
+  - **Smoothing:** monthly signals are interpolated day by day between mid-month anchors, so there are no steps at month boundaries.
+- **Delta source (decided): NASA NEX-GDDP-CMIP6 v2.0** (0.25°, daily, bias-corrected). Variables: tas, tasmax, tasmin, huss, rsds, rlds, sfcWind.
+  - **Access:** the files store whole global days, so remote point reads would mean ~245 MB per variable-year. Instead we use NASA NCCS THREDDS server-side subsetting: two small boxes (west/east of 0°) per variable-year, cached as per-site tables.
+- **Models (D43):** six models spanning climate sensitivity: ACCESS-CM2, EC-Earth3, CMCC-ESM2, MRI-ESM2-0, MPI-ESM1-2-HR and NorESM2-MM (approx. ECS 4.7 → 2.5 °C).
+- **Windows:** baseline 2015–2025 (each scenario run, matching ERA5); 2040 = 2031–2050; 2050 = 2041–2060.
+- **Result per site:** 11 historical years + 11 morphed years × 6 models × 2 scenarios × 2 periods, plus morphed TMYs for the weather summary pages.
 
 ### 4c. Capturing extremes: multi-year analysis (replaces the XMY idea)
 
@@ -278,7 +283,7 @@ The dashboard is built **around an interactive map of the portfolio**:
 |---|---|---|
 | 0 | Concept & framework | This document, agreed |
 | 1 ✅ | Historical weather files | ERA5 hourly 2015–2025 + TMY + hot reference year for every pilot site; PVGIS TMY cross-check; standard format; quick plots. **Done**: see [`phase1/README.md`](phase1/README.md) |
-| 2 | Future weather files | CMIP6 deltas + morphing → 2040/2050 ensembles; sanity checks vs published projections |
+| 2 | Future weather files | CMIP6 deltas + morphing → 2040/2050 ensembles; sanity checks vs published projections. **In progress** |
 | 3 | Heat analysis | ISO 7243 WBGT, thresholds, days/hours over, ranges |
 | 4 | Dashboard | Interactive portfolio map, click-through site panel, site weather summary pages, period/scenario/year-type comparison |
 | 5 | Extensions | Risk rating scale, indoor offsets from engineering estimates, more hazards, financial effects, client sharing |
@@ -328,6 +333,7 @@ The dashboard is built **around an interactive map of the portfolio**:
 | D40 | All site coordinates refined to OpenStreetMap plant features (Nov 2026) |
 | D41 | ERA5 from Copernicus CDS (time-series product); API key held as environment secret `CDSAPI_KEY` |
 | D42 | Hot reference year ranked by WBGT degree-hours above 25 °C in working hours (replaces the hours > 28 °C ranking from D30) |
+| D43 | Phase 2 deltas from NEX-GDDP-CMIP6 (6 models, via NASA THREDDS subsetting); quantile-based morphing of all 11 baseline years and the TMY |
 | D33 | Site coordinates checked against published sources (airfield reference points or addresses; see sites CSV). Precision of ~1–3 km is enough, as ERA5 grid cells are ~9–30 km |
 
 ## 13. Open questions
