@@ -1,4 +1,4 @@
-# Concept & Framework (v0.8, draft)
+# Concept & Framework (v0.9, draft)
 
 > A working document. Items marked **[OPEN]** still need a decision. Section 12 records the decisions taken so far.
 
@@ -73,8 +73,9 @@ The weather file is the central object. Every hazard metric is computed from an 
 The XMY needs a multi-year hourly record **with humidity**, so PVGIS alone isn't enough.
 
 **Approach (decided):** download the hourly ERA5 record for 2015–2025 for each site and build the TMY from the same record, so everything is consistent.
-- **ERA5 hourly source (decided): Open-Meteo Historical Weather API.** ERA5-based, no API key, free for **non-commercial use only**.
-  > ⚠️ **Change before any commercial use:** move to the official Copernicus Climate Data Store (CDS), which is free and allows commercial use but needs an account. See section 14.
+- **ERA5 hourly source:** originally Open-Meteo (no key, non-commercial only). **Connection test (Nov 2026):** the free Open-Meteo API returned *"Daily API request limit exceeded"*. The cloud environment shares its outbound IP address, so the free per-IP quota is already used up by others, and Open-Meteo is unreliable here.
+  **Proposed switch [OPEN]:** the official **Copernicus Climate Data Store (CDS)** "ERA5 hourly time-series" product, which gives fast point extraction. It needs a free account and an API key (stored as an environment secret, `CDSAPI_KEY`), and **is also licensed for commercial use**, so the productisation step in section 14 is no longer needed.
+- **PVGIS check (confirmed by live request):** the PVGIS TMY (ERA5 meteorology, SARAH-3 radiation, 2005–2023) contains T2m, **RH**, global/direct/diffuse and infrared radiation, wind speed/direction and pressure. The PVGIS hourly series contains **no humidity**, which confirms the decision to use ERA5 directly.
 - **TMY method:** standard ISO 15927-4 selection (most typical month per calendar month).
 - **PVGIS TMY** is downloaded as an **independent cross-check**: our TMY should look similar.
 
@@ -165,7 +166,7 @@ UTCI is the "feels-like" temperature from a full human heat-balance model. It ca
   | Cold stress | UTCI ≤ 0 |
   | Condition of Person | −3 … +3 = the seven scale bands (strong cold … strong heat) |
 
-  **Proposed v1 bands (exclusive, adding up to 100%):** **Comfortable** 9–26 · **Comfortable for short periods only** 0–9 and 26–28 · **Heat stress** > 28 · **Cold stress** < 0. "Acceptable" (0–28) = comfortable + short periods, matching the original card.
+  **v1 bands (decided; exclusive, adding up to 100%):** **Comfortable** 9–26 · **Comfortable for short periods only** 0–9 and 26–28 · **Heat stress** > 28 · **Cold stress** < 0. "Acceptable" (0–28) = comfortable + short periods, matching the original card.
 - **Mock-up:** `docs/mockups/heat_stress_page.html` (placeholder numbers only).
 
 ### 5d. Use case B: process operating limits
@@ -178,7 +179,24 @@ UTCI is the "feels-like" temperature from a full human heat-balance model. It ca
 
 **Left blank for v1.** The concept is shown with raw metrics (days/hours over threshold, change vs historical). The code keeps a placeholder `rating_scale.yaml` so a house scale can be dropped in later without changes elsewhere.
 
-### 5f. Site weather summary
+### 5f. Reporting definitions (decided)
+
+**Temperature categories** (dry bulb, extending the Power BI's < 16 / 16–25 / > 25):
+
+| < 16 | 16–21 | **21–24 (optimal)** | 24–25 | 25–30 | 30–35 | > 35 |
+|---|---|---|---|---|---|---|
+
+The 21–24 °C "optimal" band is consistent with typical ASHRAE 55 comfort-zone temperatures for light indoor activity. The 24–25 band is only 1 °C wide; it could later be merged into 25–30 if it reads oddly on charts.
+
+**Degree hours:**
+- **Practice bases (headline):** heating degree hours below **19 °C**, cooling degree hours above **24 °C**. These match the consultant's usual 19–24 °C range.
+- **ASHRAE-referenced (for comparability):** ASHRAE's climatic design data (Handbook—Fundamentals, climatic design conditions; ASHRAE 169) report heating/cooling degree-days at base 18.3 °C (65 °F) and cooling degree-hours at bases 23.3 °C (74 °F) and 26.7 °C (80 °F). Report **HDD18.3, CDD18.3, CDH23.3 and CDH26.7** alongside the practice bases. *(Check the exact table fields against the current Handbook edition.)*
+
+**Operating hours:** default **06:00–22:00, every day**. Start, end and days are **user-adjustable** to support sensitivity tests (e.g. 07:00–19:00 weekdays, or a hot-season shift pattern). This replaces the Power BI's "Day or Night" (occupied/unoccupied) flag and drives all "working hours" metrics, including WBGT by shift.
+
+**UTCI comfort bands:** comfortable 9–26 · comfortable for short periods only 0–9 and 26–28 · heat stress > 28 · cold stress < 0 (see 5c).
+
+### 5g. Site weather summary
 
 Alongside the risk metrics, each site gets a **full-year weather summary**, modelled on the consultant's earlier Power BI weather-analysis dashboard (temperature, humidity, wind, irradiance, UTCI comfort, natural-ventilation potential). It is reworked to **compare years** (Historical / 2040 / 2050, TMY / XMY, by scenario). See [`weather_summary_dashboard.md`](weather_summary_dashboard.md).
 
@@ -301,20 +319,22 @@ The dashboard is built **around an interactive map of the portfolio**:
 | D32 | Natural ventilation and evaporative cooling removed from scope |
 | D34 | Only operating plants are included; Puerto Real removed |
 | D35 | WBGT (ISO 7243 Class 2) and UTCI are both kept as complementary worker metrics, shown side by side |
+| D36 | UTCI comfort bands: comfortable 9–26, short periods only 0–9 & 26–28, heat stress > 28, cold stress < 0 |
+| D37 | Temperature categories < 16, 16–21, 21–24 (optimal), 24–25, 25–30, 30–35, > 35 °C |
+| D38 | Degree hours: practice bases 19 °C (heating) / 24 °C (cooling), plus ASHRAE-referenced HDD/CDD18.3 and CDH23.3/26.7 |
+| D39 | Operating hours default 06:00–22:00 daily, user-adjustable for sensitivity tests |
+| D40 | All site coordinates refined to OpenStreetMap plant features (Nov 2026) |
 | D33 | Site coordinates checked against published sources (airfield reference points or addresses; see sites CSV). Precision of ~1–3 km is enough, as ERA5 grid cells are ~9–30 km |
 
 ## 13. Open questions
 
-1. **Comfort bands:** adopt the exclusive bands in 5c (comfortable 9–26; short periods only 0–9 & 26–28)?
-2. **Temperature categories:** the Power BI used three: < 16, 16–25, > 25 °C. For heat risk, keep these and add > 30 and > 35 °C (proposed)?
-3. **Degree hours:** the template's heating/cooling degree-hour cards had no calculation behind them. Use bases 18 °C (heating) and 24 °C (cooling)?
-4. **Occupied hours filter:** the Power BI "Day or Night" filter was really an **operating-hours** flag. Reuse it as a **shift / occupied-hours** filter (e.g. 06:00–22:00 weekdays) to tie in with worker exposure?
-5. **Coordinate refinement (optional):** Stade, Nordenham, Donauwörth and Illescas use town or helipad points; refine once map services are reachable.
+1. **ERA5 source:** switch from Open-Meteo (rate-limited on this shared network) to Copernicus CDS with a free account and API key? (Recommended, section 4a.)
+2. **Airbus Cádiz (optional):** the consolidated Airbus site at El Puerto de Santa María (TecnoBahía; OpenStreetMap 36.651, −6.264) is operating. Add it in place of Puerto Real?
 
 ## 14. Notes for productisation
 
 Things that are fine for a non-commercial proof of concept but must change if the tool develops further:
-- **Weather data source:** Open-Meteo's free tier is non-commercial only. Move to the Copernicus Climate Data Store (or a paid Open-Meteo plan).
+- **Weather data source:** if Open-Meteo is used at all, its free tier is non-commercial only. Copernicus CDS (proposed for v1) is already suitable for commercial use.
 - **Licences:** re-check terms for all datasets (NEX-GDDP-CMIP6, PVGIS, ERA5) for commercial use.
 - **Architecture:** rebuild beyond a single-user Streamlit app (accounts, client sharing, database), as already noted.
 - **Methods:** peer-review the WBGT/UTCI implementations and the morphing; consider longer baselines or large-ensemble methods for robust return periods.
