@@ -1,17 +1,17 @@
-site_id,name,country,lat,lon,notes
-TLS,Toulouse,FR,43.63,1.37,Approximate coordinates - verify
-SNR,Saint-Nazaire,FR,47.29,-2.18,Approximate coordinates - verify
-NTE,Nantes,FR,47.16,-1.61,Approximate coordinates - verify
-MLT,Meaulte,FR,49.97,2.69,Approximate coordinates - verify
-MRS,Marignane,FR,43.44,5.21,Approximate coordinates - verify
-XFW,Hamburg-Finkenwerder,DE,53.54,9.83,Approximate coordinates - verify
-BRE,Bremen,DE,53.05,8.79,Approximate coordinates - verify
-STD,Stade,DE,53.60,9.48,Approximate coordinates - verify
-NOR,Nordenham,DE,53.49,8.48,Approximate coordinates - verify
-DON,Donauworth,DE,48.70,10.78,Approximate coordinates - verify
-GET,Getafe,ES,40.29,-3.72,Approximate coordinates - verify
-ILL,Illescas,ES,40.13,-3.84,Approximate coordinates - verify
-SVQ,Sevilla San Pablo,ES,37.42,-5.90,Approximate coordinates - verify
-PRL,Puerto Real,ES,36.52,-6.17,Approximate coordinates - verify
-BRG,Broughton,GB,53.17,-2.98,Approximate coordinates - verify
-FIL,Filton,GB,51.51,-2.58,Approximate coordinates - verify
+site_id,name,country,lat,lon,location_basis,confidence,notes
+TLS,Toulouse (Blagnac),FR,43.629,1.364,Toulouse-Blagnac Airport reference point; final assembly plants are on the airport grounds,high,
+SNR,Saint-Nazaire (Montoir-de-Bretagne),FR,47.312,-2.149,Saint-Nazaire-Montoir aerodrome (LFRZ); the Airbus plant is beside it,high,
+NTE,Nantes (Bouguenais),FR,47.157,-1.608,Nantes Atlantique Airport; the Airbus Atlantic plant (Rue de l'Aviation) is beside it,high,
+MLT,Meaulte,FR,49.970,2.693,Albert-Picardie Airport (LFAQ); the Airbus Atlantic factory is beside it,high,
+MRS,Marignane,FR,43.437,5.215,Marseille Provence Airport; Airbus Helicopters is on the airport grounds,high,
+XFW,Hamburg-Finkenwerder,DE,53.536,9.837,Hamburg Finkenwerder Airport (EDHI); Airbus works airfield,high,
+BRE,Bremen,DE,53.056,8.787,Airbus-Allee street location (site address Airbus-Allee 1),high,
+STD,Stade,DE,53.571,9.507,Helipad inside the Airbus Stade grounds (single third-party source),medium,
+NOR,Nordenham,DE,53.500,8.467,Town centre; plant (Bergstrasse) not individually geolocated,medium,
+DON,Donauworth,DE,48.717,10.780,Town-centre point; Airbus Helicopters plant not individually geolocated,medium,
+GET,Getafe,ES,40.296,-3.725,Getafe Air Base; the Airbus plant is beside it,high,
+ILL,Illescas,ES,40.117,-3.833,Town centre; plant not individually geolocated,medium,
+SVQ,Sevilla (San Pablo),ES,37.418,-5.899,Seville San Pablo Airport; Airbus San Pablo and the A400M final assembly line are beside it,high,
+PRL,Puerto Real (Cadiz),ES,36.52,-6.17,Unverified original estimate,low,Plant sold in 2024; Airbus Cadiz activities consolidated at El Puerto de Santa Maria (TecnoBahia) in Oct 2026 - replace?
+BRG,Broughton,GB,53.178,-2.978,Hawarden Airport (EGNR); the Airbus wing factory is beside it,high,
+FIL,Filton,GB,51.519,-2.594,Bristol Filton airfield; the Airbus site is on the south side,high,

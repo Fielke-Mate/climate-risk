@@ -21,7 +21,6 @@
   .scale{display:grid;grid-template-columns:repeat(9,1fr);border-radius:6px;overflow:hidden;font-size:11px;text-align:center}
   .scale div{padding:8px 2px;color:#111}
   .scale div.dark{color:#fff}
-  .scale .ext{outline:2px dashed #111;outline-offset:-3px}
   .bars .row{display:grid;grid-template-columns:170px 1fr;align-items:center;gap:8px;margin:6px 0}
   @media (max-width:560px){.bars .row{grid-template-columns:1fr}}
   .stack{display:flex;height:26px;border-radius:4px;overflow:hidden}
@@ -59,10 +58,10 @@
         <div style="background:var(--c4)">Slight heat<br>26 to 28</div>
         <div style="background:var(--c5)">Moderate heat<br>28 to 32</div>
         <div style="background:var(--c6)">Strong heat<br>32 to 38</div>
-        <div class="dark ext" style="background:var(--c7)">Very strong heat<br>38 to 46</div>
-        <div class="dark ext" style="background:var(--c8)">Extreme heat<br>&gt; 46</div>
+        <div class="dark " style="background:var(--c7)">Very strong heat<br>38 to 46</div>
+        <div class="dark " style="background:var(--c8)">Extreme heat<br>&gt; 46</div>
       </div>
-      <p class="note">First seven bands match your Power BI scale. The dashed bands extend "strong" (&gt; 32) upwards using the standard UTCI scale (open question).</p>
+      <p class="note">Your Power BI scale, with the top extended using the standard UTCI scale: "strong" is now 32–38, plus very strong (38–46) and extreme (&gt; 46).</p>
     </section>
 
     <section class="card bars">

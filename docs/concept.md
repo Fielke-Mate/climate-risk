@@ -1,4 +1,4 @@
-# Concept & Framework (v0.6, draft)
+# Concept & Framework (v0.7, draft)
 
 > A working document. Items marked **[OPEN]** still need a decision. Section 12 records the decisions taken so far.
 
@@ -35,16 +35,16 @@ We follow the IPCC AR6 risk framing: **Risk = f(Hazard, Exposure, Vulnerability)
 
 ### Time periods & scenarios
 
-Each site's **baseline is the actual hourly record for 2015–2024** (10 years). Every year in it is analysed hour by hour, and each one is adjusted to 2040 and 2050:
+Each site's **baseline is the actual hourly record for 2015–2025** (11 years). Every year in it is analysed hour by hour, and each one is adjusted to 2040 and 2050:
 
 | Period | Data analysed | Reported |
 |---|---|---|
-| **Historical** | 10 actual years, 2015–2024 | Typical (median year) and **hot (90th percentile year)** |
-| **Historical hot reference year** | One actual, **unadjusted** year: the hottest in the record | Its values, labelled with the year (e.g. "2022") |
-| **2040** | Each of the 10 years adjusted to 2031–2050 climate, per model & scenario | Typical and 90th percentile, with model range |
-| **2050** | Each of the 10 years adjusted to 2041–2060 climate, per model & scenario | Typical and 90th percentile, with model range |
+| **Historical** | 11 actual years, 2015–2025 | Typical (median year) and **hot (90th percentile year)** |
+| **Historical hot reference year** | One actual, **unadjusted** year per site: the site's hottest year, ranked by hours of WBGT > 28 °C | Its values, labelled with the year (may differ between sites) |
+| **2040** | Each of the 11 years adjusted to 2031–2050 climate, per model & scenario | Typical and 90th percentile, with model range |
+| **2050** | Each of the 11 years adjusted to 2041–2060 climate, per model & scenario | Typical and 90th percentile, with model range |
 
-A **typical meteorological year (TMY)** is also built from 2015–2024 (and adjusted to 2040/2050). It is used only where one representative year is needed for hourly charts in the weather summary pages.
+A **typical meteorological year (TMY)** is also built from 2015–2025 (and adjusted to 2040/2050). It is used only where one representative year is needed for hourly charts in the weather summary pages.
 
 - **Scenarios (decided):** SSP2-4.5 (middle) and SSP5-8.5 (high). ESRS E1 expects a high-emissions scenario for physical risk.
 - **Range:** each future year is produced once per climate model (an ensemble of roughly 5–10 CMIP6 models). Results are reported as the **median with a range** (e.g. min–max or 10th–90th percentile across models).
@@ -56,7 +56,7 @@ The weather file is the central object. Every hazard metric is computed from an 
 ```
  1. Sites            2. Historical file         3. Climate change deltas     4. Morphing             5. Analysis              6. Outputs
  ────────            ──────────────────         ────────────────────────     ──────────              ─────────                ─────────
- sites.csv      →    2015–2024 hourly +     →   CMIP6 monthly changes    →   Shift/stretch TMY   →   Thresholds, WBGT,    →   Tables, charts,
+ sites.csv      →    2015–2025 hourly +     →   CMIP6 monthly changes    →   Shift/stretch TMY   →   Thresholds, WBGT,    →   Tables, charts,
  (name, lat/lon,     TMY per site:              per site, per model,         hours by monthly        days/hours over          risk ratings,
  workforce,          • fetched (Open-Meteo)     per scenario, for            deltas → one future     limits, per file         dashboard
  processes)          • or loaded (EPW / CSV)    2040 & 2050                  year per model
@@ -64,7 +64,7 @@ The weather file is the central object. Every hazard metric is computed from an 
 
 ### 4a. Historical weather files
 
-**Baseline period:** 2015–2024 (10 years). **Full year:** all 8,760 hours are kept and analysed, both for heat metrics and for the site weather summary (section 5e).
+**Baseline period:** 2015–2025 (11 years). **Full year:** all 8,760 hours are kept and analysed, both for heat metrics and for the site weather summary (section 5e).
 
 **Humidity check (based on PVGIS documentation; to be confirmed with a live request):**
 - PVGIS **TMY** output includes relative humidity (plus temperature, global/direct/diffuse radiation, infrared, wind speed/direction and pressure). ✔
@@ -72,7 +72,7 @@ The weather file is the central object. Every hazard metric is computed from an 
 
 The XMY needs a multi-year hourly record **with humidity**, so PVGIS alone isn't enough.
 
-**Approach (decided):** download the hourly ERA5 record for 2015–2024 for each site and build the TMY from the same record, so everything is consistent.
+**Approach (decided):** download the hourly ERA5 record for 2015–2025 for each site and build the TMY from the same record, so everything is consistent.
 - **ERA5 hourly source (decided): Open-Meteo Historical Weather API.** ERA5-based, no API key, free for **non-commercial use only**.
   > ⚠️ **Change before any commercial use:** move to the official Copernicus Climate Data Store (CDS), which is free and allows commercial use but needs an account. See section 14.
 - **TMY method:** standard ISO 15927-4 selection (most typical month per calendar month).
@@ -92,17 +92,17 @@ The XMY needs a multi-year hourly record **with humidity**, so PVGIS alone isn't
 
 A single typical year smooths out heatwaves. Instead of building one artificial "extreme" year, we **analyse every year in the record**:
 
-1. **Historical:** compute the hourly metrics (WBGT, UTCI, thresholds) for each of the 10 actual years 2015–2024. Report the **median year** ("typical") and the **90th percentile year** ("hot").
-2. **Future:** adjust each of the 10 years to 2040 and 2050 (per model and scenario), then analyse and report them the same way.
-3. **Hot reference year:** the single hottest actual year in the record (e.g. 2022), **unadjusted**, as a real-world reference that clients will remember.
+1. **Historical:** compute the hourly metrics (WBGT, UTCI, thresholds) for each of the 11 actual years 2015–2025. Report the **median year** ("typical") and the **90th percentile year** ("hot").
+2. **Future:** adjust each of the 11 years to 2040 and 2050 (per model and scenario), then analyse and report them the same way.
+3. **Hot reference year (per site):** each site's hottest actual year (ranked by hours of WBGT > 28 °C, Class 2), **unadjusted**, as a real-world reference that clients will remember.
 
 **Why this works:** heatwaves that actually happened (2019, 2022, 2023…) are kept exactly as observed. No selection rule is needed, and results come straight from hour-by-hour counts.
 
-**Caveat:** with 10 years, the 90th percentile sits roughly between the hottest and second-hottest year. That's fine as a "hot year" indicator, but it is not a statistically robust 1-in-10-year estimate. This is noted in the methodology.
+**Caveat:** with 11 years, the 90th percentile sits roughly between the hottest and second-hottest year. That's fine as a "hot year" indicator, but it is not a statistically robust 1-in-10-year estimate. This is noted in the methodology.
 
 **Projecting peaks (decided):** future extremes warm faster than means in much of Europe (especially Iberia and central Europe). So the adjustment uses projected changes in **upper temperatures** (e.g. the change in each month's 90th percentile daily max), not just the mean. In practice, each part of the temperature distribution is shifted by its own projected change (quantile-based morphing).
 
-**Baseline alignment:** NEX-GDDP-CMIP6 historical runs end in 2014. So the model baseline for 2015–2024 comes from the start of the scenario runs, where SSP2-4.5 and SSP5-8.5 are still almost identical.
+**Baseline alignment:** NEX-GDDP-CMIP6 historical runs end in 2014. So the model baseline for 2015–2025 comes from the start of the scenario runs, where SSP2-4.5 and SSP5-8.5 are still almost identical.
 
 ## 5. Heat analysis (v1 scope)
 
@@ -144,13 +144,12 @@ A "day over threshold" counts a day where the threshold is exceeded for at least
 UTCI is the "feels-like" temperature from a full human heat-balance model. It carries over from the earlier Power BI dashboard.
 
 - **Inputs:** air temperature, humidity, wind speed (10 m) and **mean radiant temperature (Tmrt)**. Tmrt is calculated from direct, diffuse and longwave radiation plus sun position, all available from ERA5. Implementation: an established library (e.g. ECMWF `thermofeel` or `pythermalcomfort`).
-- **Scale (decided): keep the Power BI scale and colour bar.**
+- **Scale (decided): the Power BI scale and colour bar, extended at the top with the standard UTCI bands.**
 
-  | Strong cold | Moderate cold | Slight cold | No thermal stress | Slight heat | Moderate heat | Strong heat |
-  |---|---|---|---|---|---|---|
-  | < −13 | −13 to 0 | 0 to 9 | 9 to 26 | 26 to 28 | 28 to 32 | > 32 |
+  | Strong cold | Moderate cold | Slight cold | No thermal stress | Slight heat | Moderate heat | Strong heat | Very strong heat | Extreme heat |
+  |---|---|---|---|---|---|---|---|---|
+  | < −13 | −13 to 0 | 0 to 9 | 9 to 26 | 26 to 28 | 28 to 32 | 32 to 38 | 38 to 46 | > 46 |
 
-  **[OPEN]** Extend the top of the scale with *very strong* (38–46) and *extreme* (> 46) heat stress from the standard UTCI scale? The southern sites in 2050 are likely to spend many hours above 38, and these would otherwise all sit in "strong".
 - **Metrics (decided, from the Power BI):** % and hours of heat stress (UTCI > 28); % and hours of cold stress (UTCI < 0); % time comfortable (9–26); % time comfortable for short periods (0–28); hours in each category ("condition of person"); UTCI distribution by hour of day.
 - **Sun vs shade:** UTCI in sun (outdoor work, yard operations, logistics) and in shade (Tmrt ≈ air temperature, which suits indoor-equals-outdoor in v1).
 - **WBGT vs UTCI:** WBGT is the **occupational standard** (ISO 7243) and drives work/rest decisions. UTCI is a **physiological comfort/stress** index that is easier to communicate. Both are reported, and WBGT remains the headline for worker risk.
@@ -245,7 +244,7 @@ The dashboard is built **around an interactive map of the portfolio**:
 | Phase | Goal | Deliverable |
 |---|---|---|
 | 0 | Concept & framework | This document, agreed |
-| 1 | Historical weather files | ERA5 hourly 2015–2024 + TMY + hot reference year for every pilot site; PVGIS TMY cross-check; standard format; quick plots |
+| 1 | Historical weather files | ERA5 hourly 2015–2025 + TMY + hot reference year for every pilot site; PVGIS TMY cross-check; standard format; quick plots |
 | 2 | Future weather files | CMIP6 deltas + morphing → 2040/2050 ensembles; sanity checks vs published projections |
 | 3 | Heat analysis | ISO 7243 WBGT, thresholds, days/hours over, ranges |
 | 4 | Dashboard | Interactive portfolio map, click-through site panel, site weather summary pages, period/scenario/year-type comparison |
@@ -278,19 +277,25 @@ The dashboard is built **around an interactive map of the portfolio**:
 | D21 | Process thresholds will eventually target paint application and composite / carbon-fibre layup and curing |
 | D22 | Worker heat stress headline: ISO 7243 Class 2 (moderate), WBGT 28 °C acclimatised |
 | D23 | Add UTCI (sun and shade) as an additional metric alongside WBGT |
-| D24 | Replace XMY with multi-year analysis of 2015–2024 (10 years): report typical (median) and hot (90th percentile) years, historical and future |
+| D24 | Replace XMY with multi-year analysis of 2015–2025 (11 years): report typical (median) and hot (90th percentile) years, historical and future |
 | D25 | Keep one unadjusted historical hot reference year |
 | D26 | ERA5 via Open-Meteo for the proof of concept; switch to Copernicus CDS before any commercial use |
 | D27 | UTCI uses the Power BI metrics and colour-bar scale |
 | D28 | Weather summary page priorities agreed (see weather_summary_dashboard.md) |
+| D29 | Baseline extended to 2015–2025 (11 years) |
+| D30 | Hot reference year chosen per site (hottest by WBGT > 28 °C hours) |
+| D31 | UTCI scale extended with very strong (38–46) and extreme (> 46) heat bands |
+| D32 | Natural ventilation and evaporative cooling removed from scope |
+| D33 | Site coordinates checked against published sources (airfield reference points or addresses; see sites CSV). Precision of ~1–3 km is enough, as ERA5 grid cells are ~9–30 km |
 
 ## 13. Open questions
 
-1. **Baseline end year:** 2015–2024 (10 full years, proposed) or 2015–2025 (11 years, as 2025 is now complete in ERA5)?
-2. **Hot reference year:** the hottest year **per site** (proposed: ranked by WBGT hours over 28 °C) or **one common year** for all sites (e.g. 2022) for an easier portfolio story?
-3. **UTCI scale top end:** add *very strong* (38–46) and *extreme* (> 46) bands? (Recommended.)
-4. **Power BI definitions:** temperature category bands, comfortable hours, natural-ventilation and evaporative-cooling criteria, degree-hour bases. Supply your originals, or should I propose defaults?
-5. **Site coordinates:** verify `data/sites/pilot_aerospace_europe.csv`.
+1. **Puerto Real:** Airbus sold the Puerto Real plant in 2024 and completed consolidation at **Airbus Cádiz, El Puerto de Santa María** (TecnoBahía park) in October 2026. Replace Puerto Real with El Puerto de Santa María? The two are ~10 km apart, so the climate is effectively the same, but the site name should reflect reality.
+2. **Remaining Power BI definitions** (proposed defaults, to confirm or replace):
+   - Temperature categories (pie/stacked bars): < 0, 0–10, 10–20, 20–25, 25–30, 30–35, 35–40, > 40 °C
+   - Heating degree hours base 18 °C; cooling degree hours base 24 °C
+   - Comfortable hours = UTCI 9–26 (no thermal stress), as on the UTCI page
+3. **Coordinate refinement (optional):** Stade, Nordenham, Donauwörth and Illescas use town or helipad points. Fine for ERA5, but they could be refined with a map lookup once map services are reachable.
 
 ## 14. Notes for productisation
 
