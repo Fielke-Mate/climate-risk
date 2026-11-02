@@ -37,7 +37,7 @@ Comparison patterns used throughout:
 |---|---|---|---|
 | **Summary** | Location, KPIs, temperature categories, RH distribution, comfort bar | KPI triplets; stacked temperature-category bars per year; headline "days over threshold" | High |
 | **Temperature** | Hourly profile, % hours per temperature, hours > 30 / < 10, max/min, apparent temp, day/night difference, heating & cooling degree hours | Overlaid distributions; month × hour heatmap of warming; **days over threshold** (Tmax > 30/35/40, warm nights); shift in the hottest-hours tail | High |
-| **Heat stress (new, from UTCI page)** | **UTCI colour-bar scale, all UTCI metric cards, condition-of-person chart, UTCI by hour** | Comparison by year (see `mockups/utci_page.html`); **ISO 7243 WBGT** hours/days over 28 °C (Class 2) by shift | High |
+| **Heat stress (new, from UTCI page)** | **UTCI colour-bar scale, all UTCI metric cards, condition-of-person chart, UTCI by hour** | Comparison by year (see `mockups/heat_stress_page.html`); **ISO 7243 WBGT** hours/days over 28 °C (Class 2) by shift | High |
 | **Relative Humidity** | RH distribution, RH by temperature | Shift in humidity distribution by year | Low |
 | **Process limits (new)** | – | Hours/days above process limits (e.g. paint application, composite layup/cure room conditions), by year | Medium |
 | **Wind** | Wind roses, distribution | Little projected change; mainly descriptive. Comparison optional | Low |
@@ -45,7 +45,7 @@ Comparison patterns used throughout:
 | **Map** | Site location | Becomes the main interactive portfolio map (concept §10a) | High |
 
 ## Notes
-- **Definitions to recover:** the Power BI calculation logic is stored in the compressed data model, so it can't be read from the file directly. Several definitions need restating: temperature category bands, "Condition of Person", comfortable hours and the degree-hour base temperatures (proposed defaults in concept §13). We'll restate them explicitly in `config/` (from the consultant's notes, or sensible defaults).
+- **Definitions recovered from the Power BI model:** temperature categories < 16 / 16–25 / > 25 °C; UTCI comfort and stress definitions (concept §5c); "Day or Night" was actually an operating-hours (occupied/unoccupied) flag; wind speed bands 0.5–1.5 / 1.5–4.5 / > 4.5 m/s. The input data (UTCI, apparent temperature, comfort flags) was generated externally with Ladybug Tools. In the new tool these are calculated in Python and stored in `config/`.
 - **Rainfall:** the original used monthly rainfall. Typical weather files often don't carry reliable precipitation, so this is dropped for v1. Revisit with drought/flood hazards.
 - **Apparent temperature (shaded):** keep as a secondary metric. WBGT is the primary worker metric.
 - **Indoor workers:** use **shaded WBGT** (no direct solar load). Outdoor workers use WBGT in sun.

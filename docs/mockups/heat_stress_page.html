@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UTCI Page Mock-up</title>
+<title>Heat Stress Page Mock-up</title>
 <style>
   :root{--bg:#f6f7f9;--card:#fff;--ink:#1d2430;--muted:#667085;--line:#e3e6ea;--accent:#2b59c3;
     --c0:#4f50ff;--c1:#6f86e0;--c2:#79b3c9;--c3:#8bdcaa;--c4:#b0b48c;--c5:#d9806e;--c6:#ff5555;--c7:#c0262d;--c8:#6e0f14;}
@@ -44,10 +44,26 @@
 <div class="banner"><b>Design mock-up only.</b> All numbers are placeholders to show layout and comparisons. No weather data has been processed yet.</div>
 <div class="wrap">
   <header>
-    <div><h1>Sevilla San Pablo — Thermal Comfort (UTCI)</h1><div class="coords">Lat 37.42 · Lon −5.90 · UTCI in sun · SSP2-4.5</div></div>
+    <div><h1>Sevilla San Pablo — Heat Stress</h1><div class="coords">Lat 37.418 · Lon −5.899 · SSP2-4.5 · Work heat stress (WBGT) and thermal comfort (UTCI)</div></div>
   </header>
 
   <main>
+    <section class="card">
+      <h2>Work heat stress: ISO 7243 WBGT, Class 2 moderate work (reference 28 °C, acclimatised)</h2>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Metric (working hours, shaded WBGT)</th><th>Historical<br>(typical)</th><th>Hot ref. year<br>(2022)</th><th>2040<br>(typical)</th><th>2050<br>(typical)</th></tr></thead>
+        <tbody>
+          <tr><td>Hours above reference (28 °C)</td><td>142</td><td>311</td><td>268<span class="rng">(221–330)</span></td><td>352<span class="rng">(290–441)</span></td></tr>
+          <tr><td>Days with ≥ 1 hour above reference</td><td>34</td><td>61</td><td>55<span class="rng">(47–66)</span></td><td>68<span class="rng">(58–81)</span></td></tr>
+          <tr><td>— Early shift (06–14)</td><td>9</td><td>24</td><td>19</td><td>27</td></tr>
+          <tr><td>— Late shift (14–22)</td><td>32</td><td>58</td><td>52</td><td>65</td></tr>
+          <tr><td>— Night shift (22–06)</td><td>0</td><td>2</td><td>1</td><td>3</td></tr>
+          <tr><td>Hours above 26 °C (not-acclimatised sensitivity)</td><td>388</td><td>620</td><td>560<span class="rng">(490–650)</span></td><td>690<span class="rng">(600–790)</span></td></tr>
+        </tbody>
+      </table></div>
+      <p class="note">WBGT is the occupational safety reference: above 28 °C, moderate work needs work/rest regimes or controls. UTCI below shows how the climate feels overall.</p>
+    </section>
+
     <section class="card">
       <h2>UTCI thermal stress scale</h2>
       <div class="scale">
@@ -115,7 +131,7 @@ const rows=[
   ["% time cold stress (UTCI &lt; 0)",y=>pct(y.v,[0,1])+"%"],
   ["Hours of cold stress",y=>Math.round(pct(y.v,[0,1])*H/100).toLocaleString()],
   ["% time comfortable (9–26)",y=>pct(y.v,[3,3])+"%"],
-  ["% comfortable for short periods (0–28)",y=>pct(y.v,[2,4])+"%"]];
+  ["% comfortable for short periods only (0–9, 26–28)",y=>(pct(y.v,[2,2])+pct(y.v,[4,4]))+"%"]];
 const rng=["","","(28–34%)","(30–37%)"];
 document.getElementById("kpis").innerHTML=rows.map((r,ri)=>`<tr><td>${r[0]}</td>${years.map((y,i)=>{
   const base=r[1](years[0]), v=r[1](y);

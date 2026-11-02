@@ -1,4 +1,4 @@
-# Concept & Framework (v0.7, draft)
+# Concept & Framework (v0.8, draft)
 
 > A working document. Items marked **[OPEN]** still need a decision. Section 12 records the decisions taken so far.
 
@@ -150,10 +150,23 @@ UTCI is the "feels-like" temperature from a full human heat-balance model. It ca
   |---|---|---|---|---|---|---|---|---|
   | < −13 | −13 to 0 | 0 to 9 | 9 to 26 | 26 to 28 | 28 to 32 | 32 to 38 | 38 to 46 | > 46 |
 
-- **Metrics (decided, from the Power BI):** % and hours of heat stress (UTCI > 28); % and hours of cold stress (UTCI < 0); % time comfortable (9–26); % time comfortable for short periods (0–28); hours in each category ("condition of person"); UTCI distribution by hour of day.
+- **Metrics (decided, from the Power BI):** % and hours of heat stress (UTCI > 28); % and hours of cold stress (UTCI < 0); % time comfortable (9–26); % time comfortable for short periods only (0–9, 26–28); hours in each category ("condition of person"); UTCI distribution by hour of day.
 - **Sun vs shade:** UTCI in sun (outdoor work, yard operations, logistics) and in shade (Tmrt ≈ air temperature, which suits indoor-equals-outdoor in v1).
-- **WBGT vs UTCI:** WBGT is the **occupational standard** (ISO 7243) and drives work/rest decisions. UTCI is a **physiological comfort/stress** index that is easier to communicate. Both are reported, and WBGT remains the headline for worker risk.
-- **Mock-up:** `docs/mockups/utci_page.html` (placeholder numbers only).
+- **WBGT and UTCI as complementary views (decided):** both are first-class metrics and are shown side by side on the heat-stress page.
+  - **WBGT (ISO 7243, Class 2 moderate work):** the **worker safety reference**. It answers "when does work at this intensity exceed the occupational reference level?" and drives work/rest and controls.
+  - **UTCI:** the **thermal comfort / physiological stress** view. It answers "how does the climate feel, and how often is it comfortable?" and is intuitive for clients.
+- **Comfort definitions (recovered from the Power BI model and its Ladybug-generated input data):**
+
+  | Power BI field | Definition |
+  |---|---|
+  | Comfortable or Not / "Time comfortable" | 9 ≤ UTCI ≤ 26 (no thermal stress) |
+  | "Comfortable for short periods" | Measure counted 0 ≤ UTCI ≤ 28, which **includes** the fully comfortable 9–26 band |
+  | Heat stress | UTCI ≥ 28 |
+  | Cold stress | UTCI ≤ 0 |
+  | Condition of Person | −3 … +3 = the seven scale bands (strong cold … strong heat) |
+
+  **Proposed v1 bands (exclusive, adding up to 100%):** **Comfortable** 9–26 · **Comfortable for short periods only** 0–9 and 26–28 · **Heat stress** > 28 · **Cold stress** < 0. "Acceptable" (0–28) = comfortable + short periods, matching the original card.
+- **Mock-up:** `docs/mockups/heat_stress_page.html` (placeholder numbers only).
 
 ### 5d. Use case B: process operating limits
 
@@ -171,13 +184,13 @@ Alongside the risk metrics, each site gets a **full-year weather summary**, mode
 
 ## 6. Pilot portfolio: European aerospace manufacturing
 
-The pilot uses an **illustrative portfolio based on public Airbus European manufacturing locations**. It spans a strong north–south climate gradient (North Sea coast → Iberia). The sites are for method testing only. No company data, and nothing is presented as the company's own assessment. See `data/sites/pilot_aerospace_europe.csv`. **Coordinates are approximate and need checking.**
+The pilot uses an **illustrative portfolio based on public Airbus European manufacturing locations**. It spans a strong north–south climate gradient (North Sea coast → Iberia). The sites are for method testing only. No company data, and nothing is presented as the company's own assessment. See `data/sites/pilot_aerospace_europe.csv`. Coordinates were checked against published sources (see the CSV for basis and confidence). Only currently operating plants are included: Puerto Real was removed after its 2024 sale and closure.
 
 | Country | Sites |
 |---|---|
 | France | Toulouse, Saint-Nazaire, Nantes, Méaulte, Marignane |
 | Germany | Hamburg-Finkenwerder, Bremen, Stade, Nordenham, Donauwörth |
-| Spain | Getafe, Illescas, Sevilla (San Pablo), Puerto Real |
+| Spain | Getafe, Illescas, Sevilla (San Pablo) |
 | UK | Broughton, Filton |
 
 The Spanish sites and Marignane will probably dominate heat exposure. The northern German and UK sites act as useful low-exposure contrasts.
@@ -286,16 +299,17 @@ The dashboard is built **around an interactive map of the portfolio**:
 | D30 | Hot reference year chosen per site (hottest by WBGT > 28 °C hours) |
 | D31 | UTCI scale extended with very strong (38–46) and extreme (> 46) heat bands |
 | D32 | Natural ventilation and evaporative cooling removed from scope |
+| D34 | Only operating plants are included; Puerto Real removed |
+| D35 | WBGT (ISO 7243 Class 2) and UTCI are both kept as complementary worker metrics, shown side by side |
 | D33 | Site coordinates checked against published sources (airfield reference points or addresses; see sites CSV). Precision of ~1–3 km is enough, as ERA5 grid cells are ~9–30 km |
 
 ## 13. Open questions
 
-1. **Puerto Real:** Airbus sold the Puerto Real plant in 2024 and completed consolidation at **Airbus Cádiz, El Puerto de Santa María** (TecnoBahía park) in October 2026. Replace Puerto Real with El Puerto de Santa María? The two are ~10 km apart, so the climate is effectively the same, but the site name should reflect reality.
-2. **Remaining Power BI definitions** (proposed defaults, to confirm or replace):
-   - Temperature categories (pie/stacked bars): < 0, 0–10, 10–20, 20–25, 25–30, 30–35, 35–40, > 40 °C
-   - Heating degree hours base 18 °C; cooling degree hours base 24 °C
-   - Comfortable hours = UTCI 9–26 (no thermal stress), as on the UTCI page
-3. **Coordinate refinement (optional):** Stade, Nordenham, Donauwörth and Illescas use town or helipad points. Fine for ERA5, but they could be refined with a map lookup once map services are reachable.
+1. **Comfort bands:** adopt the exclusive bands in 5c (comfortable 9–26; short periods only 0–9 & 26–28)?
+2. **Temperature categories:** the Power BI used three: < 16, 16–25, > 25 °C. For heat risk, keep these and add > 30 and > 35 °C (proposed)?
+3. **Degree hours:** the template's heating/cooling degree-hour cards had no calculation behind them. Use bases 18 °C (heating) and 24 °C (cooling)?
+4. **Occupied hours filter:** the Power BI "Day or Night" filter was really an **operating-hours** flag. Reuse it as a **shift / occupied-hours** filter (e.g. 06:00–22:00 weekdays) to tie in with worker exposure?
+5. **Coordinate refinement (optional):** Stade, Nordenham, Donauwörth and Illescas use town or helipad points; refine once map services are reachable.
 
 ## 14. Notes for productisation
 
