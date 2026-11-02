@@ -1,4 +1,4 @@
-# Concept & Framework (v0.4, draft)
+# Concept & Framework (v0.5, draft)
 
 > A working document. Items marked **[OPEN]** still need a decision. Section 12 records the decisions taken so far.
 
@@ -133,7 +133,8 @@ The headline result is **days per year above a threshold**, with hours above the
 | Threshold set | Basis | Variable | Example values (to confirm) |
 |---|---|---|---|
 | General heat | Common climate indicators | Daily max air temperature | Tmax > 30 / 35 / 40 °C; warm nights Tmin > 20 °C |
-| **Worker heat stress (v1 default)** | ISO 7243 WBGT reference values, by work intensity & acclimatisation (section 5b) | Hourly WBGT | Class 1: 30 °C · Class 2: 28 °C (acclimatised) |
+| **Worker heat stress (v1 default)** | ISO 7243 WBGT reference value, Class 2 moderate work (section 5b) | Hourly WBGT | 28 °C (acclimatised); 26 °C not-acclimatised sensitivity |
+| **Thermal stress (UTCI)** | UTCI assessment scale (section 5c) | Hourly UTCI | Moderate heat stress > 26 °C · strong > 32 °C · very strong > 38 °C · extreme > 46 °C |
 | Workplace regulation (DE example) | ASR A3.5 indoor air temperature levels | Indoor air temperature | 26 / 30 / 35 °C |
 | Process limits | User-defined per process | Air temp, RH, or wet-bulb | e.g. paint/sealant cure limit, chiller design ambient, composite layup room spec |
 
@@ -151,24 +152,33 @@ A "day over threshold" counts a day where the threshold is exceeded for at least
 | 3 High | 360–470 W | Intense arm and trunk work: carrying heavy material, sawing, pushing heavy carts, fast walking | 25–26 °C | 22–23 °C |
 | 4 Very high | > 470 W | Very intense work at fast pace: heavy shovelling, climbing stairs/ladders with loads | 23–25 °C | 18–20 °C |
 
-**Proposed default for aircraft manufacturing:** much assembly work (riveting, drilling, sealing, fastening, wiring) is sustained arm work, often overhead, so it sits around **Class 2 (moderate)**. Inspection, quality and machine-minding are **Class 1 (low)**. Show both: **Class 2 as the headline, Class 1 as secondary**, assuming **acclimatised** workers. Show "not acclimatised" as a sensitivity for early-summer heatwaves and northern sites, where workers are less used to heat.
+**Decided default for aircraft manufacturing: Class 2 (moderate).** Background: much assembly work (riveting, drilling, sealing, fastening, wiring) is sustained arm work, often overhead, so it sits around **Class 2 (moderate)**. Inspection, quality and machine-minding are **Class 1 (low)**. Show both: **Class 2 as the headline, Class 1 as secondary**, assuming **acclimatised** workers. Show "not acclimatised" as a sensitivity for early-summer heatwaves and northern sites, where workers are less used to heat.
 
 - Compute **hourly WBGT** from the weather file. Indoor workers use **shaded WBGT** (no direct solar load). Outdoor workers use WBGT in sun. The Liljegren method is the standard physically based approach and uses temperature, humidity, solar radiation, wind and pressure, all of which are in the file.
 - **Indoor vs outdoor:** most aerospace manufacturing is indoors (hangars, assembly halls). **For v1, indoor conditions = outdoor conditions** (offset = 0 °C). The code still includes an `indoor_offset` parameter per workforce group and process, so it can later be set from **engineering estimates** without changing the method. A building model is out of scope.
 - **Shifts:** count exceedances only during working hours (e.g. day shift 06:00–14:00, late shift 14:00–22:00, night shift).
 - **Outputs:** days/hours above each threshold per workforce group, by period, scenario and year type (typical / extreme warm), with ranges.
 
-### 5c. Use case B: process operating limits
+### 5c. UTCI (Universal Thermal Climate Index)
+
+UTCI is the "feels-like" temperature from a full human heat-balance model. It is widely used in heat-health and urban climate work, and it was already in the earlier Power BI dashboard.
+
+- **Inputs:** air temperature, humidity, wind speed (10 m) and **mean radiant temperature (Tmrt)**. Tmrt is calculated from direct, diffuse and longwave radiation plus sun position, all available from ERA5. Implementation: an established library (e.g. ECMWF `thermofeel` or `pythermalcomfort`).
+- **Assessment scale (heat side):** 26–32 °C moderate, 32–38 °C strong, 38–46 °C very strong, > 46 °C extreme heat stress. Cold side: < 9 °C slight cold stress, < 0 °C moderate cold stress. **[OPEN]** The Power BI used > 28 °C for "heat stress". Switch to the standard bands?
+- **Sun vs shade:** UTCI in sun (outdoor work, yard operations, logistics) and in shade (Tmrt ≈ air temperature, which suits indoor-equals-outdoor in v1).
+- **WBGT vs UTCI:** WBGT is the **occupational standard** (ISO 7243) and drives work/rest decisions. UTCI is a **physiological comfort/stress** index that is easier to communicate. Both are reported, and WBGT remains the headline for worker risk.
+
+### 5d. Use case B: process operating limits
 
 - Each process has a limit (temperature, RH or wet-bulb), possibly a lower limit too, and an indoor/outdoor setting.
 - **Target applications (later):** paint and coating application (temperature and humidity windows) and composite / carbon-fibre layup and curing (controlled-environment room conditions). In v1 these are placeholder thresholds the user sets.
 - **Outputs:** days/hours per year above the limit, and the change from historical. No downtime cost in v1.
 
-### 5d. Risk rating
+### 5e. Risk rating
 
 **Left blank for v1.** The concept is shown with raw metrics (days/hours over threshold, change vs historical). The code keeps a placeholder `rating_scale.yaml` so a house scale can be dropped in later without changes elsewhere.
 
-### 5e. Site weather summary
+### 5f. Site weather summary
 
 Alongside the risk metrics, each site gets a **full-year weather summary**, modelled on the consultant's earlier Power BI weather-analysis dashboard (temperature, humidity, wind, irradiance, UTCI comfort, natural-ventilation potential). It is reworked to **compare years** (Historical / 2040 / 2050, TMY / XMY, by scenario). See [`weather_summary_dashboard.md`](weather_summary_dashboard.md).
 
@@ -278,6 +288,8 @@ The dashboard is built **around an interactive map of the portfolio**:
 | D19 | The XMY is morphed with projected changes in upper temperatures, not just mean changes |
 | D20 | Baseline record 2005–2023 (no need to go back to 1991). Weather source must include humidity: PVGIS multi-year series lacks it, so we use ERA5 hourly; PVGIS TMY kept as a cross-check |
 | D21 | Process thresholds will eventually target paint application and composite / carbon-fibre layup and curing |
+| D22 | Worker heat stress headline: ISO 7243 Class 2 (moderate), WBGT 28 °C acclimatised |
+| D23 | Add UTCI (sun and shade) as an additional metric alongside WBGT |
 
 ## 13. Open questions
 
