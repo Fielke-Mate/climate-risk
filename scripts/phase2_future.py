@@ -49,6 +49,8 @@ def style(ax):
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--sites", default="")
+    ap.add_argument("--models", default="", help="comma list; default all configured models")
+    ap.add_argument("--out", default="", help="override output folder (for trial runs)")
     args = ap.parse_args()
 
     cfg = settings()
@@ -57,6 +59,11 @@ def main() -> None:
     sites = sorted(load_sites(), key=lambda s: s.lat)
     if args.sites:
         sites = [s for s in sites if s.site_id in args.sites.split(",")]
+    if args.models:
+        fc = {**fc, "models": {m: fc["models"][m] for m in args.models.split(",")}}
+    global OUT, FIG
+    if args.out:
+        OUT = FIG = ROOT / args.out
     for d in (OUT, FIG, FUT / "tmy"):
         d.mkdir(parents=True, exist_ok=True)
 
