@@ -17,6 +17,13 @@ Based on the consultant's earlier Power BI weather-analysis dashboard (Adelaide 
 
 Filters on every page: **Day / Night**, **Month**, **Season**.
 
+A second version (**PowerBI_Template**) has the same pages and layout, with these differences:
+- **Temperature page** adds **Heating Degree Hours** and **Cooling Degree Hours** cards.
+- Rainfall is plotted from an hourly rainfall column, not a monthly one.
+- No separate Map page (the mini-map stays on each page). The irradiance page has no "Maximum Irradiance Angle" card.
+
+The design below combines both versions.
+
 ## Comparison version (proposed)
 
 New global filters: **Site**, **Scenario** (SSP2-4.5 / SSP5-8.5), **Year type** (TMY / XMY), plus the original Day/Night, Month and Season. Unless a single year is selected, every chart compares **Historical | 2040 | 2050**.
@@ -29,7 +36,7 @@ Comparison patterns used throughout:
 | Page | Keep from original | Comparison additions | Priority |
 |---|---|---|---|
 | **Summary** | Location, KPIs, temperature categories, RH distribution, comfort bar | KPI triplets; stacked temperature-category bars per year; headline "days over threshold" | High |
-| **Temperature** | Hourly profile, % hours per temperature, hours > 30 / < 10, max/min, apparent temp, day/night difference | Overlaid distributions; month × hour heatmap of warming; **days over threshold** (Tmax > 30/35/40, warm nights); shift in the hottest-hours tail | High |
+| **Temperature** | Hourly profile, % hours per temperature, hours > 30 / < 10, max/min, apparent temp, day/night difference, heating & cooling degree hours | Overlaid distributions; month × hour heatmap of warming; **days over threshold** (Tmax > 30/35/40, warm nights); shift in the hottest-hours tail | High |
 | **Heat stress (new, from UTCI page)** | UTCI categories, % heat/cold stress, comfortable time | **ISO 7243 WBGT** hours/days over the reference value per work class and shift; UTCI kept for outdoor comfort; comparison by year | High |
 | **Relative Humidity** | RH distribution, RH by temperature, evaporative cooling hours | Change in evaporative cooling effectiveness (relevant to adiabatic cooling of halls) | Medium |
 | **Natural Ventilation** | Hours suitable for natural ventilation, day/night, by month | Loss of free-cooling hours by 2040/2050, a strong adaptation signal for factory halls | Medium |
@@ -39,6 +46,7 @@ Comparison patterns used throughout:
 | **Map** | Site location | Becomes the main interactive portfolio map (concept §10a) | High |
 
 ## Notes
+- **Definitions to recover:** the Power BI calculation logic is stored in the compressed data model, so it can't be read from the file directly. Several definitions need restating: temperature category bands, "Condition of Person", comfortable hours, natural-ventilation (CPNV) temperature/humidity criteria, evaporative-cooling criteria, and the degree-hour base temperatures. We'll restate them explicitly in `config/` (from the consultant's notes, or sensible defaults).
 - **Rainfall:** the original used monthly rainfall. Typical weather files often don't carry reliable precipitation, so this is dropped for v1. Revisit with drought/flood hazards.
 - **Apparent temperature (shaded):** keep as a secondary metric. WBGT is the primary worker metric.
 - **Indoor workers:** use **shaded WBGT** (no direct solar load). Outdoor workers use WBGT in sun.
