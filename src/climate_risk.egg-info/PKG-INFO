@@ -1,0 +1,15 @@
+Metadata-Version: 2.4
+Name: climate-risk
+Version: 0.1.0
+Summary: Physical climate risk (extreme heat) proof of concept for manufacturing sites
+Requires-Python: >=3.11
+Requires-Dist: pandas>=2.2
+Requires-Dist: numpy>=1.26
+Requires-Dist: pyarrow>=15
+Requires-Dist: pvlib>=0.11
+Requires-Dist: matplotlib>=3.8
+Requires-Dist: cdsapi>=0.7
+Requires-Dist: pyyaml>=6
+Requires-Dist: requests>=2.31
+Provides-Extra: dev
+Requires-Dist: pytest>=8; extra == "dev"

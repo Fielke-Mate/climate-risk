@@ -4,4 +4,25 @@ A physical climate risk assessment tool for sustainability consultants, with a s
 
 The first focus is **extreme heat**: risk to **worker health and productivity** and to **production processes** that can't run above certain operating conditions. Outputs are built to support disclosures under **IFRS S2 (ISSB)** and **ESRS E1 (CSRD)**.
 
-Status: concept stage. See [`docs/concept.md`](docs/concept.md).
+- Concept & framework: [`docs/concept.md`](docs/concept.md)
+- Weather summary dashboard design: [`docs/weather_summary_dashboard.md`](docs/weather_summary_dashboard.md)
+- Phase 1 (historical weather files): [`docs/phase1/README.md`](docs/phase1/README.md)
+
+## Setup
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -e ".[dev]"
+```
+
+ERA5 downloads need a free Copernicus CDS account. Put the API key in the `CDSAPI_KEY` environment variable (cloud: an environment secret). Never commit it.
+
+## Phase 1 workflow
+
+```bash
+.venv/bin/python scripts/fetch_era5.py
+.venv/bin/python scripts/phase1_historical.py
+.venv/bin/python -m pytest
+```
+
+Settings (baseline years, operating hours, thresholds) live in `config/settings.yaml`. Sites live in `data/sites/pilot_aerospace_europe.csv`.

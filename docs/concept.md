@@ -277,7 +277,7 @@ The dashboard is built **around an interactive map of the portfolio**:
 | Phase | Goal | Deliverable |
 |---|---|---|
 | 0 | Concept & framework | This document, agreed |
-| 1 | Historical weather files | ERA5 hourly 2015–2025 + TMY + hot reference year for every pilot site; PVGIS TMY cross-check; standard format; quick plots |
+| 1 ✅ | Historical weather files | ERA5 hourly 2015–2025 + TMY + hot reference year for every pilot site; PVGIS TMY cross-check; standard format; quick plots. **Done**: see [`phase1/README.md`](phase1/README.md) |
 | 2 | Future weather files | CMIP6 deltas + morphing → 2040/2050 ensembles; sanity checks vs published projections |
 | 3 | Heat analysis | ISO 7243 WBGT, thresholds, days/hours over, ranges |
 | 4 | Dashboard | Interactive portfolio map, click-through site panel, site weather summary pages, period/scenario/year-type comparison |
@@ -331,7 +331,8 @@ The dashboard is built **around an interactive map of the portfolio**:
 
 ## 13. Open questions
 
-1. **Airbus Cádiz (optional):** the consolidated Airbus site at El Puerto de Santa María (TecnoBahía; OpenStreetMap 36.651, −6.264) is operating. Add it in place of Puerto Real?
+1. **Hot-year ranking metric:** shaded WBGT rarely exceeds 28 °C at most sites, so "hours > 28" can't separate years. Switch to WBGT degree-hours above 25 °C in working hours? (Recommended; see `phase1/README.md`.)
+2. **Getafe / Illescas:** they share one ERA5 grid cell, so their weather is identical. Accept for the proof of concept, or test ERA5-Land (~9 km) later?
 
 ## 14. Notes for productisation
 

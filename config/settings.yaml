@@ -1,0 +1,48 @@
+# Proof-of-concept settings. Decisions are documented in docs/concept.md (section 12).
+
+baseline:
+  start_year: 2015
+  end_year: 2025          # D29: 11-year baseline
+
+operating_hours:          # D39: user-adjustable for sensitivity tests
+  start: "06:00"          # local time, inclusive
+  end: "22:00"            # local time, exclusive
+  days: [0, 1, 2, 3, 4, 5, 6]   # Monday=0 ... Sunday=6
+
+era5:
+  dataset: reanalysis-era5-single-levels-timeseries
+  url: https://cds.climate.copernicus.eu/api
+  # API key is read from the CDSAPI_KEY environment variable - never commit it.
+  variables:
+    - 2m_temperature
+    - 2m_dewpoint_temperature
+    - surface_pressure
+    - 10m_u_component_of_wind
+    - 10m_v_component_of_wind
+    - surface_solar_radiation_downwards
+    - surface_thermal_radiation_downwards
+    - total_sky_direct_solar_radiation_at_surface
+    - surface_net_solar_radiation
+    - surface_net_thermal_radiation
+    - total_cloud_cover
+    - total_precipitation
+
+tmy:
+  method: ISO 15927-4
+  blend_hours: 8          # smoothing either side of month joins
+
+hot_year:
+  # D30: per-site hottest year, ranked by hours of WBGT > 28 C (Class 2) in operating hours.
+  wbgt_threshold_c: 28.0
+  # Phase 1 uses a provisional shaded WBGT (0.7 * wet bulb + 0.3 * air temp);
+  # replaced by the full Liljegren method in Phase 3.
+
+pvgis:
+  url: https://re.jrc.ec.europa.eu/api/v5_3/tmy
+
+# Country -> IANA time zone, for local operating hours
+timezones:
+  FR: Europe/Paris
+  DE: Europe/Berlin
+  ES: Europe/Madrid
+  GB: Europe/London

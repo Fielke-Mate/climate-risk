@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.cdsapirc
+.env
+# Raw downloads are large and reproducible from the scripts
+data/raw/
+data/weather/hourly/

@@ -1,0 +1,44 @@
+"""Project paths and settings."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from functools import lru_cache
+from pathlib import Path
+
+import pandas as pd
+import yaml
+
+ROOT = Path(__file__).resolve().parents[2]
+CONFIG_DIR = ROOT / "config"
+DATA_DIR = ROOT / "data"
+RAW_DIR = DATA_DIR / "raw"
+WEATHER_DIR = DATA_DIR / "weather"
+SITES_FILE = DATA_DIR / "sites" / "pilot_aerospace_europe.csv"
+
+
+@lru_cache(maxsize=1)
+def settings() -> dict:
+    with open(CONFIG_DIR / "settings.yaml", encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
+@dataclass(frozen=True)
+class Site:
+    site_id: str
+    name: str
+    country: str
+    lat: float
+    lon: float
+
+    @property
+    def timezone(self) -> str:
+        return settings()["timezones"][self.country]
+
+
+def load_sites(path: Path = SITES_FILE) -> list[Site]:
+    df = pd.read_csv(path)
+    return [
+        Site(r.site_id, r.name, r.country, float(r.lat), float(r.lon))
+        for r in df.itertuples(index=False)
+    ]

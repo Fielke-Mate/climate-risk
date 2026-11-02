@@ -1,0 +1,16 @@
+site_id,name,site_lat,site_lon,grid_lat,grid_lon,distance_km,hours
+SVQ,Sevilla (San Pablo),37.411,-5.8828,37.5,-6.0,14.3,96432
+ILL,Illescas,40.1585,-3.8246,40.25,-3.75,12.0,96432
+GET,Getafe,40.2972,-3.7096,40.25,-3.75,6.3,96432
+MRS,Marignane,43.4338,5.2305,43.5,5.25,7.5,96432
+TLS,Toulouse (Blagnac),43.6527,1.3568,43.75,1.25,13.8,96432
+NTE,Nantes (Bouguenais),47.1587,-1.5912,47.25,-1.5,12.3,96432
+SNR,Saint-Nazaire (Montoir-de-Bretagne),47.3142,-2.1669,47.25,-2.25,9.5,96432
+DON,Donauworth,48.7091,10.7695,48.75,10.75,4.8,96432
+MLT,Meaulte,49.9845,2.6764,50.0,2.75,5.5,96432
+FIL,Filton,51.513,-2.5775,51.5,-2.5,5.6,96432
+BRE,Bremen,53.0524,8.7957,53.0,8.75,6.6,96432
+BRG,Broughton,53.1796,-2.9729,53.25,-3.0,8.0,96432
+NOR,Nordenham,53.5117,8.5181,53.5,8.5,1.8,96432
+XFW,Hamburg-Finkenwerder,53.536,9.837,53.5,9.75,7.0,96432
+STD,Stade,53.5686,9.5097,53.5,9.5,7.7,96432
