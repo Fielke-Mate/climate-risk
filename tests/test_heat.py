@@ -36,3 +36,13 @@ def test_solar_delta_mrt_zero_at_night_and_plausible_at_noon():
 def test_utci_reference_point():
     # UTCI equals air temperature for the reference condition (Tmrt = Ta, 0.5 m/s at 10 m, RH 50 %, Ta 20 C) to within ~1 K
     assert float(np.ravel(heat.utci(20.0, 20.0, 0.5, 50.0))[0]) == pytest.approx(20.0, abs=1.5)
+
+
+def test_indoor_air_speed_used_and_still_air_warmer():
+    df = _frame(33.0, 20.0, 0.0, 0.0, wind=4.0)
+    windy = heat.wbgt_liljegren(df, 40.0, -3.7, sun=False)["wbgt"].iloc[0]
+    still = heat.wbgt_liljegren(df, 40.0, -3.7, sun=False, air_speed=0.3)
+    assert float(still["speed2m"].iloc[0]) == pytest.approx(0.3, abs=0.01)
+    assert still["wbgt"].iloc[0] >= windy - 0.05
+    assert heat.indoor_wind_10m(0.3) == pytest.approx(0.5)
+    assert heat.indoor_wind_10m(0.5) == pytest.approx(0.75)

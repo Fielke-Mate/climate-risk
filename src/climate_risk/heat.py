@@ -5,8 +5,10 @@ via the `pywbgt` package, which wraps Argonne's original C code. It predicts the
 natural wet bulb and the 2-inch black globe temperature from temperature, dew
 point, pressure, wind (10 m, adjusted to 2 m) and global solar radiation.
   * sun:   the full model (outdoor work in direct sun)
-  * shade: the same model with solar radiation set to zero (indoor / shaded work;
-           D14 indoor = outdoor, plus an optional `indoor_offset`)
+  * shade / indoor: the same model with solar radiation set to zero. Indoors (D52) the
+           air speed is the hall's occupied-zone speed (default 0.3 m/s, exhaust-ventilated
+           warehouse, no active cooling) instead of the outdoor wind, and the hall temperature
+           is outdoor + `indoor_offset` (D14).
 The reference for moderate work (ISO 7243 Class 2, acclimatised) is 28 C (D22).
 
 UTCI: `pythermalcomfort` (Broede et al. 2012 polynomial).
@@ -36,12 +38,14 @@ def _dew_from_rh(temp_c, rh):
 
 
 def wbgt_liljegren(df: pd.DataFrame, lat: float, lon: float, sun: bool = True,
-                   indoor_offset: float = 0.0) -> pd.DataFrame:
+                   indoor_offset: float = 0.0, air_speed: float | None = None) -> pd.DataFrame:
     """Liljegren WBGT for an hourly standard-format frame (UTC, hour-ending labels).
 
     Returns columns: tg (globe), tnwb (natural wet bulb), wbgt, speed2m [C, m/s].
     With indoor_offset > 0 the air temperature is raised and the dew point kept
     (same moisture, lower RH), which is how an indoor heat gain behaves.
+    air_speed: if given, a fixed air speed [m/s] at 2 m replaces the outdoor 10 m wind
+    (indoor use); the model's outdoor minimum of ~1 m/s is lowered to its absolute floor.
     """
     from metpy.units import units
     from pywbgt import liljegrenWBGT
@@ -53,6 +57,13 @@ def wbgt_liljegren(df: pd.DataFrame, lat: float, lon: float, sun: bool = True,
     # recent pandas, so shift hour-ending stamps to 30 s before mid-hour ourselves and
     # use the default avg (1 minute, i.e. a further 30 s shift).
     idx = (df.index.tz_convert("UTC").tz_localize(None) - pd.Timedelta(minutes=29, seconds=30)).to_numpy()
+    n = len(df)
+    if air_speed is None:
+        wind, extra = df["wind_speed"].to_numpy(np.float32), {}
+    else:
+        wind = np.full(n, air_speed, dtype=np.float32)
+        extra = {"zspeed": units.Quantity(np.full(n, 2.0, dtype=np.float32), "m"),
+                 "min_speed": units.Quantity(0.13, "m/s")}
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         res = liljegrenWBGT(
@@ -61,7 +72,8 @@ def wbgt_liljegren(df: pd.DataFrame, lat: float, lon: float, sun: bool = True,
             units.Quantity(df["pressure"].to_numpy(np.float32), "hPa"),
             units.Quantity(t.astype(np.float32), "degC"),
             units.Quantity(td.astype(np.float32), "degC"),
-            units.Quantity(df["wind_speed"].to_numpy(np.float32), "m/s"),
+            units.Quantity(wind, "m/s"),
+            **extra,
         )
     return pd.DataFrame({
         "tg": res["Tg"].to("degC").magnitude,
@@ -102,18 +114,28 @@ def utci(ta, tmrt, v10, rh):
     return np.asarray(utci_model(tdb=ta, tr=tmrt, v=v, rh=np.asarray(rh, float), limit_inputs=False).utci, float)
 
 
-def utci_indoor(df: pd.DataFrame, offset: float = 0.0, wind_10m_equiv: float = 0.5) -> np.ndarray:
-    """UTCI inside a naturally ventilated hall: air = outdoor + offset (same moisture), Tmrt = air, still air."""
+def indoor_wind_10m(air_speed: float) -> float:
+    """UTCI's wind input is at 10 m: body-height speed x1.5 (UTCI convention), floored at 0.5 m/s."""
+    return max(0.5, 1.5 * air_speed)
+
+
+def utci_indoor(df: pd.DataFrame, offset: float = 0.0, air_speed: float = 0.3) -> np.ndarray:
+    """UTCI inside an exhaust-ventilated hall: air = outdoor + offset (same moisture), Tmrt = air, indoor air speed."""
     from .weather import relative_humidity_from_dewpoint
     t = df["temp_air"].to_numpy(float) + offset
     rh = relative_humidity_from_dewpoint(t, np.minimum(df["temp_dew"].to_numpy(float), t))
-    return utci(t, t, np.full(len(t), wind_10m_equiv), rh)
+    return utci(t, t, np.full(len(t), indoor_wind_10m(air_speed)), rh)
 
 
-def heat_frame(df: pd.DataFrame, lat: float, lon: float, indoor_offset: float = 0.0) -> pd.DataFrame:
-    """All Phase 3 hourly heat variables for one weather record."""
+def heat_frame(df: pd.DataFrame, lat: float, lon: float, indoor_offset: float = 0.0,
+               indoor_air_speed: float = 0.3) -> pd.DataFrame:
+    """All Phase 3 hourly heat variables for one weather record.
+
+    wbgt_shade / utci_indoor are the INDOOR values (no solar, hall air speed, hall = outdoor + offset).
+    utci_shade keeps the outdoor-shade UTCI (outdoor wind) for reference.
+    """
     sun = wbgt_liljegren(df, lat, lon, sun=True)
-    shade = wbgt_liljegren(df, lat, lon, sun=False, indoor_offset=indoor_offset)
+    shade = wbgt_liljegren(df, lat, lon, sun=False, indoor_offset=indoor_offset, air_speed=indoor_air_speed)
     ta, rh, v10 = df["temp_air"].to_numpy(float), df["relative_humidity"].to_numpy(float), df["wind_speed"].to_numpy(float)
     d_mrt = solar_delta_mrt(df.index, lat, lon, df["dni"].to_numpy(float))
     out = pd.DataFrame(index=df.index)
@@ -122,5 +144,5 @@ def heat_frame(df: pd.DataFrame, lat: float, lon: float, indoor_offset: float = 
     out["tmrt_sun"] = ta + d_mrt
     out["utci_sun"] = utci(ta, ta + d_mrt, v10, rh)
     out["utci_shade"] = utci(ta, ta, v10, rh)
-    out["utci_indoor"] = utci_indoor(df, indoor_offset)
+    out["utci_indoor"] = utci_indoor(df, indoor_offset, indoor_air_speed)
     return out

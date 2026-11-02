@@ -138,12 +138,13 @@ def tmy_stats(df: pd.DataFrame, site) -> dict:
     t = df["temp_air"].to_numpy(float)
     local = hour_start_local(df.index, tz)
     month, hour = local.month.to_numpy(), local.hour.to_numpy()
-    hf = heat_frame(df, site.lat, site.lon)
+    v_in = settings()["heat"].get("indoor_air_speed_ms", 0.3)
+    hf = heat_frame(df, site.lat, site.lon, indoor_air_speed=v_in)
     u_sh, u_su = hf["utci_shade"].to_numpy(), hf["utci_sun"].to_numpy()
-    u_in = {off: utci_indoor(df, off) for off in INDOOR_OFFSETS}
+    u_in = {off: utci_indoor(df, off, v_in) for off in INDOOR_OFFSETS}
     w_su = hf["wbgt_sun"].to_numpy()
     w_in = {off: (hf["wbgt_shade"].to_numpy() if off == 0 else
-                  wbgt_liljegren(df, site.lat, site.lon, sun=False, indoor_offset=off)["wbgt"].to_numpy())
+                  wbgt_liljegren(df, site.lat, site.lon, sun=False, indoor_offset=off, air_speed=v_in)["wbgt"].to_numpy())
             for off in INDOOR_OFFSETS}
     daily = pd.DataFrame({"t": t}, index=local.normalize()).groupby(level=0)["t"].max()
     shifts = {}
@@ -258,6 +259,7 @@ def main() -> None:
             "temp_bands": [b[2] for b in TEMP_BANDS],
             "operating_hours": cfg["operating_hours"],
             "indoor_offsets": INDOOR_OFFSETS,
+            "indoor_air_speed": cfg["heat"].get("indoor_air_speed_ms", 0.3),
             "process_limits": {k: v["label"] for k, v in cfg["heat"]["process_limits"].items()},
         },
         "basemap": basemap, "sites": site_rows, "kpi": kpi, "tmy": tmy,

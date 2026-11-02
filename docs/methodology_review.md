@@ -24,20 +24,23 @@
 
 ## 2. Two quick tests
 
-### 2a. Indoor air speed vs indoor heat gain (shaded WBGT, Liljegren, working hours, 2015–2025)
+### 2a. Indoor air speed vs indoor heat gain (working hours, 2015–2025, typical year)
 
-The indoor case uses outdoor wind adjusted to 2 m (median 1.8–2.9 m/s, floor ~1 m/s). Real halls run at 0.1–0.3 m/s unless fans are used. The test re-ran shaded WBGT at 0.3 m/s:
+The first indoor version used the *outdoor* wind (median 1.8–2.9 m/s at 2 m, floor ~1 m/s). A warehouse or hangar with exhaust ventilation and no active cooling runs at roughly 0.1–0.3 m/s in the occupied zone, higher near openings and fans. **Decision D52:** indoor WBGT and indoor UTCI now both use a configurable occupied-zone air speed of **0.3 m/s** (sensitivity 0.2 and 0.5 m/s). The test:
 
-| Site | WBGT change at 0.3 m/s (hot hours) | Days > 28 °C, outdoor wind | at 0.3 m/s | at 0.3 m/s and hall +4 °C |
-|---|---|---|---|---|
-| Sevilla | +0.1 °C | 2 | 3 | **37** |
-| Toulouse | +0.1 °C | 1 | 1 | **10** |
-| Getafe | +0.2 °C | 0 | 0 | 1 |
-| Hamburg | +0.05 °C | 0 | 0 | 0 |
+| Site | Hall | WBGT days > 28: outdoor wind (old) | 0.2 m/s | 0.3 m/s | 0.5 m/s | UTCI hours > 32: 0.2 / 0.3 / 0.5 m/s |
+|---|---|---|---|---|---|---|
+| Sevilla | +0 °C | 2 | 4 | 3 | 3 | 542 / 542 / 549 |
+| Sevilla | +4 °C | 32 | 39 | 37 | 36 | 1,144 / 1,144 / 1,154 |
+| Toulouse | +4 °C | 10 | 11 | 10 | 10 | 437 / 437 / 440 |
+| Marignane | +4 °C | 8 | 10 | 9 | 9 | 610 / 610 / 617 |
+| Getafe | +4 °C | 0 | 2 | 1 | 0 | 828 / 828 / 838 |
 
-**Reading:** air speed is a second-order issue (≈ +0.1–0.2 °C). **The hall's heat gain over outdoor is first-order.** That is where the modelling effort should go.
-
-The Phase 3 future results show the same pattern. For Sevilla by 2050 (SSP5-8.5, typical year), worker heat-safety days are **20 / 37 / 56** with the hall at +0 / +2 / +4 °C, against **107** for outdoor work in sun ([Phase 3 results](phase3/README.md)). The spread from the hall assumption is larger than the spread between climate scenarios.
+**Reading:**
+- Replacing outdoor wind with indoor air speed matters: indoor results rise (Sevilla +4 °C: 32 → 37 WBGT days; UTCI hours above 32 about +20 % vs outdoor wind).
+- Within the plausible warehouse range (0.2–0.5 m/s), air speed is second-order (1–3 days). UTCI cannot resolve speeds below ~0.33 m/s at body height (its 10 m wind input has a 0.5 m/s floor).
+- In very hot air (above skin temperature) more air movement adds heat: UTCI shows slightly *more* stress at 0.5 m/s. Fans are therefore not a reliable mitigation above roughly 35 °C, which matters for adaptation advice.
+- **The hall's heat gain over outdoor remains first-order.** That is where the modelling effort should go.
 
 ### 2b. ERA5 against airport weather stations (Meteostat, 2015–2025)
 
@@ -114,7 +117,7 @@ The Phase 3 future results show the same pattern. For Sevilla by 2050 (SSP5-8.5,
 2. **Simulate archetypes.** Export the TMY, hot-year and morphed files as **EPW** and run dynamic thermal models (EnergyPlus, IES VE, TAS) for 3–4 hall archetypes: heavy assembly hangar, light-roof hangar, conditioned clean room, paint/cure shop. Use the resulting indoor operative temperature and humidity for WBGT. This is standard CIBSE TM52/TM59-style practice.
 3. **Interim (no client data):** replace the uniform offset with a simple **hourly hall model** (ISO 52016-1 / 5R1C lumped resistance–capacitance) with archetype inputs: roof U-value and absorptance, rooflight fraction, internal gains, ventilation rate and night purge, and optional cooling with a capacity limit. This gives a time-varying indoor temperature, lag and the effect of mass. *Effort: medium.*
 4. Indoor **mean radiant temperature** from roof soffit temperature (roof U-value + sol-air temperature) and internal surfaces, not equal to air.
-5. Indoor air speed at **0.2–0.3 m/s**, with fans as an option. This is a small effect (2a), but it's the right default.
+5. Indoor air speed: **done** (D52, 0.3 m/s for an exhaust-ventilated hall, configurable). Next, link it to the ventilation design (air change rate, opening locations) once a hall model exists, and treat fans as a mitigation only below ~35 °C.
 
 ### 3.5 Worker heat stress (WBGT)
 

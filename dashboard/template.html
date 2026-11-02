@@ -600,7 +600,7 @@ function renderStress() {
   const rows = sr("Early shift 06–14 · WBGT above 28 °C", "early", k28) + sr("Late shift 14–22 · WBGT above 28 °C", "late", k28) + sr("Night shift 22–06 · WBGT above 28 °C", "night", k28)
     + (ex === "sun" ? "" : sr("Late shift · WBGT above 26 °C (not acclimatised)", "late", `${ex}_gt26`));
   const expoNote = ex === "sun" ? "Outdoor work in direct sun: Liljegren WBGT including solar radiation." :
-    `Indoor work, no solar radiation: shaded WBGT with the hall ${ex === "in0" ? "at outdoor temperature (the current assumption)" : `${ex.slice(2)} °C warmer than outside (same moisture)`}. The real heat gain needs engineering estimates per hall. Change exposure in the View bar.`;
+    `Indoor work in an exhaust-ventilated hall, no solar radiation: WBGT with the hall ${ex === "in0" ? "at outdoor temperature (the current assumption)" : `${ex.slice(2)} °C warmer than outside (same moisture)`} and ${DATA.meta.indoor_air_speed} m/s air speed. The real heat gain needs engineering estimates per hall. Change exposure in the View bar.`;
   const sunU = S.expo === "sun";
   const ub = sunU ? "utci_bands_sun" : `utci_bands_${ex}`, uh = sunU ? "utci_heat_by_hour_sun" : `utci_heat_by_hour_${ex}`;
   const up = (c, ix) => { const v = T[tmyKey(c.key)][ub], t = v.reduce((a, b) => a + b, 0); return ix.reduce((a, i) => a + v[i], 0) / t * 100; };
@@ -616,7 +616,7 @@ function renderStress() {
       ${stackRows(c => T[tmyKey(c.key)][ub], UTCI.map(u => u[2]), UTCI.map(u => u[0]), "")}</div>
     <div><h3>UTCI comfort and stress <span class="sub">${EXPO().label}</span></h3><div class="tw"><table>${thead(cols, "Share of the year")}<tbody>${ur.map(([l, ix]) => `<tr><th scope="row">${l}</th>${cols.map(c => `<td class="v">${fmt(up(c, ix), 1)} %</td>`).join("")}</tr>`).join("")}</tbody></table></div></div>
     <div><h3>Hours of UTCI heat stress (above 28) by hour of day <span class="sub">${EXPO().label}</span></h3>${byHour}${skey(cols.map(c => [c.color, c.label, c.key === "hotref"]))}
-      <p class="note">${sunU ? "In sun, ASHRAE 55 SolarCal adds the radiant load on a standing person." : "Indoors (naturally ventilated hall): hall air temperature including the heat gain, radiant temperature equal to air temperature (roof radiant heat not yet included) and still air (~0.3 m/s at body height)."}</p></div>
+      <p class="note">${sunU ? "In sun, ASHRAE 55 SolarCal adds the radiant load on a standing person." : `Indoors (exhaust-ventilated hall, no active cooling): hall air temperature including the heat gain, radiant temperature equal to air temperature (roof radiant heat not yet included) and ${DATA.meta.indoor_air_speed} m/s air speed at body height.`}</p></div>
     <div><h3>Process limits <span class="ph">placeholder thresholds</span></h3><div class="tw"><table>${thead(cols, "Hours a year")}<tbody>${procRows}</tbody></table></div>
       <p class="note">Outdoor air conditions against example limits. Replace them with the real paint, coating and composite specifications to make this meaningful.</p></div>`;
 }
@@ -630,7 +630,7 @@ function renderAbout() {
     <li><b>Typical vs hot:</b> the median year and the 90th-percentile year (about 1 in 10) of the 11 years.</li>
     <li><b>WBGT:</b> Liljegren et al. (2008) model, run with sun for outdoor work and without solar radiation for shade and indoor work. Reference 28 °C for moderate work (ISO 7243, acclimatised), 26 °C if not acclimatised.</li>
     <li><b>UTCI:</b> used for naturally ventilated, unconditioned halls and outdoor work. Indoors it uses the hall air temperature (with the chosen heat gain), radiant temperature equal to air and still air; in sun, ASHRAE 55 SolarCal adds the radiant load on a standing person. PMV / adaptive comfort suit mechanically conditioned rooms only.</li>
-    <li><b>Exposure:</b> "Indoor" uses no solar radiation (shaded WBGT; UTCI with radiant temperature = air temperature) and the hall at outdoor temperature plus the chosen heat gain (+0, +2 or +4 °C, same moisture). "Outdoor, in sun" includes solar radiation for work outside.</li>
+    <li><b>Exposure:</b> "Indoor" represents a warehouse or hangar with exhaust ventilation and no active cooling: no solar radiation, the hall at outdoor temperature plus the chosen heat gain (+0, +2 or +4 °C, same moisture), radiant temperature equal to air temperature and an occupied-zone air speed of ${DATA.meta.indoor_air_speed} m/s. "Outdoor, in sun" includes solar radiation and the outdoor wind for work outside.</li>
     <li><b>Process limits</b> use placeholder thresholds.</li></ul>
     <p>Known limits: ERA5's ~25 km grid smooths local peaks, and Getafe and Illescas share one grid cell, so their historical weather is identical. Climate models disagree; the ranges show that spread.</p></div>`;
 }

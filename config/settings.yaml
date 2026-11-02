@@ -44,9 +44,11 @@ heat:
   indoor_offset_c: 0.0            # D14: indoor = outdoor; set from engineering estimates later
   indoor_offsets_sensitivity: [2.0, 4.0]   # extra indoor heat gain cases (hall warmer than outside), shade WBGT
   utci_heat_stress_c: 28.0        # Power BI definition (D27); bands per D31
-  # D51: indoor UTCI for naturally ventilated / unconditioned halls uses still air: 0.5 m/s at the 10 m
-  # reference height (UTCI's lower bound, ~0.3 m/s at 1.1 m), hall temperature incl. heat gain, Tmrt = air.
-  indoor_wind_10m_equiv: 0.5
+  # D52: indoor air movement for a warehouse / hangar with exhaust ventilation and no active cooling.
+  # Occupied-zone air speed at body height; used by indoor WBGT (as the 2 m speed) and indoor UTCI
+  # (converted to the 10 m reference with x1.5, floored at UTCI's 0.5 m/s lower bound).
+  indoor_air_speed_ms: 0.3
+  indoor_air_speed_sensitivity_ms: [0.2, 0.5]
   # Process limits are PLACEHOLDERS (D21) until real paint / composite specifications are supplied.
   process_limits:
     paint_application_max_temp: {variable: temp_air, above: 35.0, label: "Paint / coating application: air above 35 °C"}

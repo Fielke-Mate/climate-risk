@@ -23,12 +23,14 @@ def annual_summary(hourly: pd.DataFrame, lat: float, lon: float, timezone: str, 
     hc, op_cfg = cfg["heat"], cfg["operating_hours"]
     ref, ref_u, dh_base = hc["wbgt_reference_c"], hc["wbgt_reference_unacclimatised_c"], cfg["hot_year"]["wbgt_degree_hour_base_c"]
     if heat is None:
-        heat = heat_frame(hourly, lat, lon, indoor_offset=hc.get("indoor_offset_c", 0.0))
+        heat = heat_frame(hourly, lat, lon, indoor_offset=hc.get("indoor_offset_c", 0.0),
+                          indoor_air_speed=hc.get("indoor_air_speed_ms", 0.3))
     df = pd.concat([hourly[["temp_air", "relative_humidity"]], heat], axis=1)
     offsets = [float(o) for o in hc.get("indoor_offsets_sensitivity", [])]
     for off in offsets:  # indoor sensitivity: hall warmer than outside by `off` C, no solar (shade)
-        df[f"wbgt_in{int(off)}"] = wbgt_liljegren(hourly, lat, lon, sun=False, indoor_offset=off)["wbgt"].to_numpy()
-        df[f"utci_in{int(off)}"] = utci_indoor(hourly, off, hc.get("indoor_wind_10m_equiv", 0.5))
+        v_in = hc.get("indoor_air_speed_ms", 0.3)
+        df[f"wbgt_in{int(off)}"] = wbgt_liljegren(hourly, lat, lon, sun=False, indoor_offset=off, air_speed=v_in)["wbgt"].to_numpy()
+        df[f"utci_in{int(off)}"] = utci_indoor(hourly, off, v_in)
     starts_local = (df.index - pd.Timedelta(hours=1)).tz_convert(timezone)
     df["year"] = starts_local.year
     df["date"] = starts_local.normalize()
