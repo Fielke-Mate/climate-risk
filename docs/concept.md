@@ -1,4 +1,4 @@
-# Concept & Framework (v0.3, draft)
+# Concept & Framework (v0.4, draft)
 
 > A working document. Items marked **[OPEN]** still need a decision. Section 12 records the decisions taken so far.
 
@@ -39,7 +39,7 @@ Each site gets two kinds of year, typical and extreme warm, for three periods:
 
 | Period | Typical year | Extreme warm year | Climate window |
 |---|---|---|---|
-| **Historical** | TMY | XMY (section 4c) | Baseline record (e.g. 2005–2023) |
+| **Historical** | TMY | XMY (section 4c) | Baseline record (2005–2023) |
 | **2040** | TMY morphed to 2040 | XMY morphed to 2040 | 2031–2050 vs baseline |
 | **2050** | TMY morphed to 2050 | XMY morphed to 2050 | 2041–2060 vs baseline |
 
@@ -59,11 +59,23 @@ The weather file is the central object. Every hazard metric is computed from an 
  processes)            (EPW / CSV)              2040 & 2050                  file per model
 ```
 
-### 4a. Historical weather file
+### 4a. Historical weather files
 
-- **Default source: PVGIS TMY** (EU Joint Research Centre). It is free, has an API for any coordinate, and is derived from ERA5 reanalysis. It gives hourly temperature, relative humidity, solar radiation (global, direct, diffuse), wind speed and pressure, which are all the inputs WBGT needs. Coverage across Europe is good and reuse is open.
-- **Alternative / override:** load any EPW or CSV file (e.g. climate.onebuilding.org TMYx, Meteonorm, or a client's own data). These go through the same parser into the same standard format.
-- The tool stores each file with metadata: source, period, coordinates, and the distance from the source grid point to the site.
+**Baseline period:** 2005–2023. Going back to 1991 isn't needed. **Full year:** all 8,760 hours are kept and analysed, both for heat metrics and for the site weather summary (section 5e).
+
+**Humidity check (based on PVGIS documentation; to be confirmed with a live request):**
+- PVGIS **TMY** output includes relative humidity (plus temperature, global/direct/diffuse radiation, infrared, wind speed/direction and pressure). ✔
+- PVGIS **multi-year hourly series** includes temperature, radiation and wind, but **not humidity**. ✘
+
+The XMY needs a multi-year hourly record **with humidity**, so PVGIS alone isn't enough.
+
+**Proposed approach:** build **both the TMY and XMY ourselves** from one multi-year hourly ERA5 record (2005–2023) for each site, so the two files are fully consistent.
+- **ERA5 hourly source:** Open-Meteo Historical Weather API (ERA5-based, no API key, free for non-commercial use, which suits the proof of concept), or Copernicus CDS (official, free account).
+- **TMY method:** standard ISO 15927-4 selection (most typical month per calendar month).
+- **XMY method:** same procedure with high-percentile selection (section 4c).
+- **PVGIS TMY** is downloaded as an **independent cross-check**: our TMY should look similar.
+
+**Alternative / override:** load any EPW or CSV file (e.g. climate.onebuilding.org TMYx, Meteonorm, or a client's own data) through the same parser into the same standard format. Each file is stored with metadata: source, period, coordinates, and the distance from the source grid point to the site.
 
 ### 4b. Future weather files (morphing)
 
@@ -89,14 +101,28 @@ The weather file is the central object. Every hazard metric is computed from an 
 - It isn't tied to one specific year, so no single year's oddities (e.g. a cool June in an otherwise hot year) dilute it.
 - It goes through the same morphing and analysis pipeline as the TMY.
 
-**Design choices to pin down in Phase 1:**
-- **Warm season only:** apply the extreme selection to May–September and keep typical months for the rest. Otherwise the year is extreme in every month at once, which is harsher than any real year. Recommended default.
-- **Percentile:** 90th = "a hot year that happens about 1 in 10 years". 95th = more severe. Make it configurable.
-- **Month boundaries:** a heatwave spanning two months can get split. This is acceptable for a proof of concept, and worth noting in the methodology.
+**Design choices:**
+- **Whole year (decided):** extreme selection is applied to all 12 months. The result is warmer in every month than any single real year, so it is described as a **"warm-case stress test"**, not a likely year. Winter months matter little for heat metrics but make the weather summary consistent.
+- **Percentile:** 90th = "a hot month that happens about 1 in 10 years". 95th = more severe. Configurable, default 90th.
+- **Selection statistic [OPEN]:** see the options in section 4d.
+- **Month boundaries:** a heatwave spanning two months can get split. This is acceptable for a proof of concept, and noted in the methodology.
 
-**Future extremes warm faster than means in much of Europe** (especially Iberia and central Europe). So morphing with mean monthly changes alone would underestimate future peaks. For the XMY, the "stretch" part of morphing should use the projected change in *upper* temperatures (e.g. the change in each month's 90th percentile daily max), not just the mean.
+**Projecting peaks (decided):** future extremes warm faster than means in much of Europe (especially Iberia and central Europe), so morphing with mean monthly changes alone would underestimate future peaks. The XMY is morphed using the projected change in *upper* temperatures (e.g. the change in each month's 90th percentile daily max), not just the mean. The TMY uses the standard mean/range morphing.
 
 **Cross-check (optional):** with the full multi-year record we can also compute "days over threshold" for every historical year directly. That gives a distribution, e.g. median and 1-in-10-year values, to check that the TMY and XMY land where expected.
+
+### 4d. XMY selection statistic: options [OPEN]
+
+To pick "the 90th-percentile month", every historical month needs a single heat score. The options:
+
+| Option | What it measures | Strengths | Weaknesses |
+|---|---|---|---|
+| **A. Mean daily max air temperature** | Average of each day's peak temperature over the month | Simple and transparent; peaks fall in working hours; works in every month | Ignores humidity; a month with one big heatwave and cool days otherwise may score average |
+| **B. Mean daily mean air temperature** | Average temperature over all hours | Captures warm nights and sustained warmth, not just afternoon peaks; standard TMY variable | Dilutes daytime peaks with night-time values |
+| **C. Cooling degree hours above a base** (e.g. sum of (T − 25 °C) over hours above 25 °C) | Both how often *and* how far temperatures exceed a level | Directly rewards heatwaves; similar to the UK CIBSE "Design Summer Year" approach | Zero in cool months (whole-year selection then has nothing to rank on, so a fallback like A is needed); depends on the chosen base |
+| **D. Mean daily max WBGT** | Average daily peak heat stress including humidity, radiation and wind | Most directly linked to worker heat stress; humid heat counts properly | Relies on the WBGT calculation; less intuitive for the general weather summary; ties the XMY to one end use |
+
+**Recommendation:** **A (mean daily max temperature)** as the default. It is simple, works year-round, and is easy to explain to clients. Run **D** as a sensitivity check in Phase 1. If the two pick largely the same months, keep A. If humid sites (e.g. coastal Spain) differ a lot, switch to D.
 
 ## 5. Heat analysis (v1 scope)
 
@@ -107,7 +133,7 @@ The headline result is **days per year above a threshold**, with hours above the
 | Threshold set | Basis | Variable | Example values (to confirm) |
 |---|---|---|---|
 | General heat | Common climate indicators | Daily max air temperature | Tmax > 30 / 35 / 40 °C; warm nights Tmin > 20 °C |
-| **Worker heat stress (v1 default)** | ISO 7243 WBGT reference values, by work intensity & acclimatisation | Hourly WBGT | Values taken from the standard's metabolic-rate classes; confirm exact figures in Phase 3 |
+| **Worker heat stress (v1 default)** | ISO 7243 WBGT reference values, by work intensity & acclimatisation (section 5b) | Hourly WBGT | Class 1: 30 °C · Class 2: 28 °C (acclimatised) |
 | Workplace regulation (DE example) | ASR A3.5 indoor air temperature levels | Indoor air temperature | 26 / 30 / 35 °C |
 | Process limits | User-defined per process | Air temp, RH, or wet-bulb | e.g. paint/sealant cure limit, chiller design ambient, composite layup room spec |
 
@@ -115,19 +141,36 @@ A "day over threshold" counts a day where the threshold is exceeded for at least
 
 ### 5b. Use case A: worker heat stress
 
-- Compute **hourly WBGT** from the weather file. The Liljegren method is the standard physically based approach and uses temperature, humidity, solar radiation, wind and pressure, all of which are in the file.
+**ISO 7243 work-intensity (metabolic rate) classes.** The reference WBGT is the level up to which continuous work is generally acceptable for a fit, normally clothed worker. Values below are the widely used tabulated values. The 2017 edition expresses them as curves against metabolic rate, so check exact figures against the standard in Phase 3.
+
+| Class | Metabolic rate (approx.) | Typical activities | WBGT ref, acclimatised | WBGT ref, not acclimatised |
+|---|---|---|---|---|
+| 0 Resting | < 115 W | Seated at rest | 33 °C | 32 °C |
+| 1 Low | 115–235 W | Seated or standing light work: inspection, light assembly, bench work with small tools, machine operation, slow walking | 30 °C | 29 °C |
+| 2 Moderate | 235–360 W | Sustained hand/arm work: riveting, drilling, fastening, sanding, pushing light carts, normal walking | 28 °C | 26 °C |
+| 3 High | 360–470 W | Intense arm and trunk work: carrying heavy material, sawing, pushing heavy carts, fast walking | 25–26 °C | 22–23 °C |
+| 4 Very high | > 470 W | Very intense work at fast pace: heavy shovelling, climbing stairs/ladders with loads | 23–25 °C | 18–20 °C |
+
+**Proposed default for aircraft manufacturing:** much assembly work (riveting, drilling, sealing, fastening, wiring) is sustained arm work, often overhead, so it sits around **Class 2 (moderate)**. Inspection, quality and machine-minding are **Class 1 (low)**. Show both: **Class 2 as the headline, Class 1 as secondary**, assuming **acclimatised** workers. Show "not acclimatised" as a sensitivity for early-summer heatwaves and northern sites, where workers are less used to heat.
+
+- Compute **hourly WBGT** from the weather file. Indoor workers use **shaded WBGT** (no direct solar load). Outdoor workers use WBGT in sun. The Liljegren method is the standard physically based approach and uses temperature, humidity, solar radiation, wind and pressure, all of which are in the file.
 - **Indoor vs outdoor:** most aerospace manufacturing is indoors (hangars, assembly halls). **For v1, indoor conditions = outdoor conditions** (offset = 0 °C). The code still includes an `indoor_offset` parameter per workforce group and process, so it can later be set from **engineering estimates** without changing the method. A building model is out of scope.
 - **Shifts:** count exceedances only during working hours (e.g. day shift 06:00–14:00, late shift 14:00–22:00, night shift).
 - **Outputs:** days/hours above each threshold per workforce group, by period, scenario and year type (typical / extreme warm), with ranges.
 
 ### 5c. Use case B: process operating limits
 
-- Each process has a limit (temperature, RH or wet-bulb) and an indoor/outdoor setting.
+- Each process has a limit (temperature, RH or wet-bulb), possibly a lower limit too, and an indoor/outdoor setting.
+- **Target applications (later):** paint and coating application (temperature and humidity windows) and composite / carbon-fibre layup and curing (controlled-environment room conditions). In v1 these are placeholder thresholds the user sets.
 - **Outputs:** days/hours per year above the limit, and the change from historical. No downtime cost in v1.
 
 ### 5d. Risk rating
 
 **Left blank for v1.** The concept is shown with raw metrics (days/hours over threshold, change vs historical). The code keeps a placeholder `rating_scale.yaml` so a house scale can be dropped in later without changes elsewhere.
+
+### 5e. Site weather summary
+
+Alongside the risk metrics, each site gets a **full-year weather summary**, modelled on the consultant's earlier Power BI weather-analysis dashboard (temperature, humidity, wind, irradiance, UTCI comfort, natural-ventilation potential). It is reworked to **compare years** (Historical / 2040 / 2050, TMY / XMY, by scenario). See [`weather_summary_dashboard.md`](weather_summary_dashboard.md).
 
 ## 6. Pilot portfolio: European aerospace manufacturing
 
@@ -204,10 +247,10 @@ The dashboard is built **around an interactive map of the portfolio**:
 | Phase | Goal | Deliverable |
 |---|---|---|
 | 0 | Concept & framework | This document, agreed |
-| 1 | Historical weather files | Multi-year hourly record + TMY + XMY for every pilot site; standard format; quick plots |
+| 1 | Historical weather files | ERA5 hourly 2005–2023 + our TMY + XMY for every pilot site; PVGIS TMY cross-check; standard format; quick plots |
 | 2 | Future weather files | CMIP6 deltas + morphing → 2040/2050 ensembles; sanity checks vs published projections |
 | 3 | Heat analysis | ISO 7243 WBGT, thresholds, days/hours over, ranges |
-| 4 | Dashboard | Interactive portfolio map, click-through site panel, period/scenario/year-type comparison |
+| 4 | Dashboard | Interactive portfolio map, click-through site panel, site weather summary pages, period/scenario/year-type comparison |
 | 5 | Extensions | Risk rating scale, indoor offsets from engineering estimates, more hazards, financial effects, client sharing |
 
 ## 12. Decisions log
@@ -230,10 +273,15 @@ The dashboard is built **around an interactive map of the portfolio**:
 | D14 | Indoor = outdoor for v1; keep an `indoor_offset` parameter to set later from engineering estimates |
 | D15 | No client sharing / password for now |
 | D16 | The dashboard will centre on an interactive map with risk layers and a click-through site panel; visuals to be designed later |
+| D17 | Analyse the full year (8,760 h); each site also gets a weather summary comparing years, based on the earlier Power BI dashboard |
+| D18 | XMY uses extreme selection across the whole year (described as a warm-case stress test) |
+| D19 | The XMY is morphed with projected changes in upper temperatures, not just mean changes |
+| D20 | Baseline record 2005–2023 (no need to go back to 1991). Weather source must include humidity: PVGIS multi-year series lacks it, so we use ERA5 hourly; PVGIS TMY kept as a cross-check |
+| D21 | Process thresholds will eventually target paint application and composite / carbon-fibre layup and curing |
 
 ## 13. Open questions
 
-1. **XMY defaults:** warm-season-only extreme selection (May–Sep) at the 90th percentile, scored on mean daily max temperature? (Proposed.)
-2. **Baseline record:** PVGIS hourly series (~2005–2023, no account needed) vs ERA5 from Copernicus (1991–present, free account, longer and closer to a standard 30-year climate period). To check in Phase 1: does PVGIS's hourly series include humidity? If not, ERA5 is needed.
-3. **Process thresholds:** any specific aerospace process limits you want as examples (e.g. sealant/paint application, composite layup rooms)?
-4. **Work intensity:** which ISO 7243 work classes and acclimatisation assumption to show by default?
+1. **XMY selection statistic:** A (mean daily max temperature) with D (WBGT) as a sensitivity check? (Recommended, section 4d.)
+2. **Work-intensity default:** Class 2 moderate as headline + Class 1 low as secondary, acclimatised, with not-acclimatised as a sensitivity? (Recommended, section 5b.)
+3. **ERA5 access:** Open-Meteo (no account, non-commercial) or Copernicus CDS (free account)? Either way, the cloud environment needs network access to the chosen host.
+4. **Weather summary pages:** agree the priorities in `weather_summary_dashboard.md`?
