@@ -68,4 +68,6 @@ future:
   periods:
     "2040": [2031, 2050]
     "2050": [2041, 2060]
-  temperature_quantiles: [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99]
+  # Top quantile 0.95: with an 11-year baseline (~340 days per month) the 0.99 quantile rests on
+  # ~3 days and is too noisy; days beyond the 95th percentile receive the 0.95 delta.
+  temperature_quantiles: [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95]

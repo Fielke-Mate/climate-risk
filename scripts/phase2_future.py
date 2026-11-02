@@ -147,14 +147,14 @@ def main() -> None:
         ax.set_xlabel("Change in annual mean temperature (°C)", fontsize=8, color=INK2)
     axes[0].set_yticks(range(len(order)), [names[s] for s in order])
     axes[0].legend(frameon=False, fontsize=9, loc="lower right")
-    fig.suptitle("Projected warming by site: dot = median of 6 models, line = model range", x=0.01, ha="left", fontsize=12, color=INK)
+    fig.suptitle(f"Projected warming by site: dot = median of {len(fc['models'])} models, line = model range", x=0.01, ha="left", fontsize=12, color=INK)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     fig.savefig(FIG / "warming_by_site.png", dpi=130)
     plt.close(fig)
 
     for metric, label, fname in [("days_tmax_gt30", "Days with max temperature above 30 °C", "days_tmax30_projection.png"),
                                  ("op_wbgt_prov_degree_hours_gt_base", "WBGT degree-hours above 25 °C in working hours (provisional shaded WBGT)", "wbgt_degree_hours_projection.png")]:
-        fig, axes = plt.subplots(1, 2, figsize=(12, 6.2), sharey=True)
+        fig, axes = plt.subplots(1, 2, figsize=(12, 6.2), sharey=True, sharex=True)
         for ax, scen in zip(axes, fc["scenarios"]):
             style(ax)
             e = ens[(ens.metric == metric) & (ens.year_type == "typical")]
@@ -168,9 +168,10 @@ def main() -> None:
                 ax.plot(v["median"], y, "o", color=colr, markersize=6, label=lab, markeredgecolor="white", markeredgewidth=1.2)
             ax.set_title({"ssp245": "SSP2-4.5 (middle)", "ssp585": "SSP5-8.5 (high)"}[scen], loc="left", fontsize=10, color=INK)
         axes[0].set_yticks(range(len(order)), [names[s] for s in order])
-        axes[0].legend(frameon=False, fontsize=9, loc="lower right")
-        fig.suptitle(f"{label}: typical year (median), line = range across 6 models", x=0.01, ha="left", fontsize=12, color=INK)
-        fig.tight_layout(rect=(0, 0, 1, 0.95))
+        handles, labels = axes[0].get_legend_handles_labels()
+        fig.legend(handles, labels, frameon=False, fontsize=9, loc="upper center", ncol=3, bbox_to_anchor=(0.5, 0.95))
+        fig.suptitle(f"{label}: typical year (median), line = range across {len(fc['models'])} models", x=0.01, ha="left", fontsize=12, color=INK)
+        fig.tight_layout(rect=(0, 0, 1, 0.91))
         fig.savefig(FIG / fname, dpi=130)
         plt.close(fig)
 
@@ -185,7 +186,7 @@ def main() -> None:
                            & (deltas_all.scenario == "ssp585") & (deltas_all.period == "2050")]
             prof = q.groupby("quantile")["value"].agg(["median", "min", "max"])
             ax.fill_between(prof.index * 100, prof["min"], prof["max"], color=SERIES[1], alpha=0.18, linewidth=0, label="Model range")
-            ax.plot(prof.index * 100, prof["median"], color=SERIES[1], linewidth=2, label="Median of 6 models")
+            ax.plot(prof.index * 100, prof["median"], color=SERIES[1], linewidth=2, label=f"Median of {len(fc['models'])} models")
             ax.set_title(f"{names[sid]}: July daily max, SSP5-8.5, 2050", loc="left", fontsize=10, color=INK)
             ax.set_xlabel("Percentile of daily maximum temperature", fontsize=8, color=INK2)
         axes[0][0].set_ylabel("Warming (°C)", fontsize=8, color=INK2)

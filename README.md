@@ -7,6 +7,7 @@ The first focus is **extreme heat**: risk to **worker health and productivity** 
 - Concept & framework: [`docs/concept.md`](docs/concept.md)
 - Weather summary dashboard design: [`docs/weather_summary_dashboard.md`](docs/weather_summary_dashboard.md)
 - Phase 1 (historical weather files): [`docs/phase1/README.md`](docs/phase1/README.md)
+- Phase 2 (future weather files): [`docs/phase2/README.md`](docs/phase2/README.md)
 
 ## Setup
 
@@ -17,11 +18,13 @@ python3 -m venv .venv
 
 ERA5 downloads need a free Copernicus CDS account. Put the API key in the `CDSAPI_KEY` environment variable (cloud: an environment secret). Never commit it.
 
-## Phase 1 workflow
+## Workflow
 
 ```bash
 .venv/bin/python scripts/fetch_era5.py
 .venv/bin/python scripts/phase1_historical.py
+.venv/bin/python scripts/fetch_nex.py        # Phase 2 data, resumable (~2.5 h)
+.venv/bin/python scripts/phase2_future.py
 .venv/bin/python -m pytest
 ```
 
