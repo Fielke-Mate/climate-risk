@@ -7,3 +7,4 @@ __pycache__/
 # Raw downloads are large and reproducible from the scripts
 data/raw/
 data/weather/hourly/
+*.egg-info/
