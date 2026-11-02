@@ -1,4 +1,4 @@
-# Concept & Framework (v0.5, draft)
+# Concept & Framework (v0.6, draft)
 
 > A working document. Items marked **[OPEN]** still need a decision. Section 12 records the decisions taken so far.
 
@@ -35,13 +35,16 @@ We follow the IPCC AR6 risk framing: **Risk = f(Hazard, Exposure, Vulnerability)
 
 ### Time periods & scenarios
 
-Each site gets two kinds of year, typical and extreme warm, for three periods:
+Each site's **baseline is the actual hourly record for 2015–2024** (10 years). Every year in it is analysed hour by hour, and each one is adjusted to 2040 and 2050:
 
-| Period | Typical year | Extreme warm year | Climate window |
-|---|---|---|---|
-| **Historical** | TMY | XMY (section 4c) | Baseline record (2005–2023) |
-| **2040** | TMY morphed to 2040 | XMY morphed to 2040 | 2031–2050 vs baseline |
-| **2050** | TMY morphed to 2050 | XMY morphed to 2050 | 2041–2060 vs baseline |
+| Period | Data analysed | Reported |
+|---|---|---|
+| **Historical** | 10 actual years, 2015–2024 | Typical (median year) and **hot (90th percentile year)** |
+| **Historical hot reference year** | One actual, **unadjusted** year: the hottest in the record | Its values, labelled with the year (e.g. "2022") |
+| **2040** | Each of the 10 years adjusted to 2031–2050 climate, per model & scenario | Typical and 90th percentile, with model range |
+| **2050** | Each of the 10 years adjusted to 2041–2060 climate, per model & scenario | Typical and 90th percentile, with model range |
+
+A **typical meteorological year (TMY)** is also built from 2015–2024 (and adjusted to 2040/2050). It is used only where one representative year is needed for hourly charts in the weather summary pages.
 
 - **Scenarios (decided):** SSP2-4.5 (middle) and SSP5-8.5 (high). ESRS E1 expects a high-emissions scenario for physical risk.
 - **Range:** each future year is produced once per climate model (an ensemble of roughly 5–10 CMIP6 models). Results are reported as the **median with a range** (e.g. min–max or 10th–90th percentile across models).
@@ -53,15 +56,15 @@ The weather file is the central object. Every hazard metric is computed from an 
 ```
  1. Sites            2. Historical file         3. Climate change deltas     4. Morphing             5. Analysis              6. Outputs
  ────────            ──────────────────         ────────────────────────     ──────────              ─────────                ─────────
- sites.csv      →    TMY per site:          →   CMIP6 monthly changes    →   Shift/stretch TMY   →   Thresholds, WBGT,    →   Tables, charts,
- (name, lat/lon,     • fetched (PVGIS API)      per site, per model,         hours by monthly        days/hours over          risk ratings,
- workforce,          • or loaded from file      per scenario, for            deltas → one future     limits, per file         dashboard
- processes)            (EPW / CSV)              2040 & 2050                  file per model
+ sites.csv      →    2015–2024 hourly +     →   CMIP6 monthly changes    →   Shift/stretch TMY   →   Thresholds, WBGT,    →   Tables, charts,
+ (name, lat/lon,     TMY per site:              per site, per model,         hours by monthly        days/hours over          risk ratings,
+ workforce,          • fetched (Open-Meteo)     per scenario, for            deltas → one future     limits, per file         dashboard
+ processes)          • or loaded (EPW / CSV)    2040 & 2050                  year per model
 ```
 
 ### 4a. Historical weather files
 
-**Baseline period:** 2005–2023. Going back to 1991 isn't needed. **Full year:** all 8,760 hours are kept and analysed, both for heat metrics and for the site weather summary (section 5e).
+**Baseline period:** 2015–2024 (10 years). **Full year:** all 8,760 hours are kept and analysed, both for heat metrics and for the site weather summary (section 5e).
 
 **Humidity check (based on PVGIS documentation; to be confirmed with a live request):**
 - PVGIS **TMY** output includes relative humidity (plus temperature, global/direct/diffuse radiation, infrared, wind speed/direction and pressure). ✔
@@ -69,10 +72,10 @@ The weather file is the central object. Every hazard metric is computed from an 
 
 The XMY needs a multi-year hourly record **with humidity**, so PVGIS alone isn't enough.
 
-**Proposed approach:** build **both the TMY and XMY ourselves** from one multi-year hourly ERA5 record (2005–2023) for each site, so the two files are fully consistent.
-- **ERA5 hourly source:** Open-Meteo Historical Weather API (ERA5-based, no API key, free for non-commercial use, which suits the proof of concept), or Copernicus CDS (official, free account).
+**Approach (decided):** download the hourly ERA5 record for 2015–2024 for each site and build the TMY from the same record, so everything is consistent.
+- **ERA5 hourly source (decided): Open-Meteo Historical Weather API.** ERA5-based, no API key, free for **non-commercial use only**.
+  > ⚠️ **Change before any commercial use:** move to the official Copernicus Climate Data Store (CDS), which is free and allows commercial use but needs an account. See section 14.
 - **TMY method:** standard ISO 15927-4 selection (most typical month per calendar month).
-- **XMY method:** same procedure with high-percentile selection (section 4c).
 - **PVGIS TMY** is downloaded as an **independent cross-check**: our TMY should look similar.
 
 **Alternative / override:** load any EPW or CSV file (e.g. climate.onebuilding.org TMYx, Meteonorm, or a client's own data) through the same parser into the same standard format. Each file is stored with metadata: source, period, coordinates, and the distance from the source grid point to the site.
@@ -85,44 +88,21 @@ The XMY needs a multi-year hourly record **with humidity**, so PVGIS alone isn't
 - **Delta source (proposed):** NASA NEX-GDDP-CMIP6, which is open, global, daily and bias-corrected. It provides tas, tasmax, tasmin, hurs, rsds and sfcWind. The deltas are computed between the future window and a model baseline that **matches the TMY's period**, so changes aren't double-counted.
 - **Result per site:** 1 historical file + (2 periods × 2 scenarios × N models) future files.
 
-### 4c. Extreme warm year (XMY): keeping the peaks
+### 4c. Capturing extremes: multi-year analysis (replaces the XMY idea)
 
-**Problem:** A TMY is built by picking, for each calendar month, the historical month whose statistics are *closest to the long-term average*. That smooths out heatwaves. A morphed TMY is a typical future year, so on its own it **understates peak heat exposure**.
+A single typical year smooths out heatwaves. Instead of building one artificial "extreme" year, we **analyse every year in the record**:
 
-**Approach:** build a second file **the same way as a TMY, but select for heat instead of typicality**. This is an established concept, variously called the Extreme Meteorological Year (XMY), Extreme Warm Year (EWY), or a Design Summer Year (CIBSE). It is used in building-overheating and resilient-cooling work (e.g. IEA EBC Annex 80).
+1. **Historical:** compute the hourly metrics (WBGT, UTCI, thresholds) for each of the 10 actual years 2015–2024. Report the **median year** ("typical") and the **90th percentile year** ("hot").
+2. **Future:** adjust each of the 10 years to 2040 and 2050 (per model and scenario), then analyse and report them the same way.
+3. **Hot reference year:** the single hottest actual year in the record (e.g. 2022), **unadjusted**, as a real-world reference that clients will remember.
 
-1. **Get a multi-year hourly record** for each site (e.g. 2005–2023) from the same source as the TMY, so the two files are consistent.
-2. **Score every historical month** on a heat-relevant statistic, e.g. mean daily max temperature or hours above a WBGT/temperature level (cooling-degree-hours).
-3. **For each calendar month, pick the month at a high percentile** (e.g. the 90th or 95th) of that statistic, not the median.
-4. **Stitch the selected months** into one hourly year. Smooth the joins over a few hours, as TMY methods do.
+**Why this works:** heatwaves that actually happened (2019, 2022, 2023…) are kept exactly as observed. No selection rule is needed, and results come straight from hour-by-hour counts.
 
-**Why this works:**
-- The hourly and day-to-day sequences are real observed weather. Heatwaves keep their actual shape, duration and humidity.
-- It isn't tied to one specific year, so no single year's oddities (e.g. a cool June in an otherwise hot year) dilute it.
-- It goes through the same morphing and analysis pipeline as the TMY.
+**Caveat:** with 10 years, the 90th percentile sits roughly between the hottest and second-hottest year. That's fine as a "hot year" indicator, but it is not a statistically robust 1-in-10-year estimate. This is noted in the methodology.
 
-**Design choices:**
-- **Whole year (decided):** extreme selection is applied to all 12 months. The result is warmer in every month than any single real year, so it is described as a **"warm-case stress test"**, not a likely year. Winter months matter little for heat metrics but make the weather summary consistent.
-- **Percentile:** 90th = "a hot month that happens about 1 in 10 years". 95th = more severe. Configurable, default 90th.
-- **Selection statistic [OPEN]:** see the options in section 4d.
-- **Month boundaries:** a heatwave spanning two months can get split. This is acceptable for a proof of concept, and noted in the methodology.
+**Projecting peaks (decided):** future extremes warm faster than means in much of Europe (especially Iberia and central Europe). So the adjustment uses projected changes in **upper temperatures** (e.g. the change in each month's 90th percentile daily max), not just the mean. In practice, each part of the temperature distribution is shifted by its own projected change (quantile-based morphing).
 
-**Projecting peaks (decided):** future extremes warm faster than means in much of Europe (especially Iberia and central Europe), so morphing with mean monthly changes alone would underestimate future peaks. The XMY is morphed using the projected change in *upper* temperatures (e.g. the change in each month's 90th percentile daily max), not just the mean. The TMY uses the standard mean/range morphing.
-
-**Cross-check (optional):** with the full multi-year record we can also compute "days over threshold" for every historical year directly. That gives a distribution, e.g. median and 1-in-10-year values, to check that the TMY and XMY land where expected.
-
-### 4d. XMY selection statistic: options [OPEN]
-
-To pick "the 90th-percentile month", every historical month needs a single heat score. The options:
-
-| Option | What it measures | Strengths | Weaknesses |
-|---|---|---|---|
-| **A. Mean daily max air temperature** | Average of each day's peak temperature over the month | Simple and transparent; peaks fall in working hours; works in every month | Ignores humidity; a month with one big heatwave and cool days otherwise may score average |
-| **B. Mean daily mean air temperature** | Average temperature over all hours | Captures warm nights and sustained warmth, not just afternoon peaks; standard TMY variable | Dilutes daytime peaks with night-time values |
-| **C. Cooling degree hours above a base** (e.g. sum of (T − 25 °C) over hours above 25 °C) | Both how often *and* how far temperatures exceed a level | Directly rewards heatwaves; similar to the UK CIBSE "Design Summer Year" approach | Zero in cool months (whole-year selection then has nothing to rank on, so a fallback like A is needed); depends on the chosen base |
-| **D. Mean daily max WBGT** | Average daily peak heat stress including humidity, radiation and wind | Most directly linked to worker heat stress; humid heat counts properly | Relies on the WBGT calculation; less intuitive for the general weather summary; ties the XMY to one end use |
-
-**Recommendation:** **A (mean daily max temperature)** as the default. It is simple, works year-round, and is easy to explain to clients. Run **D** as a sensitivity check in Phase 1. If the two pick largely the same months, keep A. If humid sites (e.g. coastal Spain) differ a lot, switch to D.
+**Baseline alignment:** NEX-GDDP-CMIP6 historical runs end in 2014. So the model baseline for 2015–2024 comes from the start of the scenario runs, where SSP2-4.5 and SSP5-8.5 are still almost identical.
 
 ## 5. Heat analysis (v1 scope)
 
@@ -161,12 +141,20 @@ A "day over threshold" counts a day where the threshold is exceeded for at least
 
 ### 5c. UTCI (Universal Thermal Climate Index)
 
-UTCI is the "feels-like" temperature from a full human heat-balance model. It is widely used in heat-health and urban climate work, and it was already in the earlier Power BI dashboard.
+UTCI is the "feels-like" temperature from a full human heat-balance model. It carries over from the earlier Power BI dashboard.
 
 - **Inputs:** air temperature, humidity, wind speed (10 m) and **mean radiant temperature (Tmrt)**. Tmrt is calculated from direct, diffuse and longwave radiation plus sun position, all available from ERA5. Implementation: an established library (e.g. ECMWF `thermofeel` or `pythermalcomfort`).
-- **Assessment scale (heat side):** 26–32 °C moderate, 32–38 °C strong, 38–46 °C very strong, > 46 °C extreme heat stress. Cold side: < 9 °C slight cold stress, < 0 °C moderate cold stress. **[OPEN]** The Power BI used > 28 °C for "heat stress". Switch to the standard bands?
+- **Scale (decided): keep the Power BI scale and colour bar.**
+
+  | Strong cold | Moderate cold | Slight cold | No thermal stress | Slight heat | Moderate heat | Strong heat |
+  |---|---|---|---|---|---|---|
+  | < −13 | −13 to 0 | 0 to 9 | 9 to 26 | 26 to 28 | 28 to 32 | > 32 |
+
+  **[OPEN]** Extend the top of the scale with *very strong* (38–46) and *extreme* (> 46) heat stress from the standard UTCI scale? The southern sites in 2050 are likely to spend many hours above 38, and these would otherwise all sit in "strong".
+- **Metrics (decided, from the Power BI):** % and hours of heat stress (UTCI > 28); % and hours of cold stress (UTCI < 0); % time comfortable (9–26); % time comfortable for short periods (0–28); hours in each category ("condition of person"); UTCI distribution by hour of day.
 - **Sun vs shade:** UTCI in sun (outdoor work, yard operations, logistics) and in shade (Tmrt ≈ air temperature, which suits indoor-equals-outdoor in v1).
 - **WBGT vs UTCI:** WBGT is the **occupational standard** (ISO 7243) and drives work/rest decisions. UTCI is a **physiological comfort/stress** index that is easier to communicate. Both are reported, and WBGT remains the headline for worker risk.
+- **Mock-up:** `docs/mockups/utci_page.html` (placeholder numbers only).
 
 ### 5d. Use case B: process operating limits
 
@@ -257,7 +245,7 @@ The dashboard is built **around an interactive map of the portfolio**:
 | Phase | Goal | Deliverable |
 |---|---|---|
 | 0 | Concept & framework | This document, agreed |
-| 1 | Historical weather files | ERA5 hourly 2005–2023 + our TMY + XMY for every pilot site; PVGIS TMY cross-check; standard format; quick plots |
+| 1 | Historical weather files | ERA5 hourly 2015–2024 + TMY + hot reference year for every pilot site; PVGIS TMY cross-check; standard format; quick plots |
 | 2 | Future weather files | CMIP6 deltas + morphing → 2040/2050 ensembles; sanity checks vs published projections |
 | 3 | Heat analysis | ISO 7243 WBGT, thresholds, days/hours over, ranges |
 | 4 | Dashboard | Interactive portfolio map, click-through site panel, site weather summary pages, period/scenario/year-type comparison |
@@ -290,10 +278,24 @@ The dashboard is built **around an interactive map of the portfolio**:
 | D21 | Process thresholds will eventually target paint application and composite / carbon-fibre layup and curing |
 | D22 | Worker heat stress headline: ISO 7243 Class 2 (moderate), WBGT 28 °C acclimatised |
 | D23 | Add UTCI (sun and shade) as an additional metric alongside WBGT |
+| D24 | Replace XMY with multi-year analysis of 2015–2024 (10 years): report typical (median) and hot (90th percentile) years, historical and future |
+| D25 | Keep one unadjusted historical hot reference year |
+| D26 | ERA5 via Open-Meteo for the proof of concept; switch to Copernicus CDS before any commercial use |
+| D27 | UTCI uses the Power BI metrics and colour-bar scale |
+| D28 | Weather summary page priorities agreed (see weather_summary_dashboard.md) |
 
 ## 13. Open questions
 
-1. **XMY selection statistic:** A (mean daily max temperature) with D (WBGT) as a sensitivity check? (Recommended, section 4d.)
-2. **Work-intensity default:** Class 2 moderate as headline + Class 1 low as secondary, acclimatised, with not-acclimatised as a sensitivity? (Recommended, section 5b.)
-3. **ERA5 access:** Open-Meteo (no account, non-commercial) or Copernicus CDS (free account)? Either way, the cloud environment needs network access to the chosen host.
-4. **Weather summary pages:** agree the priorities in `weather_summary_dashboard.md`?
+1. **Baseline end year:** 2015–2024 (10 full years, proposed) or 2015–2025 (11 years, as 2025 is now complete in ERA5)?
+2. **Hot reference year:** the hottest year **per site** (proposed: ranked by WBGT hours over 28 °C) or **one common year** for all sites (e.g. 2022) for an easier portfolio story?
+3. **UTCI scale top end:** add *very strong* (38–46) and *extreme* (> 46) bands? (Recommended.)
+4. **Power BI definitions:** temperature category bands, comfortable hours, natural-ventilation and evaporative-cooling criteria, degree-hour bases. Supply your originals, or should I propose defaults?
+5. **Site coordinates:** verify `data/sites/pilot_aerospace_europe.csv`.
+
+## 14. Notes for productisation
+
+Things that are fine for a non-commercial proof of concept but must change if the tool develops further:
+- **Weather data source:** Open-Meteo's free tier is non-commercial only. Move to the Copernicus Climate Data Store (or a paid Open-Meteo plan).
+- **Licences:** re-check terms for all datasets (NEX-GDDP-CMIP6, PVGIS, ERA5) for commercial use.
+- **Architecture:** rebuild beyond a single-user Streamlit app (accounts, client sharing, database), as already noted.
+- **Methods:** peer-review the WBGT/UTCI implementations and the morphing; consider longer baselines or large-ensemble methods for robust return periods.

@@ -24,9 +24,9 @@ A second version (**PowerBI_Template**) has the same pages and layout, with thes
 
 The design below combines both versions.
 
-## Comparison version (proposed)
+## Comparison version (agreed in principle)
 
-New global filters: **Site**, **Scenario** (SSP2-4.5 / SSP5-8.5), **Year type** (TMY / XMY), plus the original Day/Night, Month and Season. Unless a single year is selected, every chart compares **Historical | 2040 | 2050**.
+New global filters: **Site**, **Scenario** (SSP2-4.5 / SSP5-8.5), **Year type** (typical / hot 90th percentile), plus the original Day/Night, Month and Season. Every chart compares **Historical | Hot reference year | 2040 | 2050**. Hourly profile charts that need a single year use the TMY.
 
 Comparison patterns used throughout:
 - **KPI cards in triplets:** Historical value → 2040 → 2050, each future value with its model range and the change, e.g. `412 h → 530 h (480–590) → 610 h (540–700)`.
@@ -37,7 +37,7 @@ Comparison patterns used throughout:
 |---|---|---|---|
 | **Summary** | Location, KPIs, temperature categories, RH distribution, comfort bar | KPI triplets; stacked temperature-category bars per year; headline "days over threshold" | High |
 | **Temperature** | Hourly profile, % hours per temperature, hours > 30 / < 10, max/min, apparent temp, day/night difference, heating & cooling degree hours | Overlaid distributions; month × hour heatmap of warming; **days over threshold** (Tmax > 30/35/40, warm nights); shift in the hottest-hours tail | High |
-| **Heat stress (new, from UTCI page)** | UTCI categories, % heat/cold stress, comfortable time | **ISO 7243 WBGT** hours/days over the reference value per work class and shift; UTCI kept for outdoor comfort; comparison by year | High |
+| **Heat stress (new, from UTCI page)** | **UTCI colour-bar scale, all UTCI metric cards, condition-of-person chart, UTCI by hour** | Comparison by year (see `mockups/utci_page.html`); **ISO 7243 WBGT** hours/days over 28 °C (Class 2) by shift | High |
 | **Relative Humidity** | RH distribution, RH by temperature, evaporative cooling hours | Change in evaporative cooling effectiveness (relevant to adiabatic cooling of halls) | Medium |
 | **Natural Ventilation** | Hours suitable for natural ventilation, day/night, by month | Loss of free-cooling hours by 2040/2050, a strong adaptation signal for factory halls | Medium |
 | **Process limits (new)** | – | Hours/days above process limits (e.g. paint application, composite layup/cure room conditions), by year | Medium |

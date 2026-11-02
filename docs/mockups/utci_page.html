@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UTCI Page Mock-up</title>
+<style>
+  :root{--bg:#f6f7f9;--card:#fff;--ink:#1d2430;--muted:#667085;--line:#e3e6ea;--accent:#2b59c3;
+    --c0:#4f50ff;--c1:#6f86e0;--c2:#79b3c9;--c3:#8bdcaa;--c4:#b0b48c;--c5:#d9806e;--c6:#ff5555;--c7:#c0262d;--c8:#6e0f14;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  .banner{background:#fff4d6;border-bottom:1px solid #f0d58a;padding:8px 16px;font-size:13px}
+  .wrap{display:grid;grid-template-columns:1fr 240px;gap:16px;padding:16px;max-width:1280px;margin:0 auto}
+  @media (max-width:860px){.wrap{grid-template-columns:1fr}}
+  header{grid-column:1/-1;display:flex;justify-content:space-between;align-items:flex-end;border-bottom:4px solid var(--ink);padding-bottom:8px;flex-wrap:wrap;gap:8px}
+  h1{margin:0;font-size:28px}
+  .coords{color:var(--muted)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:16px}
+  h2{font-size:15px;margin:0 0 10px}
+  .note{color:var(--muted);font-size:12px}
+  .scale{display:grid;grid-template-columns:repeat(9,1fr);border-radius:6px;overflow:hidden;font-size:11px;text-align:center}
+  .scale div{padding:8px 2px;color:#111}
+  .scale div.dark{color:#fff}
+  .scale .ext{outline:2px dashed #111;outline-offset:-3px}
+  .bars .row{display:grid;grid-template-columns:170px 1fr;align-items:center;gap:8px;margin:6px 0}
+  @media (max-width:560px){.bars .row{grid-template-columns:1fr}}
+  .stack{display:flex;height:26px;border-radius:4px;overflow:hidden}
+  .stack span{display:block;height:100%}
+  .lbl{font-size:13px}.lbl small{display:block;color:var(--muted)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+  th:first-child,td:first-child{text-align:left;white-space:normal}
+  thead th{font-size:12px;color:var(--muted);font-weight:600}
+  td .rng{display:block;color:var(--muted);font-size:11px}
+  .up{color:#c0262d;font-size:11px}
+  .tablewrap{overflow-x:auto}
+  .filters label{display:block;font-size:12px;color:var(--muted);margin-top:10px}
+  .filters select{width:100%;padding:6px;border:1px solid var(--line);border-radius:6px;background:#fff}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;margin-top:6px}
+  .legend i{display:inline-block;width:18px;height:3px;vertical-align:middle;margin-right:5px}
+  svg text{font-size:11px;fill:var(--muted)}
+</style>
+</head>
+<body>
+<div class="banner"><b>Design mock-up only.</b> All numbers are placeholders to show layout and comparisons. No weather data has been processed yet.</div>
+<div class="wrap">
+  <header>
+    <div><h1>Sevilla San Pablo — Thermal Comfort (UTCI)</h1><div class="coords">Lat 37.42 · Lon −5.90 · UTCI in sun · SSP2-4.5</div></div>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>UTCI thermal stress scale</h2>
+      <div class="scale">
+        <div class="dark" style="background:var(--c0)">Strong cold<br>&lt; −13</div>
+        <div class="dark" style="background:var(--c1)">Moderate cold<br>−13 to 0</div>
+        <div style="background:var(--c2)">Slight cold<br>0 to 9</div>
+        <div style="background:var(--c3)">No thermal stress<br>9 to 26</div>
+        <div style="background:var(--c4)">Slight heat<br>26 to 28</div>
+        <div style="background:var(--c5)">Moderate heat<br>28 to 32</div>
+        <div style="background:var(--c6)">Strong heat<br>32 to 38</div>
+        <div class="dark ext" style="background:var(--c7)">Very strong heat<br>38 to 46</div>
+        <div class="dark ext" style="background:var(--c8)">Extreme heat<br>&gt; 46</div>
+      </div>
+      <p class="note">First seven bands match your Power BI scale. The dashed bands extend "strong" (&gt; 32) upwards using the standard UTCI scale (open question).</p>
+    </section>
+
+    <section class="card bars">
+      <h2>Condition of person: share of hours in each category</h2>
+      <div id="bars"></div>
+    </section>
+
+    <section class="card">
+      <h2>Key UTCI metrics</h2>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Metric</th><th>Historical<br>(typical)</th><th>Hot ref. year<br>(2022)</th><th>2040<br>(typical)</th><th>2050<br>(typical)</th></tr></thead>
+        <tbody id="kpis"></tbody>
+      </table></div>
+      <p class="note">Future values: median across climate models, range below. A toggle would switch between typical (median) and hot (90th percentile) years.</p>
+    </section>
+
+    <section class="card">
+      <h2>Hours of heat stress (UTCI &gt; 28) by hour of day</h2>
+      <svg id="chart" viewBox="0 0 720 260" width="100%" role="img" aria-label="Line chart of heat stress hours by hour of day"></svg>
+      <div class="legend" id="legend"></div>
+    </section>
+  </main>
+
+  <aside class="card filters">
+    <h2>Data and filters</h2>
+    <label>Site</label><select><option>Sevilla San Pablo</option><option>Toulouse</option><option>Hamburg-Finkenwerder</option></select>
+    <label>Scenario</label><select><option>SSP2-4.5 (middle)</option><option>SSP5-8.5 (high)</option></select>
+    <label>Year type</label><select><option>Typical (median)</option><option>Hot (90th percentile)</option></select>
+    <label>Exposure</label><select><option>In sun (outdoor)</option><option>In shade (indoor ≈ outdoor)</option></select>
+    <label>Day or night</label><select><option>All</option><option>Day</option><option>Night</option></select>
+    <label>Season</label><select><option>All</option><option>Summer</option><option>Autumn</option><option>Winter</option><option>Spring</option></select>
+    <label>Month</label><select><option>All</option><option>Jun</option><option>Jul</option><option>Aug</option></select>
+    <p class="note" style="margin-top:14px">Filters are illustrative in this mock-up.</p>
+  </aside>
+</div>
+
+<script>
+const cats=["Strong cold","Moderate cold","Slight cold","No thermal stress","Slight heat","Moderate heat","Strong heat","Very strong heat","Extreme heat"];
+const cols=[0,1,2,3,4,5,6,7,8].map(i=>`var(--c${i})`);
+const years=[
+  {n:"Historical",s:"typical year",v:[0,2,14,54,6,10,10,4,0]},
+  {n:"Hot reference year",s:"2022, unadjusted",v:[0,1,12,50,6,11,12,7,1]},
+  {n:"2040",s:"typical, model median",v:[0,1,11,51,6,11,12,7,1]},
+  {n:"2050",s:"typical, model median",v:[0,1,10,49,6,11,13,8,2]}];
+document.getElementById("bars").innerHTML=years.map(y=>`<div class="row"><div class="lbl">${y.n}<small>${y.s}</small></div><div class="stack">${y.v.map((p,i)=>p?`<span title="${cats[i]}: ${p}%" style="width:${p}%;background:${cols[i]}"></span>`:"").join("")}</div></div>`).join("");
+
+const H=8760, pct=(a,b)=>a.slice(b[0],b[1]+1).reduce((x,y)=>x+y,0);
+const rows=[
+  ["% time heat stress (UTCI &gt; 28)",y=>pct(y.v,[5,8])+"%"],
+  ["Hours of heat stress",y=>Math.round(pct(y.v,[5,8])*H/100).toLocaleString()],
+  ["% time cold stress (UTCI &lt; 0)",y=>pct(y.v,[0,1])+"%"],
+  ["Hours of cold stress",y=>Math.round(pct(y.v,[0,1])*H/100).toLocaleString()],
+  ["% time comfortable (9–26)",y=>pct(y.v,[3,3])+"%"],
+  ["% comfortable for short periods (0–28)",y=>pct(y.v,[2,4])+"%"]];
+const rng=["","","(28–34%)","(30–37%)"];
+document.getElementById("kpis").innerHTML=rows.map((r,ri)=>`<tr><td>${r[0]}</td>${years.map((y,i)=>{
+  const base=r[1](years[0]), v=r[1](y);
+  const extra=(i>=2&&ri===0)?`<span class="rng">${rng[i]}</span>`:"";
+  return `<td>${v}${extra}</td>`}).join("")}</tr>`).join("");
+
+// hour-of-day curves
+const svg=document.getElementById("chart"), W=720,Ht=260,L=44,R=12,T=12,B=30;
+const series=[{n:"Historical",c:"#98a2b3",peak:190,d:""},{n:"Hot ref. year (2022)",c:"#f79009",peak:235,d:"6 3"},{n:"2040",c:"#d9806e",peak:240,d:""},{n:"2050",c:"#c0262d",peak:262,d:""}];
+const x=h=>L+(W-L-R)*h/23, y=v=>T+(Ht-T-B)*(1-v/300);
+let g="";
+for(let v=0;v<=300;v+=100){g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="#e3e6ea"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${v}</text>`}
+for(let h=0;h<24;h+=3){g+=`<text x="${x(h)}" y="${Ht-10}" text-anchor="middle">${String(h).padStart(2,"0")}:00</text>`}
+g+=`<text x="12" y="${T+8}" transform="rotate(-90 12 ${T+90})">hours / year</text>`;
+series.forEach(s=>{const pts=[...Array(24).keys()].map(h=>{const v=Math.max(0,s.peak*Math.exp(-Math.pow((h-15)/3.6,2))-6);return `${x(h).toFixed(1)},${y(v).toFixed(1)}`}).join(" ");
+  g+=`<polyline points="${pts}" fill="none" stroke="${s.c}" stroke-width="2.5" stroke-dasharray="${s.d}"/>`});
+svg.innerHTML=g;
+document.getElementById("legend").innerHTML=series.map(s=>`<span><i style="background:${s.c}"></i>${s.n}</span>`).join("");
+</script>
+</body>
+</html>
