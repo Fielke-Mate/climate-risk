@@ -74,7 +74,9 @@ The XMY needs a multi-year hourly record **with humidity**, so PVGIS alone isn't
 
 **Approach (decided):** download the hourly ERA5 record for 2015–2025 for each site and build the TMY from the same record, so everything is consistent.
 - **ERA5 hourly source:** originally Open-Meteo (no key, non-commercial only). **Connection test (Nov 2026):** the free Open-Meteo API returned *"Daily API request limit exceeded"*. The cloud environment shares its outbound IP address, so the free per-IP quota is already used up by others, and Open-Meteo is unreliable here.
-  **Proposed switch [OPEN]:** the official **Copernicus Climate Data Store (CDS)** "ERA5 hourly time-series" product, which gives fast point extraction. It needs a free account and an API key (stored as an environment secret, `CDSAPI_KEY`), and **is also licensed for commercial use**, so the productisation step in section 14 is no longer needed.
+  **Decided: Copernicus Climate Data Store (CDS)**, dataset `reanalysis-era5-single-levels-timeseries` (ERA5 hourly point time series). It is licensed for commercial use, so the productisation step in section 14 is no longer needed. The API key is read from the `CDSAPI_KEY` environment secret and never stored in the repository.
+  **Connection test (Nov 2026):** a 2-day request for Sevilla returned in ~25 s with every variable we need: 2 m temperature and dew point, surface pressure, 10 m wind (u/v), downward solar (global) and thermal radiation, and direct solar radiation at the surface. Sanity check: 13 July 2022 at Sevilla reached a max of 42.0 °C and a min of 25.5 °C, consistent with that heatwave.
+  **Grid note:** the time-series product returns the nearest 0.25° ERA5 grid point (e.g. Sevilla 37.411, −5.883 → 37.5, −6.0, ~11 km away). This is acceptable for a proof of concept. Because of the grid smoothing, ERA5 tends to slightly underestimate local peak temperatures; this is noted in the methodology and can be checked against nearby station data later.
 - **PVGIS check (confirmed by live request):** the PVGIS TMY (ERA5 meteorology, SARAH-3 radiation, 2005–2023) contains T2m, **RH**, global/direct/diffuse and infrared radiation, wind speed/direction and pressure. The PVGIS hourly series contains **no humidity**, which confirms the decision to use ERA5 directly.
 - **TMY method:** standard ISO 15927-4 selection (most typical month per calendar month).
 - **PVGIS TMY** is downloaded as an **independent cross-check**: our TMY should look similar.
@@ -324,12 +326,12 @@ The dashboard is built **around an interactive map of the portfolio**:
 | D38 | Degree hours: practice bases 19 °C (heating) / 24 °C (cooling), plus ASHRAE-referenced HDD/CDD18.3 and CDH23.3/26.7 |
 | D39 | Operating hours default 06:00–22:00 daily, user-adjustable for sensitivity tests |
 | D40 | All site coordinates refined to OpenStreetMap plant features (Nov 2026) |
+| D41 | ERA5 from Copernicus CDS (time-series product); API key held as environment secret `CDSAPI_KEY` |
 | D33 | Site coordinates checked against published sources (airfield reference points or addresses; see sites CSV). Precision of ~1–3 km is enough, as ERA5 grid cells are ~9–30 km |
 
 ## 13. Open questions
 
-1. **ERA5 source:** switch from Open-Meteo (rate-limited on this shared network) to Copernicus CDS with a free account and API key? (Recommended, section 4a.)
-2. **Airbus Cádiz (optional):** the consolidated Airbus site at El Puerto de Santa María (TecnoBahía; OpenStreetMap 36.651, −6.264) is operating. Add it in place of Puerto Real?
+1. **Airbus Cádiz (optional):** the consolidated Airbus site at El Puerto de Santa María (TecnoBahía; OpenStreetMap 36.651, −6.264) is operating. Add it in place of Puerto Real?
 
 ## 14. Notes for productisation
 
