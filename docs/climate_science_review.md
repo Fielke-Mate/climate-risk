@@ -56,7 +56,7 @@ Up to 2040, SSP2-4.5 and SSP5-8.5 differ by only ~0.1–0.2 °C of global warmin
 **Reading:**
 - The noise in the hot-day amplification (±0.7 °C) is **as large as the signal** (0 to +1.2 °C). Only the north German sites show a consistent sign. The Spanish "no amplification" result can't be told apart from noise.
 - The **min–max range shown to clients is largely internal variability, not model disagreement**, especially for 2040.
-- The cause is the **11-year single-run model baseline**. Deltas from 30-year windows, pooled scenarios or more models would cut this noise substantially (section 3.1).
+- The cause is the **11-year single-run model baseline**. More models, pooled neighbouring months or pooled scenarios would cut this noise substantially (section 3.1).
 
 ### 2c. How much do the results depend on the tail? (sensitivity test)
 
@@ -104,10 +104,11 @@ All 11 ERA5 years were re-morphed for four sites under SSP5-8.5, 2050, for each 
 - Quantiles for single calendar months rest on ~340 baseline days. The 95th percentile rests on ~17.
 
 **Suggestions**
-1. **Lengthen the model baseline to 30 years centred on 2020** (2005–2034: NEX historical 2005–2014 plus the SSP run from 2015). Use 30-year future windows too (2026–2055 for "2040", 2036–2065 for "2050"). The baseline would be ~2.7× larger.
+1. **Use more models.** NEX-GDDP-CMIP6 has 35. 10–15 models, chosen to span climate sensitivity, average out much more internal variability than 6 single runs.
 2. **Pool ±1 month** (a 3-month moving window) when estimating quantiles, so each month uses ~3× more days.
-3. **Use more models.** NEX-GDDP-CMIP6 has 35. 10–15 models, chosen to span climate sensitivity, average out much more internal variability than 6 single runs.
-4. Optionally **smooth the quantile-delta curve** (e.g. fit delta = a + b·z, with z the normal score of the percentile). It's more stable in the tail and makes the cap unnecessary.
+3. Optionally **smooth the quantile-delta curve** (e.g. fit delta = a + b·z, with z the normal score of the percentile). It's more stable in the tail and makes the cap unnecessary.
+
+*Not recommended (decided with the consultant): lengthening the model baseline window.* A 30-year window centred on 2020 would cut noise further, but it pulls in cooler early years, and it only keeps the 2020 centre if warming is close to linear. The ERA5 record shows how big that effect is: 2000–2009 summers were 0.8–1.5 °C cooler than 2015–2025 at most sites (section 3.4). Keep the model baseline at 2015–2025 to match ERA5.
 
 *Effort: low–medium (one more NEX download; the delta code changes only slightly). This is the cheapest way to make the hot-day signal believable.*
 
@@ -140,9 +141,29 @@ All 11 ERA5 years were re-morphed for four sites under SSP5-8.5, 2050, for each 
 - Record-shattering events become more likely the faster the climate warms (Fischer et al. 2021). Europe is warming fast.
 
 **Suggestions**
-1. **Extend the ERA5 record for extremes statistics only** (e.g. 1980–2025). Adjust each year to the 2020 climate by regressing on smoothed global mean temperature, as World Weather Attribution does. That gives ~45 "present-day equivalent" years, including 2003, while 2015–2025 stays the hourly "today" baseline.
+1. **Extend the ERA5 record back to 2000, with every year adjusted to the 2020 climate.** See the test below.
 2. Fit a **non-stationary GEV** to annual maximum daily Tmax and WBGT, with global temperature as covariate. Report **1-in-20 and 1-in-50-year values** for today, 2040 and 2050. That answers the client question "how hot could it get?", which counts cannot.
 3. For a true worst case, consider the **UNSEEN** method (large seasonal-forecast ensembles, e.g. SEAS5) at one or two pilot sites. *Effort: high. Research-grade.*
+
+**Test: what would a 2000–2025 baseline change?** ERA5 2000–2025 at eight sites ([`scripts/review_baseline_2000.py`](../scripts/review_baseline_2000.py), `outputs/review/baseline_2000.csv`). "Adjusted" shifts each year by the site's summer Tmax trend to 2020 (a simple uniform shift, to show the size of the effect).
+
+| Site (hot-day threshold) | Summer Tmax, 2000–09 vs 2015–25 | Median days above threshold: 2015–25 / 2000–25 raw / 2000–25 adjusted | 2003 rank (adjusted) | Longest hot spell 2015–25 | 2003 adjusted |
+|---|---|---|---|---|---|
+| Toulouse (35 °C) | −1.5 °C | 5 / 3 / 5 | 1st | 10 days (2022) | **12 days** |
+| Marignane (35 °C) | −1.3 °C | 5 / 1 / 3 | 1st | 8 days (2025) | **14 days** |
+| Nantes (30 °C) | −1.2 °C | 12 / 8 / 11 | 1st | 11 days (2022) | **12 days** |
+| Donauwörth (30 °C) | −1.2 °C | 9 / 8 / 9 | 1st | 5 days (2025) | **13 days** |
+| Getafe (35 °C) | −1.3 °C | 41 / 29 / 38 | 4th | 24 days (2022) | 19 days |
+| Hamburg (30 °C) | −0.9 °C | 4 / 2 / 5 | 2nd | 8 days (2020) | 6 days |
+| Filton (28 °C) | −0.8 °C | 5 / 1 / 2 | 1st | 6 days (2022) | 4 days |
+| Sevilla (40 °C) | **+0.5 °C** | 5 / 4 / 3 | 6th | 7 days (2018) | 5 days |
+
+**Reading:**
+- **The early years are much cooler.** Summer maxima in 2000–2009 were 0.8–1.5 °C below 2015–2025, as large as the 2050 SSP2-4.5 change. Used unadjusted, the longer record would cut typical-year hot days by 20–80 % and understate today's risk. **Adjustment to today's climate is essential.**
+- **Adjusted, typical years barely change** and the 90th-percentile year changes little. The gain is in the **extremes**: 2003, adjusted to today, becomes the year with the most hot days at five of eight sites. It also has the longest hot spell on record at Marignane, Donauwörth, Toulouse and Nantes (up to 14 days against 5–11 in 2015–2025).
+- So a longer, adjusted baseline also helps the **heatwave-length gap** (3.3): it brings in real long events that morphing can then carry into the future.
+- **Site-by-site trends are too noisy for the adjustment.** Sevilla's ERA5 cell shows summer *cooling* since 2000, unlike every other site. In production, adjust with the climate models' own warming from each year to 2020 (the existing quantile morphing, run "backwards" in time), or scale with smoothed global mean temperature. The model-based option slightly under-adjusts in western Europe, where observations warm faster than models (3.2).
+- **Decisions this needs:** whether the hot reference year (D25/D42, an actual unadjusted year) may become an adjusted 2003, and whether the TMY stays on 2015–2025. Processing time grows ×2.4.
 
 ### 3.5 Humidity on hot days
 
@@ -183,7 +204,7 @@ All 11 ERA5 years were re-morphed for four sites under SSP5-8.5, 2050, for each 
 
 | Priority | Action | Why | Effort |
 |---|---|---|---|
-| 1 | **Less noisy deltas:** 30-year windows centred on 2020, ±1-month pooling, 10–15 models | Hot-day signal is currently within noise (2b); ranges are mostly internal variability | Low–medium |
+| 1 | **Less noisy deltas:** 10–15 models, ±1-month pooling (model window stays 2015–2025) | Hot-day signal is currently within noise (2b); ranges are mostly internal variability | Low–medium |
 | 2 | **High-end hot-day storyline** (+1 °C hot days, or 2× median-day warming in the north) shown next to the range | Models likely underestimate western European hot-day trends; matches 2c's sensitivity; useful for disclosure | Low |
 | 3 | **Heatwave persistence metrics** straight from the NEX daily series (events, longest run, consecutive warm nights) | Morphing can't change duration | Low–medium |
 | 4 | **Global warming level deltas** (pooled scenarios, AR6-assessed timing) | Handles hot models; halves noise further | Medium |
