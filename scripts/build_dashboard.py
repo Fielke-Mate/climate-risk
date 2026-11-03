@@ -217,6 +217,7 @@ def main() -> None:
     hist_annual = pd.read_csv(ROOT / "outputs/phase1/annual_summary.csv")
     ens = pd.read_csv(ROOT / "outputs/phase2/ensemble_summary.csv", dtype={"period": str})
     checks = pd.read_csv(ROOT / "outputs/phase2/morph_checks.csv", dtype={"period": str})
+    fut_annual = pd.read_csv(ROOT / "outputs/phase2/annual_summary_future.csv", dtype={"period": str})
 
     if not BASEMAP.exists():
         BASEMAP.write_text(json.dumps(build_basemap()))
@@ -234,6 +235,8 @@ def main() -> None:
         k = {}
         e = ens[ens.site_id == s.site_id]
         hr = hist_annual[(hist_annual.site_id == s.site_id) & (hist_annual.year == hy)].iloc[0]
+        # the hot reference year adjusted to each future climate ("2025 weather in 2050"), across models
+        hf = fut_annual[(fut_annual.site_id == s.site_id) & (fut_annual.source_year == hy)]
         for m in KPI_METRICS:
             em = e[e.metric == m]
             k[m] = {"hist": {yt: round(float(em[(em.scenario == "historical") & (em.year_type == yt)]["median"].iloc[0]), 1)
@@ -244,6 +247,8 @@ def main() -> None:
                     for yt in ("typical", "hot"):
                         r = em[(em.scenario == sc) & (em.period == per) & (em.year_type == yt)].iloc[0]
                         k[m][f"{sc}_{per}_{yt}"] = [round(float(r["median"]), 1), round(float(r["min"]), 1), round(float(r["max"]), 1)]
+                    v = hf[(hf.scenario == sc) & (hf.period == per)][m]
+                    k[m][f"hotref_{sc}_{per}"] = [round(float(v.median()), 1), round(float(v.min()), 1), round(float(v.max()), 1)]
         c = checks[checks.site_id == s.site_id]
         k["warming"] = {f"{sc}_{per}": [round(float(v.median()), 2), round(float(v.min()), 2), round(float(v.max()), 2)]
                         for (sc, per), v in c.groupby(["scenario", "period"])["annual_warming_model_tas"]}

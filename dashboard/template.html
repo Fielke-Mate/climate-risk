@@ -201,6 +201,8 @@ select.ksel { height: 30px; font: inherit; font-size: var(--fs-125); padding: 0 
 .sc .sub { font-size: var(--fs-12); color: var(--ink-3); }
 .sc svg .lab { font-family: var(--font, inherit); fill: var(--ink-2); font-size: 11.5px; }
 .sc svg .val { fill: var(--ink); }
+.sc svg .lab.sm { font-size: 11px; }
+.sc svg .lab.note2 { fill: var(--ink-3); font-size: 11px; }
 .cmp { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: var(--fs-12); color: var(--ink-2); }
 .cmp select { height: 28px; }
 
@@ -612,78 +614,81 @@ function cell(id, m, col, d) {
 function thead(cols, first) { return `<thead><tr><th>${first}</th>${cols.map(c => `<th><span class="k" style="background:${c.color}"></span>${c.label}<small>${c.sub}</small></th>`).join("")}</tr></thead>`; }
 
 /* ---------- Summary tab: story cards ---------- */
-/* years the comfort-shift card can compare (typical-year and hot-reference-year charts data) */
-function yearOptions() {
+/* the six years both story cards use: typical year and hot reference year, today / 2040 / 2050.
+   key = TMY chart series (comfort card); kpi = multi-year headline value (bar card) */
+function storyYears() {
   const sc = S.scen, h = byId[S.site].hot_year;
-  return [["hist", "Today (typical year)"], ["hotref", `Hot year ${h} (actual)`], [`${sc}_2040`, "2040, typical year"], [`${sc}_2050`, "2050, typical year"],
-    [`hot_${sc}_2040`, `${h} weather in 2040`], [`hot_${sc}_2050`, `${h} weather in 2050`]];
+  return [
+    { key: "hist", kpi: "hist", short: "Today · typical", name: "Today, typical year", color: "var(--c-today)" },
+    { key: "hotref", kpi: "hotref", short: `Today · hot year ${h}`, name: `Today, hot year (${h} as it happened)`, color: "var(--c-hot)" },
+    { key: `${sc}_2040`, kpi: `${sc}_2040_typical`, short: "2040 · typical", name: "2040, typical year", color: "var(--c-2040)" },
+    { key: `hot_${sc}_2040`, kpi: `hotref_${sc}_2040`, short: `2040 · hot (${h} weather)`, name: `2040, hot year (${h} weather)`, color: "#062A86" },
+    { key: `${sc}_2050`, kpi: `${sc}_2050_typical`, short: "2050 · typical", name: "2050, typical year", color: "var(--c-2050)" },
+    { key: `hot_${sc}_2050`, kpi: `hotref_${sc}_2050`, short: `2050 · hot (${h} weather)`, name: `2050, hot year (${h} weather)`, color: "#A3005A" }];
 }
 const futPer = () => S.period === "hist" ? "2050" : S.period;
 /* keep a picked year when the scenario changes; empty = follow the View bar */
-const cmpKey = (k, auto) => { const v = k ? k.replace(/ssp\d+/, S.scen) : auto; return yearOptions().some(o => o[0] === v) ? v : auto; };
+const cmpKey = (k, auto) => { const v = k ? k.replace(/ssp\d+/, S.scen) : auto; return storyYears().some(o => o.key === v) ? v : auto; };
+/* "Moderate heat" -> ["Moderate", "heat stress"]; "No thermal stress" -> ["No thermal", "stress"] */
+const utciWords = n => { const w = n.split(" "), last = w.pop(); return last === "stress" ? [w.join(" "), "stress"] : [w.join(" "), `${last} stress`]; };
 function renderStory() {
   const id = S.site, sc = S.scen, T = DATA.tmy[id], K = DATA.kpi[id], E = EXPO(), hy = byId[id].hot_year, per = futPer();
   const tag = E.tag === "in0" ? "shade" : E.tag, sh = x => `op_hours_wbgt_${tag}_gt_ref_${x}`;
-  const sum = a => a.reduce((x, y) => x + y, 0);
+  const sum = a => a.reduce((x, y) => x + y, 0), YRS = storyYears(), W0 = 560;
   /* story 1: working hours above WBGT 28 °C split by shift. Totals are the multi-year values of the Data summary tab;
-     the early/late split follows the per-shift values of the same year type. Night (22–06) lies outside the working hours. */
-  const pick = (m, key) => key === "hist" ? K[m].hist.typical : key === "hotref" ? K[m].hotref : K[m][key][0];
-  const yrs = [["Today, typical year", "hist", "var(--c-today)"], [`Hot year ${hy} (actual)`, "hotref", "var(--c-hot)"],
-    [`${per}, typical year`, `${sc}_${per}_typical`, per === "2040" ? "var(--c-2040)" : "var(--c-2050)"],
-    [`${per}, hot year (1 in 10)`, `${sc}_${per}_hot`, per === "2040" ? "#062A86" : "#A3005A"]];
-  const rows = yrs.map(([n, key, c]) => {
-    const tot = pick(E.hours, key), e = pick(sh("early"), key), l = pick(sh("late"), key), f = e + l > 0 ? e / (e + l) : 0;
-    return { n, c, early: tot * f, late: tot * (1 - f), night: pick(sh("night"), key), tot };
+     the early/late split follows the per-shift values of the same year. Night (22–06) lies outside the working hours. */
+  const pick = (m, k) => k === "hist" ? K[m].hist.typical : k === "hotref" ? K[m].hotref : K[m][k][0];
+  const rows = YRS.map(y => {
+    const tot = pick(E.hours, y.kpi), e = pick(sh("early"), y.kpi), l = pick(sh("late"), y.kpi), f = e + l > 0 ? e / (e + l) : 0;
+    return { ...y, early: tot * f, late: tot * (1 - f), night: pick(sh("night"), y.kpi), tot };
   });
-  const SHADE = { early: 0.45, late: 1, night: 0.7 };
-  const mx = Math.max(...rows.map(r => r.tot + r.night), 1), w = 560, lw = 150, W = w - lw - 100, rh = 30;
-  let o = `<svg class="chart" viewBox="0 0 ${w} ${rows.length * rh + 4}" role="img" aria-label="Working hours above the WBGT limit by shift">`;
+  const SHADE = { early: 0.45, late: 1, night: 0.7 }, SHN = { early: "Early shift 06–14", late: "Late shift 14–22", night: "Night shift 22–06" };
+  const lw = 150, W = W0 - lw - 96, rh = 22, gap = 8, bh = 12;
+  const mx = Math.max(...rows.map(r => r.tot + r.night), 1), yOf = i => i * rh + Math.floor(i / 2) * gap;
+  let o = `<svg class="chart" viewBox="0 0 ${W0} ${yOf(5) + rh}" role="img" aria-label="Working hours above the WBGT limit by shift">`;
   rows.forEach((r, i) => {
-    const y = i * rh + 4; let x = lw;
-    o += `<text class="lab" x="0" y="${y + 16}">${r.n}</text>`;
+    const y = yOf(i); let x = lw;
+    o += `<text class="lab" x="0" y="${y + 14}">${r.short}</text>`;
     for (const s of ["early", "late", "night"]) {
-      const v = r[s], len = W * v / mx;
-      if (len > 0) o += `<rect x="${x}" y="${y + 3}" width="${Math.max(len - 1.5, 0.5)}" height="18" rx="3" fill="${r.c}" fill-opacity="${SHADE[s]}" ${s === "night" ? `stroke="${r.c}" stroke-width="1.2"` : ""} data-t="${r.n}<br>${{ early: "Early shift 06–14", late: "Late shift 14–22", night: "Night shift 22–06" }[s]}: ${fmt(v)} h"/>`;
+      const len = W * r[s] / mx;
+      if (len > 0) o += `<rect x="${x}" y="${y + 4}" width="${Math.max(len - 1, 0.5)}" height="${bh}" rx="2" fill="${r.color}" fill-opacity="${SHADE[s]}" ${s === "night" ? `stroke="${r.color}" stroke-width="1"` : ""} data-t="${r.name}<br>${SHN[s]}: ${fmt(r[s])} h"/>`;
       x += len;
     }
-    o += `<text class="val" x="${x + 6}" y="${y + 16}">${fmt(r.tot)} h${r.night >= 0.5 ? `<tspan style="fill:var(--ink-3)"> +${fmt(r.night)} night</tspan>` : ""}</text>`;
+    o += `<text class="val" x="${x + 6}" y="${y + 14}">${fmt(r.tot)} h${r.night >= 0.5 ? `<tspan style="fill:var(--ink-3)"> +${fmt(r.night)} night</tspan>` : ""}</text>`;
   });
   o += `</svg>`;
   const swatch = (op, extra = "") => `<i style="background:var(--c-2050);opacity:${op};${extra}"></i>`;
-  const keys1 = `<div class="keys"><span>${swatch(0.45)}Early 06–14</span><span>${swatch(1)}Late 14–22</span><span>${swatch(0.7, "outline:1.2px solid var(--c-2050)")}Night 22–06 (outside working hours, so not in the total)</span><span>Bar colour = year, as in the other charts</span></div>`;
-  const wd = K[E.days], hotNow = wd.hotref, tF = wd[`${sc}_${per}_typical`][0], hF = wd[`${sc}_${per}_hot`][0];
-  const cmp = tF > hotNow ? `more than in the hot year ${hy} (${fmt(hotNow)})` : tF === hotNow ? `as many as in the hot year ${hy}` : `fewer than in the hot year ${hy} (${fmt(hotNow)})`;
-  const r2 = rows[2], latePct = r2.tot ? Math.round(100 * r2.late / r2.tot) : 0;
-  const none = Math.max(tF, hF, hotNow, ...rows.map(r => r.tot)) < 0.5;
-  const story1 = `<div class="sc"><div class="t">${none ? `<i>No working hour goes above WBGT 28 °C</i> today, in the hot year ${hy} or by ${per}, even in a hot year (${E.label}).${S.expo === "in" && S.hall !== "4" ? " A larger hall heat gain (View bar) shows how sensitive this is." : ""}` : `By ${per} a typical year brings <b>${fmt(tF)} worker heat-safety days</b>, ${cmp}; a hot year brings ${fmt(hF)}.
-      ${r2.tot >= 0.5 ? `<b>${latePct} %</b> of the working hours above the limit fall on the late shift.` : `No working hours exceed the limit in a typical ${per} year.`}`}</div>
+  const keys1 = `<div class="keys"><span>${swatch(0.45)}Early 06–14</span><span>${swatch(1)}Late 14–22</span><span>${swatch(0.7, "outline:1px solid var(--c-2050)")}Night 22–06 (outside working hours, not in the total)</span><span>Bar colour = year, as in the other charts</span></div>`;
+  const wd = K[E.days], tNow = wd.hist.typical, hNow = wd.hotref, tF = wd[`${sc}_${per}_typical`][0], hF = wd[`hotref_${sc}_${per}`][0];
+  const rF = rows.find(r => r.kpi === `${sc}_${per}_typical`), latePct = rF.tot ? Math.round(100 * rF.late / rF.tot) : 0;
+  const none = Math.max(tF, hF, hNow, ...rows.map(r => r.tot)) < 0.5;
+  const story1 = `<div class="sc"><div class="t">${none
+      ? `<i>No working hour goes above WBGT 28 °C</i> today or by 2050, even in a hot year like ${hy} (${E.label}).${S.expo === "in" && S.hall !== "4" ? " A larger hall heat gain (View bar) shows how sensitive this is." : ""}`
+      : `By ${per} a typical year brings <b>${fmt(tF)} worker heat-safety days</b> (today ${fmt(tNow)}); a hot year like ${hy} would bring <b>${fmt(hF)}</b> (${fmt(hNow)} as it happened).
+      ${rF.tot >= 0.5 ? `<b>${latePct} %</b> of the working hours above the limit fall on the late shift.` : `No working hours exceed the limit in a typical ${per} year.`}`}</div>
     <div class="sub">Working hours above WBGT 28 °C (ISO 7243, moderate work, acclimatised) · ${E.label}</div>${o}${keys1}</div>`;
   /* story 2: comfort shift, one column per UTCI band, year B minus year A */
   const a = cmpKey(S.cmpA, "hist"), b = cmpKey(S.cmpB, `${S.yt === "hot" ? "hot_" : ""}${sc}_${per}`);
   const ub = S.expo === "sun" ? "utci_bands_sun" : `utci_bands_${E.tag}`;
   const A = T[a][ub], B = T[b][ub], d = B.map((v, i) => v - A[i]);
-  const dm = Math.max(...d.map(Math.abs), 1), cw = 64, bw = cw - 26, H = 64, top = 22, bl = top + H, kb = top + 2 * H + 24;
-  let o2 = `<svg class="chart" viewBox="0 0 ${cw * 9} ${kb + 40}" role="img" aria-label="Change in hours per UTCI band">`;
-  o2 += `<line x1="0" x2="${cw * 9}" y1="${bl}" y2="${bl}" stroke="var(--line-2)"/>`;
+  const dm = Math.max(...d.map(Math.abs), 1), cw = W0 / 9, bw = 30, H = 46, top = 20, bl = top + H, kb = top + 2 * H + 22;
+  let o2 = `<svg class="chart" viewBox="0 0 ${W0} ${kb + 40}" role="img" aria-label="Change in hours per UTCI thermal stress band">`;
+  o2 += `<line x1="0" x2="${W0}" y1="${bl}" y2="${bl}" stroke="var(--line-2)"/>`;
   d.forEach((v, i) => {
-    const len = Math.abs(v) / dm * H, x = i * cw + 13, y = v >= 0 ? bl - len : bl, cx = x + bw / 2;
-    o2 += `<rect x="${x}" y="${y}" width="${bw}" height="${Math.max(len, 1)}" rx="3" fill="${v >= 0 ? "#FF3D8B" : "#0B41CD"}" data-t="${UTCI[i][0]} (UTCI ${UTCI[i][1]})<br>${fmt(A[i])} → ${fmt(B[i])} h · ${sgn(v)} h"/>`;
-    o2 += `<text class="val" x="${cx}" y="${v >= 0 ? y - 5 : y + len + 13}" text-anchor="middle">${Math.round(v) === 0 ? "0" : sgn(v)}</text>`;
+    const len = Math.abs(v) / dm * H, cx = i * cw + cw / 2, x = cx - bw / 2, y = v >= 0 ? bl - len : bl, [w1, w2] = utciWords(UTCI[i][0]);
+    o2 += `<rect x="${x}" y="${y}" width="${bw}" height="${Math.max(len, 1)}" rx="2" fill="${v >= 0 ? "#FF3D8B" : "#0B41CD"}" data-t="${w1} ${w2} (UTCI ${UTCI[i][1]})<br>${fmt(A[i])} → ${fmt(B[i])} h · ${sgn(v)} h"/>`;
+    o2 += `<text class="val" x="${cx}" y="${v >= 0 ? y - 5 : y + len + 13}" text-anchor="middle"${Math.round(v) === 0 ? ' style="fill:var(--ink-3)"' : ""}>${Math.round(v) === 0 ? "0" : sgn(v)}</text>`;
     o2 += `<rect x="${cx - 5}" y="${kb}" width="10" height="10" rx="2" fill="${UTCI[i][2]}"/>`;
-    const words = UTCI[i][0].replace("No thermal stress", "None").split(" ");
-    o2 += `<text class="lab" x="${cx}" y="${kb + 22}" text-anchor="middle" style="font-size:10.5px">${words[0]}</text>`;
-    if (words[1]) o2 += `<text class="lab" x="${cx}" y="${kb + 34}" text-anchor="middle" style="font-size:10.5px">${words.slice(1).join(" ")}</text>`;
+    o2 += `<text class="lab sm" x="${cx}" y="${kb + 23}" text-anchor="middle">${w1}</text><text class="lab sm" x="${cx}" y="${kb + 36}" text-anchor="middle">${w2}</text>`;
   });
-  o2 += `<text x="0" y="12">▲ more hours</text><text x="0" y="${top + 2 * H + 10}">▼ fewer hours</text></svg>`;
-  const heat = sum(d.slice(5)), comf = d[3], opts = yearOptions(), yName = k => opts.find(x => x[0] === k)[1];
-  const selA = `<select class="ksel" data-cmp="cmpA" aria-label="Compare from">${opts.map(([v, n]) => `<option value="${v}" ${v === a ? "selected" : ""}>${n}</option>`).join("")}</select>`;
-  const selB = `<select class="ksel" data-cmp="cmpB" aria-label="Compare with">${opts.map(([v, n]) => `<option value="${v}" ${v === b ? "selected" : ""}>${n}</option>`).join("")}</select>`;
-  const dir = heat >= 0 ? "towards heat" : "away from heat";
-  const story2 = `<div class="sc"><div class="t">${a === b ? "Pick two different years to see how thermal comfort shifts." : `Thermal comfort shifts ${dir}: <b>${sgn(heat)} hours</b> of heat stress (UTCI above 28) and <i>${sgn(comf)} hours</i> without thermal stress, ${esc(yName(b))} against ${esc(yName(a))}.`}</div>
-    <div class="cmp">Compare ${selB} with ${selA}</div>
-    <div class="sub">Change in hours a year per UTCI band, all hours · ${S.expo === "sun" ? "outdoor, in sun" : E.label}</div>${o2}</div>`;
+  o2 += `<text class="lab note2" x="0" y="11">▲ more hours</text><text class="lab note2" x="0" y="${top + 2 * H + 6}">▼ fewer hours</text></svg>`;
+  const heat = sum(d.slice(5)), comf = d[3], yName = k => YRS.find(x => x.key === k).name;
+  const sel = (k, cur) => `<select class="ksel" data-cmp="${k}" aria-label="${k === "cmpA" ? "Compare with" : "Year to compare"}">${YRS.map(y => `<option value="${y.key}" ${y.key === cur ? "selected" : ""}>${esc(y.name)}</option>`).join("")}</select>`;
+  const story2 = `<div class="sc"><div class="t">${a === b ? "Pick two different years to see how thermal comfort shifts." : `Thermal comfort shifts ${heat >= 0 ? "towards heat" : "away from heat"}: <b>${sgn(heat)} hours</b> of heat stress (UTCI above 28) and <i>${sgn(comf)} hours</i> with no thermal stress, ${esc(yName(b))} against ${esc(yName(a))}.`}</div>
+    <div class="cmp">Compare ${sel("cmpB", b)} with ${sel("cmpA", a)}</div>
+    <div class="sub">Change in hours a year per UTCI thermal stress band, all hours · ${E.label}</div>${o2}</div>`;
   return `<div class="story">${story1}${story2}</div>
-    <p class="note">${SCEN[sc]}. Future values are the median of ${DATA.meta.models.length} climate models. Heat-safety days and hours come from all 11 years (2015–2025) and their ${per} versions; the comfort shift uses the typical year or the actual ${hy} weather. Working hours ${DATA.meta.operating_hours.start}–${DATA.meta.operating_hours.end} local time. Sentences are generated from the data. The full table is in Data summary.</p>`;
+    <p class="note">${SCEN[sc]}; future values are the median of ${DATA.meta.models.length} climate models. Typical year: the median of the 11 years 2015–2025 (bars) or the typical meteorological year (comfort chart). Hot year: the site's hot reference year ${hy}, as it happened and adjusted to 2040 and 2050. Working hours ${DATA.meta.operating_hours.start}–${DATA.meta.operating_hours.end} local time. Sentences are generated from the data; the full table is in Data summary.</p>`;
 }
 
 /* ---------- Data summary tab ---------- */

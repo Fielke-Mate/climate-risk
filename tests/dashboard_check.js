@@ -87,7 +87,10 @@ async function check(p, where) {
   await click('.tabs button[data-tab="summary"]');
   await page.selectOption('select[data-cmp="cmpB"]', "hotref");
   paneText = await page.$eval("#pane", e => e.innerText);
-  if (!/Hot year \d{4} \(actual\) against Today/.test(paneText)) fail("summary pickers", "comfort sentence does not follow the picked years");
+  if (!/Today, hot year \(\d{4} as it happened\) against Today, typical year/.test(paneText)) fail("summary pickers", "comfort sentence does not follow the picked years");
+  const opts = await page.$$eval('select[data-cmp="cmpB"] option', os => os.map(o => o.textContent));
+  if (opts.length !== 6 || !opts.some(t => /^2040, hot year/.test(t)) || !opts.some(t => /^2050, hot year/.test(t))) fail("summary pickers", `year options: ${opts.join(" | ")}`);
+  if ((await page.$$("#pane .sc:first-child svg text.val")).length !== 6) fail("summary bars", "expected six year bars");
   await page.selectOption('select[data-cmp="cmpA"]', "hotref");
   paneText = await page.$eval("#pane", e => e.innerText);
   if (!/Pick two different years/.test(paneText)) fail("summary pickers", "same year twice not handled");
