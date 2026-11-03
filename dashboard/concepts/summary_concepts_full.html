@@ -262,21 +262,24 @@ function c5b() {
   const wd = { in0: "op_days_wbgt_shade_gt_ref", in2: "op_days_wbgt_in2_gt_ref", in4: "op_days_wbgt_in4_gt_ref", sun: "op_days_wbgt_sun_gt_ref" }[S.expo];
   const k = K[wd], hotNow = k.hotref, t50 = k[`${sc}_2050_typical`][0], h50 = k[`${sc}_2050_hot`][0];
   /* story 1: working hours above the limit, by shift, for four years */
-  const yrs = [["Today, typical", "hist"], [`Hot year ${hy()}`, "hotref"], ["2050, typical", `${sc}_2050`], [`${hy()} weather in 2050`, `hot_${sc}_2050`]];
-  const rows = yrs.map(([n, key]) => { const sh = T(key).shifts; return [n, ["early", "late", "night"].map(s => val(sh[s][kk]))]; });
+  /* each bar keeps its year colour (as in the original story card); shifts are shades of it */
+  const yrs = [["Today, typical", "hist", "var(--c-today)"], [`Hot year ${hy()}`, "hotref", "var(--c-hot)"], ["2050, typical", `${sc}_2050`, "var(--c-2050)"], [`${hy()} weather in 2050`, `hot_${sc}_2050`, "#A3005A"]];
+  const SHADE = { early: 0.45, late: 1, night: 0.7 };
+  const rows = yrs.map(([n, key, c]) => { const sh = T(key).shifts; return [n, ["early", "late", "night"].map(s => val(sh[s][kk])), c]; });
   const mx = Math.max(...rows.map(r => sum(r[1])), 1), w = 600, l = 150, W = w - l - 90, rh = 30;
   let o = `<svg viewBox="0 0 ${w} ${rows.length * rh + 4}" role="img" aria-label="Working hours above the limit by shift">`;
-  rows.forEach(([n, parts], i) => {
+  rows.forEach(([n, parts, c], i) => {
     const y = i * rh + 4; let x = l;
     o += `<text class="lab" x="0" y="${y + 15}">${n}</text>`;
     parts.forEach((v, j) => { const len = W * v / mx, sh = ["early", "late", "night"][j];
-      if (len > 0) o += `<rect x="${x}" y="${y + 3}" width="${Math.max(len - 1.5, 0.5)}" height="18" rx="3" fill="${SHIFT_COL[sh]}"><title>${sh}: ${fmt(v)} h</title></rect>`;
+      if (len > 0) o += `<rect x="${x}" y="${y + 3}" width="${Math.max(len - 1.5, 0.5)}" height="18" rx="3" fill="${c}" fill-opacity="${SHADE[sh]}" ${sh === "night" ? `stroke="${c}" stroke-width="1.2"` : ""}><title>${sh}: ${fmt(v)} h</title></rect>`;
       x += len; });
     o += `<text class="val" x="${x + 6}" y="${y + 16}">${fmt(sum(parts))} h</text>`;
   });
   o += `</svg>`;
   const late50 = rows[2][1][1], tot50 = sum(rows[2][1]), latePct = tot50 ? Math.round(100 * late50 / tot50) : 0;
-  const keys1 = `<div class="keys"><span><i style="background:${SHIFT_COL.early}"></i>Early 06–14</span><span><i style="background:${SHIFT_COL.late}"></i>Late 14–22</span><span><i style="background:${SHIFT_COL.night}"></i>Night 22–06</span></div>`;
+  const sw = (o, extra = "") => `<i style="background:var(--c-2050);opacity:${o};${extra}"></i>`;
+  const keys1 = `<div class="keys"><span>${sw(0.45)}Early 06–14 (lighter)</span><span>${sw(1)}Late 14–22 (full colour)</span><span>${sw(0.7, "outline:1.2px solid var(--c-2050)")}Night 22–06 (outlined)</span><span>Bar colour = year, as in the other charts</span></div>`;
   const cmp = t50 > hotNow ? `more than the hot year ${hy()} (${fmt(hotNow)})` : t50 === hotNow ? `as many as the hot year ${hy()}` : `fewer than the hot year ${hy()} (${fmt(hotNow)})`;
   const story1 = `<div class="sc"><div class="t">By 2050 a typical year brings <b>${fmt(t50)} worker heat-safety days</b>, ${cmp}; a hot year brings ${fmt(h50)}.
       ${tot50 ? `<b>${latePct} %</b> of the working hours above the limit fall on the late shift.` : "No working hours exceed the limit in a typical 2050 year."}</div>
