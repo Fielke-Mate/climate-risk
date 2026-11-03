@@ -87,6 +87,14 @@ async function check(p, where) {
   paneText = await page.$eval("#pane", e => e.innerText);
   if (/weather in 2050/.test(paneText)) fail("typical charts", "typical view still shows the hot-year series");
 
+  // 1b'. The working-time tile names the selected site and its own hours, and follows a click on the map
+  for (const sid of ["TLS", "XFW"]) {
+    await page.$eval(`#map [data-id="${sid}"]`, e => e.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    await page.waitForTimeout(150);
+    const name = await page.$eval("#s-name", e => e.textContent);
+    const line = await page.$eval("#kstrip .selsite", e => e.textContent).catch(() => "");
+    if (!line.startsWith(name + ":")) fail("tile site line", `expected "${name}: …", got "${line}"`);
+  }
   // 1c. Summary tab: comfort-shift year pickers and the hours chart (consistent with the Indicators table)
   await click('.tabs button[data-tab="summary"]');
   await page.selectOption('select[data-cmp="cmpB"]', "hotref");
