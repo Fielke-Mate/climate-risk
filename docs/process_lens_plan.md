@@ -11,8 +11,9 @@ Renders: `docs/mockups/process_lens/` (built on the current dashboard, D61–D65
 | `03_summary_bridge_sevilla.png` | Summary tab, downtime card drawn as a downtime bridge (recommended) |
 | `04_summary_ladder_toulouse_extreme.png` | Ladder at a temperate site, Year = Extreme |
 | `06_summary_bridge_toulouse_extreme.png` | Bridge at a temperate site, Year = Extreme |
-| `07_summary_hist_sevilla.png` | Downtime card drawn as tail histograms (recommended, v3) |
-| `08_summary_hist_toulouse_extreme.png` | Tail histograms at a temperate site, Year = Extreme |
+| `07_summary_hist_sevilla.png` | **Chosen:** downtime card drawn as histograms with the limit line, whole year |
+| `08_summary_hist_toulouse_extreme.png` | The same at a temperate site, Year = Extreme |
+| `09_summary_hist_zoom_sevilla.png` | Zoomed variant (warm end only), for reference |
 | `05_worker_lens_unchanged.png` | Worker lens after the toggle is added: unchanged apart from the toggle |
 
 ## 1. Controls
@@ -32,7 +33,7 @@ Renders: `docs/mockups/process_lens/` (built on the current dashboard, D61–D65
 | KPI tile 2 | Working time over the safe limit | **Process downtime**, hours a year summed over sites, % change vs today |
 | Map "Colour by" | Worker days, days > 30 °C, WBGT degree-hours, extra days > 30 °C, warming | **Downtime hours** (default), **extra downtime hours vs today**, process-stop days, days > 30 °C, warming |
 | Summary card 1 | Working hours above WBGT ref by shift, nine years | **Downtime hours by shift, nine years**. Headline in hours: typical / hot / extreme, today vs future, late-shift share. Stop days drop to the sub-line. Same chart, same footnote |
-| Summary card 2 | Climate here (UTCI bands) | **Downtime card**: callout strip + tail histograms (section 3) |
+| Summary card 2 | Climate here (UTCI bands) | **Downtime card**: callout strip + histograms with the limit line (section 3, chosen) |
 | Summary card 3 | Thermal comfort shift (UTCI) | **When the limit is exceeded, month × hour** (section 3) |
 | Indicators | Dot timeline, worker / heat / heatwave / comfort groups | Process group replaces the worker group: stop days, operating hours above, longest run, degree-hours above the limit, 1 % design temperature, hottest operating hour. Heat, heatwave and energy groups unchanged |
 | Temperature | Distribution, warming fingerprint, monthly Tmax | Unchanged, plus the limit as a vertical line on the temperature distribution |
@@ -50,7 +51,7 @@ The two UTCI cards answer "how comfortable is it here", which has no meaning for
 1. **Headline** in hours. Sevilla, 35 °C, typical: *a typical year costs 266 hours of downtime today and 385 h by 2050: about 8,270 h in total from 2026 to 2050. 1.3 °C more process tolerance or hall cooling would hold 2050 at today's level; each extra 1 °C saves about 103 h a year by 2050.*
 2. **Callout strip**: downtime a year today / 2040 / 2050 in the year colours, and a darker tile with the **2026–2050 total**. The total always uses typical years: adding up 25 extreme years is not a scenario. Years between the reference points are interpolated linearly (today = 2020, then 2040, then 2050). This is the number a revenue figure will multiply later.
 3. **Visual**, replacing the exceedance curve. Three drawings of the same data (mock-up `?v=hist|bridge|ladder`):
-   - **Tail histograms (recommended, v3).** One histogram per period (today, 2040, 2050 for the View bar Year), same scale, 1 °C bins aligned to the limit, from 10 °C below the limit upwards; hours below that are counted in the row label. Bars above the limit are the downtime, in the year colour; the rest is grey; today's shape is drawn as an outline in the future rows; the right-hand label gives hours above and the share of operating hours. It shows *why* downtime grows (the warm end of the year moves right across a fixed line) and makes extra tolerance easy to picture (move the line right). Overlaid histograms were rejected: three distributions tangle exactly at the tail. The whole-year version (`?zoom=0`) was drawn too; the tail is then a sliver and the change hard to see.
+   - **Histograms with the limit line (chosen with the consultant, v3).** One histogram per period (today, 2040, 2050 for the View bar Year), same scale, 1 °C bins aligned to the limit, whole year of operating hours. Bars above the limit are the downtime, in the year colour; the rest is grey; today's shape is drawn as an outline in the future rows; the right-hand label gives hours above and the share of operating hours. It shows *why* downtime grows (the warm end of the year moves right across a fixed line) and makes extra tolerance easy to picture (move the line right). Overlaid histograms were rejected: three distributions tangle exactly at the tail. A zoomed variant (`?zoom=1`, from 10 °C below the limit, hours below counted in the row label) draws the tail larger; kept as an option if the change reads too small at temperate sites.
    - **Downtime bridge.** Waterfall: today → added by climate to 2040 → added to 2050 → 2050 total → hours bought back by +1, +2, +3 °C of tolerance or cooling → 2050 with +3 °C. It reads as a ledger of hours: what climate change adds, and what each degree of engineering buys back. That is the shape a revenue or cost-benefit view takes later (hours × €/h on each step), so it is kept for when € is added, as a cost-benefit card or an Indicators section.
    - **Limit ladder (alternative).** Grouped columns of downtime for limits from 3 °C below to 3 °C above yours (today, 2040, 2050 per limit), your limit shaded, today's downtime as a dashed line and a marker where 2050 falls back to it ("36.3 °C restores today's downtime"). Closer to the engineering question "what if the spec were different", but less direct as a ledger.
    - The v1 curve stays in the mock-up behind `?v=curve` for comparison only.

@@ -24,7 +24,7 @@ const PRESETS = {
   custom: { label: "Custom process", lim: null },
 };
 const qs = new URLSearchParams(location.search);
-const P = { on: qs.get("lens") !== "work", proc: "paint", lim: 35, run: qs.get("run") === "24" ? "24" : "op", alt: qs.get("alt") === "1", v: ["ladder", "bridge", "curve", "hist"].includes(qs.get("v")) ? qs.get("v") : "ladder" };
+const P = { on: qs.get("lens") !== "work", proc: "paint", lim: 35, run: qs.get("run") === "24" ? "24" : "op", alt: qs.get("alt") === "1", v: ["ladder", "bridge", "curve", "hist"].includes(qs.get("v")) ? qs.get("v") : "hist" };
 const thr = () => P.lim - Number(S.hall);
 const procName = () => P.proc === "custom" ? "custom limit" : PRESETS[P.proc].label;
 const runText = () => P.run === "op" ? `runs ${DATA.meta.operating_hours.start}–${DATA.meta.operating_hours.end}` : "runs 24 h";
@@ -220,7 +220,7 @@ function downtime() {
   const head = fAt < 0.5 ? `No downtime at ${limText()}, even in a ${c.per} ${c.ytn}: the hottest operating hour is <i>${fmt(c.f.st.mx, 1)} °C</i>.`
     : `At ${limText()} ${c.ytn === "extreme year" ? "an" : "a"} ${c.ytn} costs <b>${fmt(today)} hours</b> of downtime today and <b>${fmt(fAt)} h</b> by ${c.per}: about <b>${fmt(Math.round(c.cum / 10) * 10)} h</b> in total from 2026 to 2050 (typical years). ${c.eq != null ? `<b>${fmt(c.eq - P.lim, 1)} °C</b> more process tolerance or hall cooling would hold ${c.per} at today's level; ` : ""}each extra 1 °C saves about <i>${fmt(fAt - p1)} h</i> a year by ${c.per}.`;
   const vis = P.v === "bridge" ? bridge(c, W0) : P.v === "hist" ? hists(c, W0) : ladder(c, W0);
-  const sub = P.v === "hist" ? `Operating hours a year at each hall-air temperature (1 °C bins), the warm end of the year, one panel per period on the same scale · coloured: above the limit (downtime) · grey outline: today · ${c.ytn}` : P.v === "bridge" ? `How the ${c.per} downtime builds up from today, and what each extra °C of process tolerance or hall cooling buys back · ${c.ytn}`
+  const sub = P.v === "hist" ? `Operating hours a year at each hall-air temperature (1 °C bins)${qs.get("zoom") === "1" ? ", the warm end of the year" : ""}, one panel per period on the same scale · coloured: above the limit (downtime) · grey outline: today · ${c.ytn}` : P.v === "bridge" ? `How the ${c.per} downtime builds up from today, and what each extra °C of process tolerance or hall cooling buys back · ${c.ytn}`
     : `Downtime hours a year for limits around yours (1 °C steps) · dashed: today's downtime at your limit · ${c.ytn}`;
   return `<div class="sc"><div class="t">${head}</div>${dtStrip(c)}<div class="sub">${sub} · ${hallText()} · ${runText()}</div>${vis}</div>`;
 }
@@ -281,8 +281,8 @@ function bridge(c, W0) {
 
 /* Card 2 visual, option C: small-multiple histograms of operating-hour hall air, the tail above the limit coloured */
 function hists(c, W0) {
-  /* zoom (default): from 10 °C below the limit, so the tail is drawn large; ?zoom=0 shows the whole year */
-  const zoom = qs.get("zoom") !== "0", hall = Number(S.hall), lo = zoom ? -10 : Math.floor(Math.min(...c.ser.map(s => s.st.sorted[0] + hall)) - P.lim), hi = Math.ceil(Math.max(...c.ser.map(s => s.st.mx)) - P.lim) + 1;
+  /* whole year (chosen, v3); ?zoom=1 starts 10 °C below the limit so the tail is drawn larger */
+  const zoom = qs.get("zoom") === "1", hall = Number(S.hall), lo = zoom ? -10 : Math.floor(Math.min(...c.ser.map(s => s.st.sorted[0] + hall)) - P.lim), hi = Math.ceil(Math.max(...c.ser.map(s => s.st.mx)) - P.lim) + 1;
   const edges = []; for (let k = lo; k <= hi; k++) edges.push(P.lim + k);
   const counts = c.ser.map(s => edges.slice(0, -1).map((e, i) => above(s.st, e) - above(s.st, edges[i + 1])));
   const mxC = Math.max(1, ...counts.flat()), lw = zoom ? 104 : 64, rw = 132, rh = 64, gap = 12, top = 18, nb = edges.length - 1;
