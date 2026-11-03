@@ -87,6 +87,15 @@ def annual_summary(hourly: pd.DataFrame, lat: float, lon: float, timezone: str, 
     for c, tag in in_cols.items():
         summary[f"op_hours_wbgt_{tag}_gt_ref"] = go[c].apply(lambda s: _count(s, ref))
         summary[f"op_hours_wbgt_{tag}_gt_ref_unacc"] = go[c].apply(lambda s: _count(s, ref_u))
+    # working hours above the WBGT reference by shift, for every exposure (D57: story cards use these,
+    # so the shift split agrees with the headline numbers). Night is outside the default operating hours.
+    shifts = {"early": ("06:00", "14:00"), "late": ("14:00", "22:00"), "night": ("22:00", "06:00")}
+    expo_cols = {"shade": "wbgt_shade", "sun": "wbgt_sun", **{tag: c for c, tag in in_cols.items()}}
+    for sh, (a, b) in shifts.items():
+        m = operating_hours_mask(df.index, timezone, a, b, op_cfg["days"])
+        gs = df[m].groupby("year")
+        for tag, col in expo_cols.items():
+            summary[f"op_hours_wbgt_{tag}_gt_ref_{sh}"] = gs[col].apply(lambda s: _count(s, ref))
     for name, lim in hc.get("process_limits", {}).items():
         summary[f"proc_hours_{name}"] = g[lim["variable"]].apply(lambda s, a=lim["above"]: _count(s, a)) if lim["variable"] in df else 0
     summary = summary.fillna(0)

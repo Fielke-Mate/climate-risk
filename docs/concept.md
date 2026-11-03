@@ -285,7 +285,7 @@ The dashboard is built **around an interactive map of the portfolio**:
 | 1 ✅ | Historical weather files | ERA5 hourly 2015–2025 + TMY + hot reference year for every pilot site; PVGIS TMY cross-check; standard format; quick plots. **Done**: see [`phase1/README.md`](phase1/README.md) |
 | 2 ✅ | Future weather files | CMIP6 deltas + morphing → 2040/2050 ensembles (6 models). See [`phase2/README.md`](phase2/README.md) |
 | 3 ✅ | Heat analysis | Liljegren WBGT (sun/shade), UTCI (SolarCal in sun), indoor +2/+4 °C sensitivity, process placeholders. See [`phase3/README.md`](phase3/README.md); reviewed in [`methodology_review.md`](methodology_review.md) |
-| 4 (prototype ✅) | Dashboard | Prototype brought forward: published page (`dashboard/`), PDE design tokens, Europe › country › site filters, map, KPI strip, site card (summary, temperature, heat stress). Metrics from Phase 3 still provisional |
+| 4 (prototype ✅) | Dashboard | Prototype brought forward: published page (`dashboard/`), PDE design tokens, Europe › country › site filters, map, KPI strip, site card (summary story cards, data summary, temperature, heat stress). Metrics from Phase 3 still provisional |
 | 5 | Extensions | Risk rating scale, indoor offsets from engineering estimates, more hazards, financial effects, client sharing |
 
 ## 12. Decisions log
@@ -347,13 +347,13 @@ The dashboard is built **around an interactive map of the portfolio**:
 | D54 | Headline tiles 3 and 4: A "Sites at high risk" (worker heat-safety days, provisional High 15+, Very high 35+) and D "Working time over the safe limit" (working hours above WBGT 28 °C, summed over sites in view, per worker) |
 | D55 | Hot-year definition stays on humid heat (indoor WBGT degree-hours); risk rating scale not needed for now |
 | D56 | Desktop dashboard fits one screen (no page scroll); long content scrolls inside its card |
+| D57 | Site panel Summary tab = story cards (concept 5B): working hours above WBGT 28 °C by shift for today, the hot year, the future typical and hot year (bar colour = year, shift = shade; totals equal the Data summary table, night shift shown as + h because it lies outside 06–22), and the UTCI comfort shift (B minus A per band) with in-tab year pickers. The indicator table and temperature bands move to a Data summary tab |
 | D33 | Site coordinates checked against published sources (airfield reference points or addresses; see sites CSV). Precision of ~1–3 km is enough, as ERA5 grid cells are ~9–30 km |
 
 ## 13. Open questions
 
-1. **Site summary tab redesign:** five concepts to choose from (in progress).
-2. **Methodology review actions** ([`methodology_review.md`](methodology_review.md)): indoor hall model / BMS calibration, EPW export, station bias correction first.
-3. **Getafe / Illescas** share one ERA5 cell (identical historical weather).
+1. **Methodology review actions** ([`methodology_review.md`](methodology_review.md)): indoor hall model / BMS calibration, EPW export, station bias correction first.
+2. **Getafe / Illescas** share one ERA5 cell (identical historical weather).
 
 ## 14. Notes for productisation
 

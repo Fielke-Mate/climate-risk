@@ -40,6 +40,7 @@ METRICS = ["temp_mean", "temp_max", "hours_t_gt30", "days_tmax_gt30", "days_tmax
            "op_hours_wbgt_in2_gt_ref_unacc", "op_hours_wbgt_in4_gt_ref_unacc",
            "op_hours_utci_in0_gt28", "op_hours_utci_in0_gt32", "op_hours_utci_in2_gt28", "op_hours_utci_in2_gt32",
            "op_hours_utci_in4_gt28", "op_hours_utci_in4_gt32", "op_hours_utci_sun_gt32",
+           *[f"op_hours_wbgt_{x}_gt_ref_{sh}" for x in ("shade", "sun", "in2", "in4") for sh in ("early", "late", "night")],
            "wbgt_shade_max", "wbgt_sun_max", "hours_utci_shade_gt28", "hours_utci_sun_gt32", "hours_utci_sun_gt38",
            "proc_hours_paint_application_max_temp", "proc_hours_paint_application_max_rh", "proc_hours_composite_room_cooling",
            "cdh24", "hdh19"]

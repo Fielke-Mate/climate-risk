@@ -66,7 +66,7 @@ async function check(p, where) {
               if (!(period === "hist" && isChange) && r.fills.some(f => f === "rgb(201, 196, 211)")) fail(where, "grey (no value) marker");
               states++;
             }
-            for (const tab of ["summary", "temp", "stress", "about"]) {
+            for (const tab of ["summary", "data", "temp", "stress", "about"]) {
               await click(`.tabs button[data-tab="${tab}"]`);
               await check(page, `${scen}/${period}/${yt}/${expo}+${hall}/tab:${tab}`);
               states++;
@@ -83,11 +83,27 @@ async function check(p, where) {
   paneText = await page.$eval("#pane", e => e.innerText);
   if (/weather in 2050/.test(paneText)) fail("typical charts", "typical view still shows the hot-year series");
 
+  // 1c. Summary tab: comparison year pickers and consistency with the Data summary table
+  await click('.tabs button[data-tab="summary"]');
+  await page.selectOption('select[data-cmp="cmpB"]', "hotref");
+  paneText = await page.$eval("#pane", e => e.innerText);
+  if (!/Hot year \d{4} \(actual\) against Today/.test(paneText)) fail("summary pickers", "comfort sentence does not follow the picked years");
+  await page.selectOption('select[data-cmp="cmpA"]', "hotref");
+  paneText = await page.$eval("#pane", e => e.innerText);
+  if (!/Pick two different years/.test(paneText)) fail("summary pickers", "same year twice not handled");
+  const barToday = await page.$eval("#pane .sc svg .val", e => e.textContent.split(" h")[0]);
+  await click('.tabs button[data-tab="data"]');
+  const tableToday = await page.$$eval("#pane table tbody tr", trs => {
+    const tr = trs.find(t => /^Working hours above WBGT 28/.test(t.querySelector("th").innerText));
+    return tr.querySelectorAll("td")[0].innerText.trim();
+  });
+  if (barToday !== tableToday) fail("summary vs data", `today bar ${barToday} h, table ${tableToday} h`);
+
   // 2. Every site, every tab (default view)
   const ids = await page.$$eval("#sites circle", cs => cs.map(c => c.dataset.id));
   for (const id of ids) {
     await page.click(`#sites circle[data-id="${id}"]`, { force: true });
-    for (const tab of ["summary", "temp", "stress", "about"]) {
+    for (const tab of ["summary", "data", "temp", "stress", "about"]) {
       await click(`.tabs button[data-tab="${tab}"]`);
       const r = await check(page, `site ${id}/${tab}`);
       states++;
@@ -139,7 +155,7 @@ async function check(p, where) {
     d.on("pageerror", e => errors.push(`${w}x${h}: ` + e.message));
     await d.goto(PAGE + "#SVQ");
     await d.waitForTimeout(300);
-    for (const tab of ["summary", "temp", "stress", "about"]) {
+    for (const tab of ["summary", "data", "temp", "stress", "about"]) {
       await d.click(`.tabs button[data-tab="${tab}"]`);
       const over = await d.evaluate(() => [document.documentElement.scrollHeight - document.documentElement.clientHeight,
         document.documentElement.scrollWidth - document.documentElement.clientWidth]);
@@ -155,7 +171,7 @@ async function check(p, where) {
   phone.on("pageerror", e => errors.push("phone: " + e.message));
   await phone.goto(PAGE);
   await phone.waitForTimeout(300);
-  for (const tab of ["summary", "temp", "stress", "about"]) {
+  for (const tab of ["summary", "data", "temp", "stress", "about"]) {
     await phone.click(`.tabs button[data-tab="${tab}"]`);
     const over = await phone.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     if (over > 0) fail(`phone/${tab}`, `page scrolls sideways by ${over}px`);
