@@ -147,6 +147,90 @@ async function check(p, where) {
   await click('#ctl-expo button[data-v="in"]');
   await click('#ctl-hall button[data-v="0"]');
 
+  // 1e. Process lens (D66): every view x run mode x process layer x tab; monotonic in the limit, hall gain and run mode;
+  //     summary bars agree with the Indicators table; presets, stepper, free entry and clamping
+  await click('#ctl-lens button[data-v="proc"]');
+  const procLayers = await page.$$eval("#ctl-layer option", os => os.map(o => o.value));
+  if (!procLayers.includes("proc_hours") || procLayers.includes("worker_days")) fail("process lens", `map layers: ${procLayers.join(", ")}`);
+  if (await page.isVisible("#ctl-prof") || !(await page.isVisible("#ctl-lim"))) fail("process lens", "worker controls shown or limit hidden");
+  if ((await page.$eval('.tabs button[data-tab="stress"]', e => e.textContent)) !== "Process") fail("process lens", "tab not renamed to Process");
+  for (const scen of ["ssp245", "ssp585"])
+    for (const period of ["hist", "2040", "2050"])
+      for (const yt of ["typical", "hot", "extreme"])
+        for (const run of ["op", "24"])
+          for (const hall of ["0", "4"]) {
+            await click(`#ctl-scen button[data-v="${scen}"]`); await click(`#ctl-period button[data-v="${period}"]`);
+            await click(`#ctl-yt button[data-v="${yt}"]`); await click(`#ctl-run button[data-v="${run}"]`); await click(`#ctl-hall button[data-v="${hall}"]`);
+            for (const layer of procLayers) {
+              await page.selectOption("#ctl-layer", layer);
+              const where = `proc ${scen}/${period}/${yt}/${run}+${hall}/${layer}`, rr = await check(page, where), isChange = ["d_proc_hours", "warming"].includes(layer);
+              if (period === "hist" && isChange && !rr.noteShown) fail(where, "change layer in Today without explanation");
+              if (!(period === "hist" && isChange) && rr.fills.some(f => f === "rgb(201, 196, 211)")) fail(where, "grey (no value) marker");
+              states++;
+            }
+            for (const tab of ["summary", "data", "temp", "stress", "about"]) {
+              await click(`.tabs button[data-tab="${tab}"]`);
+              await check(page, `proc ${scen}/${period}/${yt}/${run}+${hall}/tab:${tab}`);
+              states++;
+            }
+          }
+  await click('#ctl-scen button[data-v="ssp245"]'); await click('#ctl-period button[data-v="2050"]'); await click('#ctl-yt button[data-v="typical"]');
+  await click('#ctl-run button[data-v="op"]'); await click('#ctl-hall button[data-v="0"]');
+  const limVal = () => page.$eval("#ctl-lim", e => Number(e.value));
+  await page.selectOption("#ctl-proc", "paint");
+  if (await limVal() !== 35) fail("presets", `paint preset gives ${await limVal()} °C`);
+  const procHours = await tileHours();
+  // raising the limit never adds downtime; a warmer hall and running 24 h never remove any
+  let prev = Infinity;
+  for (const d of [-5, 1, 1, 1, 1, 1]) {
+    for (let k = 0; k < Math.abs(d) * 2; k++) await click(`.stepper button[data-d="${d < 0 ? "-0.5" : "0.5"}"]`);
+    const h = await tileHours();
+    if (d > 0 && h > prev) fail("limit stepper", `downtime rose from ${prev} to ${h} h as the limit went up`);
+    prev = h;
+  }
+  await click('.stepper button[data-d="0.5"]');   // 35.5 °C matches no preset
+  if (await page.$eval("#ctl-proc", e => e.value) !== "custom") fail("limit stepper", "preset not switched to custom after stepping");
+  await page.selectOption("#ctl-proc", "paint");
+  await click('#ctl-hall button[data-v="4"]');
+  if (await tileHours() < procHours) fail("hall gain", "a warmer hall gave less downtime");
+  await click('#ctl-hall button[data-v="0"]');
+  await click('#ctl-run button[data-v="24"]');
+  if (await tileHours() < procHours) fail("run 24 h", "running 24 h gave less downtime than 06–22");
+  await click('#ctl-run button[data-v="op"]');
+  for (const [typed, want] of [["33.4", 33.5], ["99", 45], ["5", 20]]) {
+    await page.fill("#ctl-lim", typed); await page.press("#ctl-lim", "Enter"); await page.$eval("#ctl-lim", e => e.blur());
+    if (await limVal() !== want) fail("limit entry", `typed ${typed}, limit ${await limVal()}, expected ${want}`);
+  }
+  await page.selectOption("#ctl-proc", "paint");
+  // the summary's today bar equals the Indicators table (same 11-year statistic)
+  await click('.tabs button[data-tab="summary"]');
+  const procBar = await page.$eval("#pane .sc svg .val", e => e.textContent.split(" h")[0]);
+  if ((await page.$$("#pane .sc:first-child svg text.val")).length !== 9) fail("process summary", "expected nine year bars");
+  if ((await page.$$("#pane .dtstrip .dt")).length !== 4) fail("process summary", "downtime strip should have four tiles");
+  await click('.tabs button[data-tab="data"]');
+  const procTable = await page.$$eval("#pane table tbody tr", trs => trs.find(t => /^Downtime hours/.test(t.querySelector("th").textContent)).querySelector("td").firstChild.textContent.trim());
+  if (procBar !== procTable) fail("process summary vs data", `today bar ${procBar} h, table ${procTable} h`);
+  for (const tab of ["summary", "temp", "stress"]) {
+    await click(`.tabs button[data-tab="${tab}"]`);
+    const fit = await page.$$eval("#pane svg.chart", ss => ss.map(e => e.getBoundingClientRect().width / e.viewBox.baseVal.width));
+    if (fit.some(sc => sc > 1.02)) fail(`process ${tab} charts`, `chart scaled up: ${fit.map(f => f.toFixed(2)).join(", ")}`);
+  }
+  for (const id of ["XFW", "TLS", "SVQ"]) {   // cool, temperate and hot sites
+    await page.click(`#sites circle[data-id="${id}"]`, { force: true });
+    const pname = await page.$eval("#s-name", e => e.textContent), pline = await page.$eval("#kstrip .selsite", e => e.textContent).catch(() => "");
+    if (!pline.startsWith(pname + ":")) fail("process tile site line", `expected "${pname}: …", got "${pline}"`);
+    for (const tab of ["summary", "data", "stress"]) { await click(`.tabs button[data-tab="${tab}"]`); await check(page, `proc site ${id}/${tab}`); states++; }
+  }
+  // shareable link and back to the worker lens
+  await page.goto(PAGE + "?lens=proc&lim=32#TLS"); await page.waitForTimeout(300);
+  if (await limVal() !== 32 || !(await page.isVisible("#ctl-lim"))) fail("link", "?lens=proc&lim=32 not applied");
+  await click('#ctl-lens button[data-v="work"]');
+  if (!(await page.isVisible("#ctl-prof")) || await page.isVisible("#ctl-lim")) fail("worker lens", "controls not restored");
+  const wl = await page.$eval("#ctl-layer", e => [e.value, [...e.options].map(o => o.value)]);
+  if (wl[0].includes("proc") || !wl[1].includes("worker_days") || wl[1].some(v => v.includes("proc"))) fail("worker lens", `map layers not restored: ${wl[0]} of ${wl[1].join(", ")}`);
+  if ((await page.$eval('.tabs button[data-tab="stress"]', e => e.textContent)) !== "Heat stress") fail("worker lens", "tab label not restored");
+  await page.goto(PAGE + "#SVQ"); await page.waitForTimeout(300);
+
   // 2. Every site, every tab (default view)
   const ids = await page.$$eval("#sites circle", cs => cs.map(c => c.dataset.id));
   for (const id of ids) {
@@ -189,7 +273,8 @@ async function check(p, where) {
   if ((await page.$eval("#s-name", e => e.textContent)) !== "Toulouse (Blagnac)") fail("search", "selecting a result did not open Toulouse");
 
   // 5. Stale settings from older versions + bad hash
-  await page.evaluate(() => { for (const [k, v] of Object.entries({ "cr-tab": "bogus", "cr-layer": "op_wbgt_prov_degree_hours_gt_base", "cr-expo": "in0", "cr-hall": "7", "cr-period": "2099", "cr-prof": "bogus" })) localStorage.setItem(k, v); });
+  await page.evaluate(() => { for (const [k, v] of Object.entries({ "cr-tab": "bogus", "cr-layer": "op_wbgt_prov_degree_hours_gt_base", "cr-expo": "in0", "cr-hall": "7", "cr-period": "2099", "cr-prof": "bogus",
+    "cr-lens": "proc", "cr-lim": "999", "cr-run": "night", "cr-proc": "bogus" })) localStorage.setItem(k, v); });
   await page.goto(PAGE + "#NOPE");
   await page.waitForTimeout(300);
   r = await check(page, "stale settings");
@@ -201,7 +286,7 @@ async function check(p, where) {
   for (const [w, h] of [[1440, 900], [1920, 1080], [1280, 760]]) {
     const d = await browser.newPage({ viewport: { width: w, height: h } });
     d.on("pageerror", e => errors.push(`${w}x${h}: ` + e.message));
-    await d.goto(PAGE + "#SVQ");
+    await d.goto(PAGE + (w === 1280 ? "?lens=proc" : "") + "#SVQ");
     await d.waitForTimeout(300);
     for (const tab of ["summary", "data", "temp", "stress", "about"]) {
       await d.click(`.tabs button[data-tab="${tab}"]`);
@@ -217,12 +302,14 @@ async function check(p, where) {
   // 7. Phone width: no sideways scrolling
   const phone = await browser.newPage({ viewport: { width: 390, height: 860 } });
   phone.on("pageerror", e => errors.push("phone: " + e.message));
-  await phone.goto(PAGE);
-  await phone.waitForTimeout(300);
-  for (const tab of ["summary", "data", "temp", "stress", "about"]) {
-    await phone.click(`.tabs button[data-tab="${tab}"]`);
-    const over = await phone.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-    if (over > 0) fail(`phone/${tab}`, `page scrolls sideways by ${over}px`);
+  for (const lens of ["work", "proc"]) {
+    await phone.goto(PAGE + "?lens=" + lens);
+    await phone.waitForTimeout(300);
+    for (const tab of ["summary", "data", "temp", "stress", "about"]) {
+      await phone.click(`.tabs button[data-tab="${tab}"]`);
+      const over = await phone.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      if (over > 0) fail(`phone/${lens}/${tab}`, `page scrolls sideways by ${over}px`);
+    }
   }
 
   for (const e of errors) fail("console", e);
