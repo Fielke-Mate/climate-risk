@@ -34,10 +34,10 @@ FUT = WEATHER_DIR / "future"
 SERIES = ["#2a78d6", "#eb6834", "#1baf7a"]
 INK, INK2, GRID = "#0b0b0b", "#52514e", "#e4e3df"
 METRICS = ["temp_mean", "temp_max", "hours_t_gt30", "days_tmax_gt30", "days_tmax_gt35", "nights_tmin_gt20",
-           "op_hours_wbgt_shade_gt_ref", "op_hours_wbgt_shade_gt_ref_unacc", "op_hours_wbgt_sun_gt_ref",
+           "op_hours_wbgt_shade_gt_ref", "op_hours_wbgt_shade_gt_ref_acc", "op_hours_wbgt_sun_gt_ref",
            "op_days_wbgt_shade_gt_ref", "op_days_wbgt_sun_gt_ref", "op_wbgt_shade_degree_hours_gt_base",
            "op_days_wbgt_in2_gt_ref", "op_days_wbgt_in4_gt_ref", "op_hours_wbgt_in2_gt_ref", "op_hours_wbgt_in4_gt_ref",
-           "op_hours_wbgt_in2_gt_ref_unacc", "op_hours_wbgt_in4_gt_ref_unacc",
+           "op_hours_wbgt_in2_gt_ref_acc", "op_hours_wbgt_in4_gt_ref_acc",
            "op_hours_utci_in0_gt28", "op_hours_utci_in0_gt32", "op_hours_utci_in2_gt28", "op_hours_utci_in2_gt32",
            "op_hours_utci_in4_gt28", "op_hours_utci_in4_gt32", "op_hours_utci_sun_gt32",
            *[f"op_hours_wbgt_{x}_gt_ref_{sh}" for x in ("shade", "sun", "in2", "in4") for sh in ("early", "late", "night")],
@@ -181,7 +181,7 @@ def main() -> None:
 
     for metric, label, fname in [("days_tmax_gt30", "Days with max temperature above 30 °C", "days_tmax30_projection.png"),
                                  ("op_wbgt_shade_degree_hours_gt_base", "WBGT degree-hours above 25 °C in working hours (shade, Liljegren)", "wbgt_degree_hours_projection.png"),
-                                 ("op_days_wbgt_shade_gt_ref", "Days with a working hour above WBGT 28 °C (shade, moderate work)", "wbgt_days_projection.png")]:
+                                 ("op_days_wbgt_shade_gt_ref", f"Days with a working hour above WBGT {cfg['heat']['wbgt_reference_c']:g} °C (shade, moderate work, not acclimatised)", "wbgt_days_projection.png")]:
         fig, axes = plt.subplots(1, 2, figsize=(12, 6.2), sharey=True, sharex=True)
         for ax, scen in zip(axes, fc["scenarios"]):
             style(ax)

@@ -121,7 +121,7 @@ The headline result is **days per year above a threshold**, with hours above the
 | Threshold set | Basis | Variable | Example values (to confirm) |
 |---|---|---|---|
 | General heat | Common climate indicators | Daily max air temperature | Tmax > 30 / 35 / 40 °C; warm nights Tmin > 20 °C |
-| **Worker heat stress (v1 default)** | ISO 7243 WBGT reference value, Class 2 moderate work (section 5b) | Hourly WBGT | 28 °C (acclimatised); 26 °C not-acclimatised sensitivity |
+| **Worker heat stress (v1 default)** | ISO 7243 WBGT reference value, Class 2 moderate work (section 5b) | Hourly WBGT | 26 °C (not acclimatised, headline, D58); 28 °C acclimatised sensitivity |
 | **Thermal stress (UTCI)** | UTCI assessment scale (section 5c) | Hourly UTCI | Moderate heat stress > 26 °C · strong > 32 °C · very strong > 38 °C · extreme > 46 °C |
 | Workplace regulation (DE example) | ASR A3.5 indoor air temperature levels | Indoor air temperature | 26 / 30 / 35 °C |
 | Process limits | User-defined per process | Air temp, RH, or wet-bulb | e.g. paint/sealant cure limit, chiller design ambient, composite layup room spec |
@@ -140,7 +140,7 @@ A "day over threshold" counts a day where the threshold is exceeded for at least
 | 3 High | 360–470 W | Intense arm and trunk work: carrying heavy material, sawing, pushing heavy carts, fast walking | 25–26 °C | 22–23 °C |
 | 4 Very high | > 470 W | Very intense work at fast pace: heavy shovelling, climbing stairs/ladders with loads | 23–25 °C | 18–20 °C |
 
-**Decided default for aircraft manufacturing: Class 2 (moderate).** Background: much assembly work (riveting, drilling, sealing, fastening, wiring) is sustained arm work, often overhead, so it sits around **Class 2 (moderate)**. Inspection, quality and machine-minding are **Class 1 (low)**. Show both: **Class 2 as the headline, Class 1 as secondary**, assuming **acclimatised** workers. Show "not acclimatised" as a sensitivity for early-summer heatwaves and northern sites, where workers are less used to heat.
+**Decided default for aircraft manufacturing: Class 2 (moderate).** Background: much assembly work (riveting, drilling, sealing, fastening, wiring) is sustained arm work, often overhead, so it sits around **Class 2 (moderate)**. Inspection, quality and machine-minding are **Class 1 (low)**. Show both: **Class 2 as the headline, Class 1 as secondary**, assuming workers are **not acclimatised** (D58, replacing the acclimatised assumption of D22). Acclimatisation takes about a week of regular work in similar heat and is lost after about a week away, so at temperate European sites most staff are not acclimatised at the first heatwave of the season, and new, agency and returning staff never are. The acclimatised value (28 °C) is kept as a sensitivity.
 
 - Compute **hourly WBGT** from the weather file. Indoor workers use **shaded WBGT** (no direct solar load). Outdoor workers use WBGT in sun. The Liljegren method is the standard physically based approach and uses temperature, humidity, solar radiation, wind and pressure, all of which are in the file.
 - **Indoor vs outdoor:** most aerospace manufacturing is indoors (hangars, assembly halls). **For v1, indoor conditions = outdoor conditions** (offset = 0 °C). The code still includes an `indoor_offset` parameter per workforce group and process, so it can later be set from **engineering estimates** without changing the method. A building model is out of scope.
@@ -313,7 +313,7 @@ The dashboard is built **around an interactive map of the portfolio**:
 | D19 | The XMY is morphed with projected changes in upper temperatures, not just mean changes |
 | D20 | Baseline record 2005–2023 (no need to go back to 1991). Weather source must include humidity: PVGIS multi-year series lacks it, so we use ERA5 hourly; PVGIS TMY kept as a cross-check |
 | D21 | Process thresholds will eventually target paint application and composite / carbon-fibre layup and curing |
-| D22 | Worker heat stress headline: ISO 7243 Class 2 (moderate), WBGT 28 °C acclimatised |
+| D22 | Worker heat stress headline: ISO 7243 Class 2 (moderate), WBGT 28 °C acclimatised (reference value superseded by D58) |
 | D23 | Add UTCI (sun and shade) as an additional metric alongside WBGT |
 | D24 | Replace XMY with multi-year analysis of 2015–2025 (11 years): report typical (median) and hot (90th percentile) years, historical and future |
 | D25 | Keep one unadjusted historical hot reference year |
@@ -348,6 +348,7 @@ The dashboard is built **around an interactive map of the portfolio**:
 | D55 | Hot-year definition stays on humid heat (indoor WBGT degree-hours); risk rating scale not needed for now |
 | D56 | Desktop dashboard fits one screen (no page scroll); long content scrolls inside its card |
 | D57 | Site panel Summary tab = story cards (concept 5B): working hours above WBGT 28 °C by shift for today, the hot year, the future typical and hot year (bar colour = year, shift = shade; totals equal the Data summary table, night shift shown as + h because it lies outside 06–22), and the UTCI comfort shift (B minus A per band) with in-tab year pickers. The indicator table and temperature bands move to a Data summary tab |
+| D58 | Worker heat stress headline uses the ISO 7243 Class 2 **not-acclimatised** reference, WBGT 26 °C (replaces 28 °C acclimatised from D22, which becomes the sensitivity). Applies to heat-safety days, working hours over the limit, shift splits and map colours. Reason: temperate sites, first heatwave of the season, new/agency/returning staff. Under the ISO 7243:2017 equation mid-Class 2 gives ~25 °C, so 26 °C is not conservative |
 | D33 | Site coordinates checked against published sources (airfield reference points or addresses; see sites CSV). Precision of ~1–3 km is enough, as ERA5 grid cells are ~9–30 km |
 
 ## 13. Open questions

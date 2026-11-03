@@ -9,7 +9,8 @@ point, pressure, wind (10 m, adjusted to 2 m) and global solar radiation.
            air speed is the hall's occupied-zone speed (default 0.3 m/s, exhaust-ventilated
            warehouse, no active cooling) instead of the outdoor wind, and the hall temperature
            is outdoor + `indoor_offset` (D14).
-The reference for moderate work (ISO 7243 Class 2, acclimatised) is 28 C (D22).
+The reference for moderate work (ISO 7243 Class 2) is 26 C not acclimatised (headline, D58)
+and 28 C acclimatised (sensitivity, D22).
 
 UTCI: `pythermalcomfort` (Broede et al. 2012 polynomial).
   * indoor (naturally ventilated / unconditioned halls, D51): hall air temperature (outdoor +
