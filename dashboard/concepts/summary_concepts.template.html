@@ -1,0 +1,271 @@
+<title>Summary Tab Concepts</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: control bar, then five concept cards in a two-column grid (one column on narrow screens).
+   PDE tokens; diverging colour = map system (blue = cooler / fewer, magenta = warmer / more). */
+/*__FONTS__*/
+:root {
+  color-scheme: light;
+  --purple:#6D28D9; --purple-600:#5B21B6; --purple-050:#F2ECFD; --deep:#2A1052;
+  --ink:#1A1622; --ink-2:#5A5566; --ink-3:#6B6577;
+  --bg:#F6F5F8; --bg-2:#EFEDF3; --surface:#FFFFFF; --line:#E7E4EE; --line-2:#DAD6E4;
+  --need:#C2410C; --need-bg:#FFF4ED; --need-line:#FBD5BE;
+  --r-md:14px; --r-sm:10px; --r-xs:6px; --r-pill:999px; --r-bar:3px;
+  --sh-1:0 1px 2px rgba(28,16,44,.06),0 2px 6px rgba(28,16,44,.05);
+  --font:"Geist","Segoe UI",Arial,system-ui,sans-serif; --mono:"Geist Mono",ui-monospace,"Cascadia Mono",monospace;
+  --c-today:#9C96A8; --c-hot:#2A1052; --c-2040:#0B41CD; --c-2050:#FF3D8B;
+  --cool:#0B41CD; --warm:#FF3D8B;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 13px; line-height: 1.5; letter-spacing: -.011em; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1400px; margin: 0 auto; padding-block: 18px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 16px; }
+h1 { margin: 0; font-size: 18px; font-weight: 600; }
+.lede { margin: 2px 0 0; color: var(--ink-2); max-width: 90ch; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); padding: 10px 14px; box-shadow: var(--sh-1); position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.ctl { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-3); }
+select { height: 30px; font: inherit; font-size: 12.5px; padding: 0 8px; border: 1px solid var(--line-2); border-radius: 8px; background: #fff; color: var(--ink); }
+.toggle { display: flex; height: 30px; padding: 2px; gap: 2px; border-radius: 8px; background: var(--bg-2); }
+.toggle button { height: 26px; padding: 0 10px; border: 0; background: none; border-radius: 6px; font: inherit; font-size: 12px; color: var(--ink-2); cursor: pointer; }
+.toggle button[aria-pressed="true"] { background: #fff; color: var(--ink); box-shadow: 0 1px 2px rgba(28,16,44,.14); font-weight: 600; }
+.vs { font-weight: 600; color: var(--ink-2); }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+@media (max-width: 1100px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); box-shadow: var(--sh-1); min-width: 0; display: grid; }
+.card > header { padding: 14px 16px 10px; border-bottom: 1px solid var(--line); display: grid; gap: 4px; }
+.card .no { font-family: var(--mono); font-size: 11px; color: var(--purple-600); font-weight: 500; letter-spacing: .04em; }
+.card h2 { margin: 0; font-size: 15px; font-weight: 600; }
+.card .why { margin: 0; font-size: 12px; color: var(--ink-3); }
+.tabs { display: flex; gap: 2px; padding: 6px 16px 0; border-bottom: 1px solid var(--line); }
+.tabs span { padding: 6px 10px; font-size: 12.5px; color: var(--ink-2); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tabs span.on { color: var(--purple-600); border-bottom-color: var(--purple); font-weight: 600; }
+.body { padding: 14px 16px 18px; display: grid; gap: 12px; min-width: 0; }
+.head { font-size: 14px; font-weight: 600; line-height: 1.35; text-wrap: balance; }
+.head b { color: var(--warm); }
+.head i { font-style: normal; color: var(--cool); font-weight: 600; }
+.sub { font-size: 12px; color: var(--ink-3); }
+svg { width: 100%; height: auto; display: block; overflow: visible; }
+svg text { font-family: var(--mono); font-size: 11px; fill: var(--ink-3); }
+svg .lab { font-family: var(--font); fill: var(--ink-2); font-size: 11.5px; }
+svg .val { font-family: var(--mono); fill: var(--ink); font-size: 11px; }
+.keys { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--ink-2); }
+.keys i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.stat { background: var(--bg); border-radius: var(--r-sm); padding: 8px 10px; min-width: 0; }
+.stat span { display: block; font-size: 11px; color: var(--ink-3); }
+.stat b { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.stat b em { font-style: normal; font-size: 11.5px; font-weight: 500; color: var(--ink-3); margin-left: 4px; }
+.story { display: grid; gap: 10px; }
+.sc { border: 1px solid var(--line); border-radius: var(--r-sm); padding: 10px 12px; display: grid; gap: 6px; }
+.sc .t { font-size: 13px; font-weight: 600; line-height: 1.35; }
+.foot { font-size: 11.5px; color: var(--ink-3); border-top: 1px dashed var(--line-2); padding-top: 8px; }
+.tw { overflow-x: auto; }
+</style>
+
+<div class="wrap">
+  <div>
+    <h1>Summary Tab Concepts</h1>
+    <p class="lede">Five alternatives for the site panel's first tab. In every concept the indicator table moves to its own <b>Data summary</b> tab. All charts use the real data and follow the controls below. Blue means cooler or fewer hours, magenta means warmer or more, as on the map.</p>
+  </div>
+  <div class="bar" role="group" aria-label="Concept controls">
+    <label class="ctl">Site <select id="site"></select></label>
+    <div class="ctl">Scenario <div class="toggle" id="scen"><button data-v="ssp245">SSP2-4.5</button><button data-v="ssp585">SSP5-8.5</button></div></div>
+    <div class="ctl">Exposure <div class="toggle" id="expo"><button data-v="in0">Indoor</button><button data-v="in2">Indoor +2 °C</button><button data-v="in4">Indoor +4 °C</button><button data-v="sun">Outdoor sun</button></div></div>
+    <label class="ctl">Compare <select id="ya"></select></label><span class="vs">with</span><label class="ctl"><select id="yb" aria-label="Second year"></select></label>
+  </div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<script>
+const D = /*__DATA__*/null;
+const $ = s => document.querySelector(s);
+const S = { site: "SVQ", scen: "ssp245", expo: "in0", a: "hist", b: "ssp245_2050" };
+const byId = Object.fromEntries(D.sites.map(s => [s.id, s]));
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const DIM = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+const UTCI = [["Strong cold", "#4f50ff"], ["Moderate cold", "#6f86e0"], ["Slight cold", "#79b3c9"], ["No thermal stress", "#8bdcaa"], ["Slight heat", "#b0b48c"],
+  ["Moderate heat", "#d9806e"], ["Strong heat", "#ff5555"], ["Very strong heat", "#c0262d"], ["Extreme heat", "#6e0f14"]];
+const RISK = ["#0B41CD", "#7C97E8", "#C7D3F6", "#FF9EC4", "#FF3D8B", "#A3005A"];
+const DIV = ["#0B41CD", "#7C97E8", "#C7D3F6", "#F2F0F5", "#FF9EC4", "#FF3D8B", "#A3005A"];
+const DIV_BREAKS = [-1.5, -0.75, -0.25, 0.25, 0.75, 1.5];
+const fmt = (v, d = 0) => v == null || Number.isNaN(v) ? "–" : Number(v).toLocaleString("en-GB", { maximumFractionDigits: d, minimumFractionDigits: d });
+const sgn = (v, d = 0) => (v > 0 ? "+" : v < 0 ? "−" : "±") + fmt(Math.abs(v), d);
+const binOf = (v, br) => { let i = 0; while (i < br.length && v >= br[i]) i++; return i; };
+const hy = () => byId[S.site].hot_year;
+
+function yearOptions() {
+  const sc = S.scen, h = hy();
+  return [["hist", "Today (typical year)"], ["hotref", `Hot year ${h} (actual)`], [`${sc}_2040`, "2040 typical"], [`${sc}_2050`, "2050 typical"],
+    [`hot_${sc}_2040`, `${h} weather in 2040`], [`hot_${sc}_2050`, `${h} weather in 2050`]];
+}
+const yName = k => (yearOptions().find(o => o[0] === k) || [k, k])[1];
+const T = k => D.tmy[S.site][k];
+const ubKey = () => S.expo === "sun" ? "utci_bands_sun" : `utci_bands_${S.expo}`;
+const shiftKey = () => S.expo === "sun" ? "sun_gt28" : `${S.expo}_gt28`;
+const expoLabel = () => ({ in0: "indoor, hall = outside", in2: "indoor, hall +2 °C", in4: "indoor, hall +4 °C", sun: "outdoor in sun" })[S.expo];
+const sum = a => a.reduce((x, y) => x + y, 0);
+const val = v => Array.isArray(v) ? v[0] : v;
+
+function card(no, title, why, body) {
+  return `<article class="card"><header><span class="no">CONCEPT ${no}</span><h2>${title}</h2><p class="why">${why}</p></header>
+    <div class="tabs"><span class="on">Summary</span><span>Data summary</span><span>Temperature</span><span>Heat stress</span><span>About</span></div>
+    <div class="body">${body}</div></article>`;
+}
+
+/* ---------- 1. Comfort shift: UTCI band hours, B minus A ---------- */
+function c1() {
+  const A = T(S.a)[ubKey()], B = T(S.b)[ubKey()], d = B.map((v, i) => val(v) - val(A[i]));
+  const mx = Math.max(...d.map(Math.abs), 1), w = 620, rowH = 26, top = 6, left = 160, mid = left + (w - left - 60) / 2, half = (w - left - 60) / 2;
+  let o = `<svg viewBox="0 0 ${w} ${top + rowH * 9 + 22}" role="img" aria-label="Change in hours per UTCI band">`;
+  o += `<line x1="${mid}" x2="${mid}" y1="${top - 2}" y2="${top + rowH * 9}" stroke="var(--line-2)"/>`;
+  d.forEach((v, i) => {
+    const y = top + i * rowH, len = Math.abs(v) / mx * half, x = v >= 0 ? mid : mid - len;
+    o += `<rect x="10" y="${y + 7}" width="10" height="10" rx="2" fill="${UTCI[i][1]}"/><text class="lab" x="26" y="${y + 16}">${UTCI[i][0]}</text>`;
+    o += `<rect x="${x}" y="${y + 5}" width="${Math.max(len, 1)}" height="14" rx="3" fill="${v >= 0 ? "var(--warm)" : "var(--cool)"}"><title>${UTCI[i][0]}: ${sgn(v)} h</title></rect>`;
+    const inside = len > half - 50;   /* long bars carry their value inside, so it never collides with the label */
+    o += inside ? `<text class="val" x="${v >= 0 ? mid + len - 6 : mid - len + 6}" y="${y + 16}" text-anchor="${v >= 0 ? "end" : "start"}" style="fill:#fff">${sgn(v)} h</text>`
+                : `<text class="val" x="${v >= 0 ? mid + len + 6 : mid - len - 6}" y="${y + 16}" text-anchor="${v >= 0 ? "start" : "end"}">${sgn(v)} h</text>`;
+  });
+  o += `<text x="${mid - half}" y="${top + rowH * 9 + 16}">fewer hours</text><text x="${mid + half}" y="${top + rowH * 9 + 16}" text-anchor="end">more hours</text></svg>`;
+  const heat = sum(d.slice(5)), comf = d[3];
+  return card(1, "Comfort shift", "Your UTCI chart reworked: how many hours move between thermal stress bands when you compare two years.",
+    `<div class="head">${yName(S.b)} vs ${yName(S.a)}: <b>${sgn(heat)} hours</b> of heat stress (UTCI above 28) and <i>${sgn(comf)} hours</i> fully comfortable.</div>
+     <div class="sub">${expoLabel()} · all hours of the year · median of 6 climate models for future years</div>${o}
+     <div class="foot">Pick any two years in the bar above. Works for every exposure.</div>`);
+}
+
+/* ---------- 2. Warming fingerprint: month x hour heatmap, diverging ---------- */
+function c2() {
+  const A = T(S.a).month_hour_t, B = T(S.b).month_hour_t, d = B.map((r, m) => r.map((v, h) => v - A[m][h]));
+  const w = 620, cw = 19, ch = 20, l = 36, t = 4, gw = cw * 24, gh = ch * 12, rx = l + gw + 12;
+  const mMean = d.map(r => sum(r) / 24), hMean = Array.from({ length: 24 }, (_, h) => sum(d.map(r => r[h])) / 12);
+  const mx = Math.max(...mMean.map(Math.abs), ...hMean.map(Math.abs), 0.1);
+  let best = { v: -1e9 }; d.forEach((r, m) => r.forEach((v, h) => { if (v > best.v) best = { v, m, h }; }));
+  let o = `<svg viewBox="0 0 ${w} ${t + gh + 70}" role="img" aria-label="Temperature change by month and hour">`;
+  d.forEach((r, m) => r.forEach((v, h) => o += `<rect x="${l + h * cw}" y="${t + m * ch}" width="${cw - 1.5}" height="${ch - 1.5}" rx="2" fill="${DIV[binOf(v, DIV_BREAKS)]}"><title>${MONTHS[m]} ${String(h).padStart(2, "0")}:00 ${sgn(v, 2)} °C</title></rect>`));
+  MONTHS.forEach((mn, m) => o += `<text x="${l - 6}" y="${t + m * ch + 14}" text-anchor="end">${mn}</text>`);
+  [0, 6, 12, 18, 23].forEach(h => o += `<text x="${l + h * cw + cw / 2}" y="${t + gh + 13}" text-anchor="middle">${String(h).padStart(2, "0")}h</text>`);
+  /* right margin: monthly mean change */
+  const bw = w - rx - 40;
+  mMean.forEach((v, m) => { const len = Math.abs(v) / mx * bw; o += `<rect x="${rx}" y="${t + m * ch + 4}" width="${Math.max(len, 1)}" height="${ch - 9}" rx="2" fill="${v >= 0 ? "var(--warm)" : "var(--cool)"}"/><text class="val" x="${rx + len + 4}" y="${t + m * ch + 14}">${sgn(v, 1)}</text>`; });
+  o += `<text x="${rx}" y="${t + gh + 13}">month avg</text>`;
+  /* bottom margin: hourly mean change */
+  const by = t + gh + 22, bh = 34;
+  hMean.forEach((v, h) => { const len = Math.abs(v) / mx * bh; o += `<rect x="${l + h * cw}" y="${by + bh - len}" width="${cw - 1.5}" height="${Math.max(len, 1)}" rx="2" fill="${v >= 0 ? "var(--warm)" : "var(--cool)"}"><title>${String(h).padStart(2, "0")}:00 ${sgn(v, 2)} °C</title></rect>`; });
+  o += `<text x="${l - 6}" y="${by + bh}" text-anchor="end">hour</text><text x="${l - 6}" y="${by + 10}" text-anchor="end">avg</text></svg>`;
+  const keys = `<div class="keys">${DIV.map((c, i) => `<span><i style="background:${c}"></i>${i === 0 ? "< −1.5" : i === 6 ? "> +1.5" : `${DIV_BREAKS[i - 1]} to ${DIV_BREAKS[i]}`}</span>`).join("")} °C</div>`;
+  return card(2, "Warming fingerprint", "The month-by-hour warming heatmap as the hero, in the map's blue-to-magenta colours, with monthly and hourly averages alongside.",
+    `<div class="head">${yName(S.b)} is <b>${sgn(sum(mMean) / 12, 1)} °C</b> warmer than ${yName(S.a)} on average, most in <b>${MONTHS[best.m]} around ${String(best.h).padStart(2, "0")}:00 (${sgn(best.v, 1)} °C)</b>.</div>
+     <div class="sub">Air temperature, local time · median of 6 climate models for future years</div>${o}${keys}
+     <div class="foot">Reads like a heat signature: where in the year and the day the change lands, e.g. on the late shift in summer.</div>`);
+}
+
+/* ---------- 3. Dumbbell timeline of key indicators ---------- */
+function c3() {
+  const K = D.kpi[S.site], sc = S.scen;
+  const wd = { in0: "op_days_wbgt_shade_gt_ref", in2: "op_days_wbgt_in2_gt_ref", in4: "op_days_wbgt_in4_gt_ref", sun: "op_days_wbgt_sun_gt_ref" }[S.expo];
+  const ut = S.expo === "sun" ? "op_hours_utci_sun_gt32" : "op_hours_utci_in0_gt32";
+  const rows = [["Worker heat-safety days", wd, "days"], ["Days above 30 °C", "days_tmax_gt30", "days"], ["Days above 35 °C", "days_tmax_gt35", "days"],
+    ["Warm nights above 20 °C", "nights_tmin_gt20", "nights"], ["Strong UTCI heat stress (working hours)", ut, "hours"]];
+  const w = 620, l = 200, r = 70, rowH = 46;
+  let o = `<svg viewBox="0 0 ${w} ${rowH * rows.length + 30}" role="img" aria-label="Key indicators today, 2040 and 2050">`;
+  rows.forEach(([lab, m, unit], i) => {
+    const k = K[m], today = k.hist.typical, v40 = k[`${sc}_2040_typical`], v50 = k[`${sc}_2050_typical`], hot = k.hotref;
+    const mx = Math.max(today, v40[2], v50[2], hot, 1) * 1.08, X = v => l + (w - l - r) * v / mx, y = 14 + i * rowH;
+    o += `<text class="lab" x="0" y="${y + 5}">${lab}</text><text x="0" y="${y + 21}">${unit}</text>`;
+    o += `<line x1="${l}" x2="${w - r}" y1="${y}" y2="${y}" stroke="var(--line)"/>`;
+    o += `<rect x="${X(v50[1])}" y="${y - 5}" width="${Math.max(X(v50[2]) - X(v50[1]), 1)}" height="10" rx="5" fill="var(--c-2050)" opacity=".18"><title>2050 model range ${fmt(v50[1])}–${fmt(v50[2])}</title></rect>`;
+    o += `<line x1="${X(today)}" x2="${X(v50[0])}" y1="${y}" y2="${y}" stroke="var(--ink-3)" stroke-width="2"/>`;
+    o += `<path d="M${X(hot)},${y - 7} l6,7 l-6,7 l-6,-7 Z" fill="#fff" stroke="var(--c-hot)" stroke-width="1.5"><title>Hot year ${hy()} (actual): ${fmt(hot)}</title></path>`;
+    for (const [v, c, n] of [[today, "var(--c-today)", "Today"], [v40[0], "var(--c-2040)", "2040"], [v50[0], "var(--c-2050)", "2050"]])
+      o += `<circle cx="${X(v)}" cy="${y}" r="6.5" fill="${c}" stroke="#fff" stroke-width="2"><title>${n}: ${fmt(v)}</title></circle>`;
+    o += `<text class="val" x="${w - r + 8}" y="${y + 4}">${fmt(today)} → ${fmt(v50[0])}</text>`;
+  });
+  o += `</svg>`;
+  const keys = `<div class="keys"><span><i style="background:var(--c-today)"></i>Today</span><span><i style="background:var(--c-2040)"></i>2040</span><span><i style="background:var(--c-2050)"></i>2050 (band = model range)</span><span><i style="background:#fff;border:1.5px solid var(--c-hot)"></i>Hot year ${hy()} (actual)</span></div>`;
+  const k0 = D.kpi[S.site][wd];
+  return card(3, "Then, now and next", "The indicator table as a dot timeline: each row moves from today to 2040 to 2050, with the hot year as a reference point.",
+    `<div class="head">Worker heat-safety days go from <i>${fmt(k0.hist.typical)}</i> today to <b>${fmt(k0[`${sc}_2050_typical`][0])}</b> by 2050; the hot year ${hy()} had ${fmt(k0.hotref)}.</div>
+     <div class="sub">${expoLabel()} · typical years · ${sc === "ssp245" ? "SSP2-4.5" : "SSP5-8.5"}</div>${o}${keys}
+     <div class="foot">Uses the timeline, not the year pickers. Exact numbers stay in the Data summary tab.</div>`);
+}
+
+/* ---------- 4. Heat calendar: daily maximum, A and B ---------- */
+function c4() {
+  const br = [20, 25, 30, 35, 40], A = D.daily[S.site][S.a], B = D.daily[S.site][S.b];
+  const cw = 15, ch = 15, l = 34, gw = cw * 31;
+  const cal = (arr, title, y0) => {
+    let o = `<text class="lab" x="0" y="${y0 - 6}">${title}</text>`, i = 0;
+    DIM.forEach((n, m) => { for (let dd = 0; dd < n; dd++, i++) { const v = arr[i]; o += `<rect x="${l + dd * cw}" y="${y0 + m * ch}" width="${cw - 1.5}" height="${ch - 1.5}" rx="2" fill="${v == null ? "var(--bg-2)" : RISK[binOf(v, br)]}"><title>${dd + 1} ${MONTHS[m]}: ${fmt(v, 1)} °C</title></rect>`; } o += `<text x="${l - 5}" y="${y0 + m * ch + 11}" text-anchor="end">${MONTHS[m][0]}</text>`; });
+    return o;
+  };
+  const w = Math.max(l + gw, 300), h1 = 18, h2 = h1 + ch * 12 + 30;
+  let o = `<svg viewBox="0 0 ${l + gw * 2 + 30} ${ch * 12 + 26}" role="img" aria-label="Daily maximum temperature calendars">`;
+  o += cal(A, yName(S.a), h1);
+  o += `<g transform="translate(${gw + 30},0)">${cal(B, yName(S.b), h1)}</g></svg>`;
+  const stat = arr => { const hot = arr.map((v, i) => v >= 30 ? i : -1).filter(i => i >= 0); return { d30: arr.filter(v => v >= 30).length, d35: arr.filter(v => v >= 35).length, first: hot[0], last: hot[hot.length - 1] }; };
+  const day = i => { if (i == null) return "–"; let m = 0; while (i >= DIM[m]) { i -= DIM[m]; m++; } return `${i + 1} ${MONTHS[m]}`; };
+  const sa = stat(A), sb = stat(B), len = s => s.first == null ? 0 : s.last - s.first + 1;
+  const keys = `<div class="keys">${RISK.map((c, i) => `<span><i style="background:${c}"></i>${i === 0 ? "< 20" : i === 5 ? "≥ 40" : `${br[i - 1]}–${br[i]}`}</span>`).join("")} °C daily maximum</div>`;
+  return card(4, "Heat calendar", "Every day of the year coloured by its maximum temperature, two years side by side, so the longer and hotter heat season is visible at a glance.",
+    `<div class="head">Days above 35 °C: <i>${sa.d35}</i> → <b>${sb.d35}</b>. The 30 °C season runs ${day(sb.first)}–${day(sb.last)} instead of ${day(sa.first)}–${day(sa.last)}.</div>
+     <div class="tw">${o}</div>${keys}
+     <div class="stats"><div class="stat"><span>Days ≥ 30 °C</span><b>${sb.d30}<em>${sgn(sb.d30 - sa.d30)}</em></b></div>
+       <div class="stat"><span>Days ≥ 35 °C</span><b>${sb.d35}<em>${sgn(sb.d35 - sa.d35)}</em></b></div>
+       <div class="stat"><span>30 °C season length</span><b>${len(sb)} d<em>${sgn(len(sb) - len(sa))}</em></b></div></div>
+     <div class="foot">Daily maxima of the chosen typical or hot year; future years use the median of 6 models day by day, which smooths extremes slightly.</div>`);
+}
+
+/* ---------- 5. Story cards ---------- */
+function c5() {
+  const sc = S.scen, K = D.kpi[S.site];
+  const wd = { in0: "op_days_wbgt_shade_gt_ref", in2: "op_days_wbgt_in2_gt_ref", in4: "op_days_wbgt_in4_gt_ref", sun: "op_days_wbgt_sun_gt_ref" }[S.expo];
+  const k = K[wd], hotNow = k.hotref, t50 = k[`${sc}_2050_typical`][0], h50 = k[`${sc}_2050_hot`][0], today = k.hist.typical;
+  const bars = (items, unit) => { const mx = Math.max(...items.map(i => i[1]), 1), w = 560;
+    return `<svg viewBox="0 0 ${w} ${items.length * 24}" role="img">${items.map(([n, v, c], i) => `<text class="lab" x="0" y="${i * 24 + 15}">${n}</text><rect x="170" y="${i * 24 + 4}" width="${Math.max((w - 230) * v / mx, 1)}" height="14" rx="3" fill="${c}"/><text class="val" x="${176 + (w - 230) * v / mx}" y="${i * 24 + 15}">${fmt(v)} ${unit}</text>`).join("")}</svg>`; };
+  const shA = T(S.a).shifts, shB = T(S.b).shifts, kk = shiftKey();
+  const sh = ["early", "late", "night"].map(s => [s, val(shA[s][kk]), val(shB[s][kk])]);
+  const shiftSvg = `<svg viewBox="0 0 560 78" role="img">${sh.map(([s, a, b], i) => { const mx = Math.max(...sh.map(x => Math.max(x[1], x[2])), 1), W = 330;
+    return `<text class="lab" x="0" y="${i * 26 + 15}">${({ early: "Early 06–14", late: "Late 14–22", night: "Night 22–06" })[s]}</text>
+      <rect x="110" y="${i * 26 + 2}" width="${Math.max(W * a / mx, 1)}" height="9" rx="2" fill="var(--c-today)"/><rect x="110" y="${i * 26 + 12}" width="${Math.max(W * b / mx, 1)}" height="9" rx="2" fill="var(--warm)"/>
+      <text class="val" x="${116 + W * Math.max(a, b) / mx}" y="${i * 26 + 15}">${fmt(a)} → ${fmt(b)} h</text>`; }).join("")}</svg>`;
+  const ub = ubKey(), A = T(S.a)[ub].map(val), B = T(S.b)[ub].map(val), pc = a => a.map(v => 100 * v / sum(a));
+  const stack = (arr, y, n) => { let x = 110; return `<text class="lab" x="0" y="${y + 12}">${n}</text>` + pc(arr).map((p, i) => { const w = p / 100 * 440, r = `<rect x="${x}" y="${y}" width="${Math.max(w - 1, 0)}" height="16" fill="${UTCI[i][1]}"><title>${UTCI[i][0]} ${fmt(p, 1)} %</title></rect>`; x += w; return r; }).join(""); };
+  const comfA = pc(A)[3], comfB = pc(B)[3];
+  return card(5, "Story cards", "Three plain-language findings for a non-specialist reader, each backed by one small chart.",
+    `<div class="story">
+      <div class="sc"><div class="t">By 2050 a typical year brings ${fmt(t50)} worker heat-safety days, ${t50 > hotNow ? "<b>more than the hot year " + hy() + "</b>" : t50 === hotNow ? "<b>as many as the hot year " + hy() + "</b>" : "fewer than the hot year " + hy()} (${fmt(hotNow)}). A future hot year brings ${fmt(h50)}.</div>
+        ${bars([["Today, typical", today, "var(--c-today)"], [`Hot year ${hy()}`, hotNow, "var(--c-hot)"], ["2050, typical", t50, "var(--c-2050)"], ["2050, hot year", h50, "#A3005A"]], "days")}</div>
+      <div class="sc"><div class="t">The late shift carries the load: hours above WBGT 28 °C, ${yName(S.a)} → ${yName(S.b)}.</div>${shiftSvg}</div>
+      <div class="sc"><div class="t">Comfortable time ${comfB < comfA ? "shrinks" : "grows"} from ${fmt(comfA, 0)} % to ${fmt(comfB, 0)} % of the year (UTCI 9–26).</div>
+        <svg viewBox="0 0 560 44" role="img">${stack(A, 2, yName(S.a).split(" (")[0])}${stack(B, 24, yName(S.b).split(" (")[0])}</svg></div>
+     </div>
+     <div class="sub">${expoLabel()} · ${sc === "ssp245" ? "SSP2-4.5" : "SSP5-8.5"}</div>
+     <div class="foot">Sentences are generated from the data, so they update with site, scenario, exposure and years.</div>`);
+}
+
+/* ---------- controls ---------- */
+function render() {
+  const opts = yearOptions();
+  for (const [id, key] of [["#ya", "a"], ["#yb", "b"]]) {
+    if (!opts.some(o => o[0] === S[key])) S[key] = key === "a" ? "hist" : `${S.scen}_2050`;
+    $(id).innerHTML = opts.map(([v, n]) => `<option value="${v}" ${v === S[key] ? "selected" : ""}>${n}</option>`).join("");
+  }
+  $("#grid").innerHTML = c1() + c2() + c3() + c4() + c5();
+}
+$("#site").innerHTML = D.sites.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
+$("#site").value = S.site;
+$("#site").addEventListener("change", e => { S.site = e.target.value; render(); });
+$("#ya").addEventListener("change", e => { S.a = e.target.value; render(); });
+$("#yb").addEventListener("change", e => { S.b = e.target.value; render(); });
+for (const [id, key] of [["#scen", "scen"], ["#expo", "expo"]]) for (const b of document.querySelectorAll(`${id} button`)) {
+  b.setAttribute("aria-pressed", b.dataset.v === S[key]);
+  b.addEventListener("click", () => {
+    const old = S.scen; S[key] = b.dataset.v;
+    if (key === "scen") { for (const k of ["a", "b"]) S[k] = S[k].replace(old, S.scen); }
+    for (const x of document.querySelectorAll(`${id} button`)) x.setAttribute("aria-pressed", x === b);
+    render();
+  });
+}
+render();
+</script>
