@@ -13,11 +13,13 @@ heatwave statistics come from changes in persistence (the order of days) that mo
 Statistics are per year, averaged over each window. Needs NEX tasmax/tasmin
 (scripts/fetch_nex.py --variables tasmax,tasmin).
 
-Usage: python scripts/heatwave_persistence_test.py
+Usage: python scripts/heatwave_persistence_test.py [--models ACCESS-CM2,...]
 Writes outputs/review/heatwave_persistence.csv and prints a summary.
 """
 
 from __future__ import annotations
+
+import argparse
 
 import numpy as np
 import pandas as pd
@@ -66,11 +68,16 @@ def stats(series: pd.Series, thr: float) -> dict:
 
 
 def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--models", default="")
+    ap.add_argument("--out", default=str(OUT / "heatwave_persistence.csv"))
+    args = ap.parse_args()
     fc = settings()["future"]
+    models = args.models.split(",") if args.models else list(fc["models"])
     deltas = pd.read_parquet(ROOT / "outputs" / "phase2" / "deltas.parquet")
     sites = load_sites()
     rows = []
-    for model in fc["models"]:
+    for model in models:
         for scen in fc["scenarios"]:
             base = {v: load(model, scen, v, tuple(fc["baseline_years"])) for v in ("tasmax", "tasmin")}
             for period, window in fc["periods"].items():
@@ -95,7 +102,31 @@ def main() -> None:
                 print(model, scen, period, flush=True)
     df = pd.DataFrame(rows)
     OUT.mkdir(parents=True, exist_ok=True)
-    df.to_csv(OUT / "heatwave_persistence.csv", index=False)
+    df.to_csv(args.out, index=False)
+    summ = summarise(df)
+    summ.to_csv(str(args.out).replace(".csv", "_summary.csv"), index=False)
+    pd.set_option("display.width", 250)
+    for c in ("event_days", "longest", "longest_p90", "mean_event_len"):
+        print(c); print(summ.pivot(index="site_id", columns="threshold",
+                                   values=[f"{c}_base", f"{c}_morphed", f"{c}_direct", f"{c}_captured"]).round(2).to_string())
+
+
+def summarise(df: pd.DataFrame) -> pd.DataFrame:
+    """Per site and threshold (median over models, scenarios and periods): base, morphed, direct and the
+    share of the base -> direct change that morphing reproduces."""
+    stats_cols = ["hot_days", "event_days", "mean_event_len", "longest", "longest_p90"]
+    w = df.pivot_table(index=["site_id", "model", "scenario", "period", "threshold"], columns="series", values=stats_cols)
+    rows = []
+    for (sid, thr), g in w.groupby(level=["site_id", "threshold"]):
+        r = {"site_id": sid, "threshold": thr}
+        for c in stats_cols:
+            b, m, d = g[(c, "base")], g[(c, "morphed")], g[(c, "direct")]
+            r.update({f"{c}_base": b.median(), f"{c}_morphed": m.median(), f"{c}_direct": d.median()})
+            change = (d - b)
+            share = ((m - b) / change).where(change.abs() > (0.5 if c != "mean_event_len" else 0.2))
+            r[f"{c}_captured"] = share.median()
+        rows.append(r)
+    return pd.DataFrame(rows)
 
 
 if __name__ == "__main__":
