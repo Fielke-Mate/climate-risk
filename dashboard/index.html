@@ -1143,6 +1143,8 @@ function renderStripProc() {
     tile("therm", "Sites at high risk · downtime hours", `${nHigh + nVHigh}<small>of ${n}${n ? ` (${fmt(100 * (nHigh + nVHigh) / n)} %)` : ""}</small>`,
       `High (${HIGH}–${VHIGH - 1} h) ${nHigh} · Very high (${VHIGH}+ h) ${nVHigh} · limit ${limText()} · ${hallText()} · ${per}${S.period !== "hist" ? `<br>Today: ${nToday} of ${n} sites` : ""}`) +
     tile("up", "Process downtime", `${fmt(hNow)}<small>hours a year</small>`,
+      /* the selected site's own downtime under the portfolio total (only when it is in view), as in the worker lens */
+      (byId[S.site] && S.sel.has(S.site) ? `<span class="selsite"><b>${byId[S.site].name}</b>: ${fmt(d(byId[S.site]))} h${S.period !== "hist" ? ` (today ${fmt(d(byId[S.site], "hist"))} h)` : ""}</span>` : "") +
       `Operating hours above ${limText()} (${esc(procName().toLowerCase())}), summed over ${n} ${n === 1 ? "site" : "sites"} (one line per site) · ${hallText()} · ${runText()} · ${per}${S.period !== "hist" && dPct != null ? `<br>${sgn(dPct)} % vs today (${fmt(hToday)} h)` : ""}`);
 }
 

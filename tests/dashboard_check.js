@@ -217,6 +217,8 @@ async function check(p, where) {
   }
   for (const id of ["XFW", "TLS", "SVQ"]) {   // cool, temperate and hot sites
     await page.click(`#sites circle[data-id="${id}"]`, { force: true });
+    const pname = await page.$eval("#s-name", e => e.textContent), pline = await page.$eval("#kstrip .selsite", e => e.textContent).catch(() => "");
+    if (!pline.startsWith(pname + ":")) fail("process tile site line", `expected "${pname}: …", got "${pline}"`);
     for (const tab of ["summary", "data", "stress"]) { await click(`.tabs button[data-tab="${tab}"]`); await check(page, `proc site ${id}/${tab}`); states++; }
   }
   // shareable link and back to the worker lens
