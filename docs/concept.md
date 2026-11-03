@@ -344,12 +344,15 @@ The dashboard is built **around an interactive map of the portfolio**:
 | D51 | Indoor comfort in naturally ventilated / unconditioned halls uses UTCI with indoor inputs (hall temperature incl. heat gain, still air 0.5 m/s at 10 m, radiant = air); PMV / adaptive only for conditioned rooms |
 | D52 | Indoor air speed 0.3 m/s (exhaust-ventilated warehouse, no active cooling; sensitivity 0.2/0.5) for indoor WBGT and indoor UTCI |
 | D53 | Charts follow the Year toggle: with Hot, 2040/2050 show each site's hot reference year adjusted to that climate ("2025 weather in 2050"); headline numbers keep the multi-year 90th percentile |
+| D54 | Headline tiles 3 and 4: A "Sites at high risk" (worker heat-safety days, provisional High 15+, Very high 35+) and D "Working time over the safe limit" (working hours above WBGT 28 °C, summed over sites in view, per worker) |
+| D55 | Hot-year definition stays on humid heat (indoor WBGT degree-hours); risk rating scale not needed for now |
+| D56 | Desktop dashboard fits one screen (no page scroll); long content scrolls inside its card |
 | D33 | Site coordinates checked against published sources (airfield reference points or addresses; see sites CSV). Precision of ~1–3 km is enough, as ERA5 grid cells are ~9–30 km |
 
 ## 13. Open questions
 
-1. **Headline tiles 3 and 4:** options A–E (recommended: A sites at high risk, D working time above the safe limit), plus provisional High / Very high cut-offs.
-2. **Methodology review actions** ([`methodology_review.md`](methodology_review.md)): which improvements to take forward first (recommended: indoor hall model / BMS calibration, EPW export, station bias correction).
+1. **Site summary tab redesign:** five concepts to choose from (in progress).
+2. **Methodology review actions** ([`methodology_review.md`](methodology_review.md)): indoor hall model / BMS calibration, EPW export, station bias correction first.
 3. **Getafe / Illescas** share one ERA5 cell (identical historical weather).
 
 ## 14. Notes for productisation

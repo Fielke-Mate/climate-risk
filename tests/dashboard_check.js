@@ -133,7 +133,24 @@ async function check(p, where) {
   if (!name) fail("stale settings", "site card empty");
   await page.evaluate(() => localStorage.clear());
 
-  // 6. Phone width: no sideways scrolling
+  // 6. Desktop one-screen layout: the page itself must not scroll at common laptop / monitor sizes
+  for (const [w, h] of [[1440, 900], [1920, 1080], [1280, 760]]) {
+    const d = await browser.newPage({ viewport: { width: w, height: h } });
+    d.on("pageerror", e => errors.push(`${w}x${h}: ` + e.message));
+    await d.goto(PAGE + "#SVQ");
+    await d.waitForTimeout(300);
+    for (const tab of ["summary", "temp", "stress", "about"]) {
+      await d.click(`.tabs button[data-tab="${tab}"]`);
+      const over = await d.evaluate(() => [document.documentElement.scrollHeight - document.documentElement.clientHeight,
+        document.documentElement.scrollWidth - document.documentElement.clientWidth]);
+      if (over[0] > 1 || over[1] > 0) fail(`desktop ${w}x${h}/${tab}`, `page scrolls (vertical ${over[0]}px, horizontal ${over[1]}px)`);
+      const mapH = await d.$eval("#map", e => e.getBoundingClientRect().height);
+      if (mapH < 140) fail(`desktop ${w}x${h}`, `map only ${Math.round(mapH)}px tall`);
+    }
+    await d.close();
+  }
+
+  // 7. Phone width: no sideways scrolling
   const phone = await browser.newPage({ viewport: { width: 390, height: 860 } });
   phone.on("pageerror", e => errors.push("phone: " + e.message));
   await phone.goto(PAGE);
