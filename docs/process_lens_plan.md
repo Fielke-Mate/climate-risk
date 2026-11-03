@@ -1,4 +1,6 @@
-# Process-limit lens: plan and mock-up (draft v2, Nov 2026)
+# Process-limit lens: plan and mock-up (built, Nov 2026)
+
+> **Status, 3 Nov 2026:** built as designed below (decision D66): `src/climate_risk/ladder.py`, ladder outputs from Phase 1 and Phase 2 (`outputs/phase1/dbt_ladder*.parquet`, `outputs/phase2/dbt_ladder_*.parquet`), `scripts/build_dashboard.py` and the dashboard ("Heat risk to: Processes"). The renders in `docs/mockups/process_lens/` are the pre-build mock-up; the built dashboard uses the 11-year statistics and model ranges. Sections 4–5 describe the plan as it was; where the build differs, it says so in "Build notes" at the end.
 
 A second way to read the dashboard: instead of worker heat stress (WBGT against an ISO 7243 reference), the user sets a **dry-bulb process limit** (paint application, sealant, composite layup, chiller rating, anything) and sees the same headline, map, ranking and Summary cards in terms of **hours of process downtime**: operating hours with hall air above the limit. Hours are the driver throughout, so a later version can attach a value per hour (€ of lost output) without changing the charts. Layout, controls, year colours and the nine-year structure (typical / hot / extreme × today / 2040 / 2050) stay as they are, so the two lenses can be toggled without the page moving.
 
@@ -85,3 +87,11 @@ The renders compute everything in the browser from single weather years: "typica
 - **Stop days** stay as a secondary measure (1 hour above the limit makes a stop day), shown in card 1's sub-line and on the map.
 - **Humidity limits.** Several real process limits are RH or dew-point margins (paint: RH above 85 %, surface 3 °C above dew point). The ladder approach extends to RH and dew point with the same machinery; out of scope for the dry-bulb version.
 - **Indoor conditions.** As for workers, hall air = outdoor + gain; a conditioned room needs its own design conditions and is not represented.
+
+## 7. Build notes (3 Nov 2026)
+
+- **Regression.** Phase 1 was re-run on a fresh ERA5 download with the saved baseline adjustment: every existing Phase 1 table is byte-identical and the weather files are unchanged in content. Phase 2 was re-run with the saved deltas.
+- **Cross-check.** `tests/test_ladder.py` checks the ladder against brute-force counts and, on the real outputs, that the rungs at 30, 32 and 35 °C equal `hours_t_gt30`, `proc_hours_composite_room_cooling`, `proc_hours_paint_application_max_temp`, `days_tmax_gt30` and `days_tmax_gt35` for every site and year.
+- **Chart years.** The histograms and the month × hour grid draw hourly dry bulb of the chart years (TMY, hot and extreme reference years; futures as the per-hour median of the 6 models), stored as uint8 at 0.25 °C. Their hours can differ a little from the 11-year headline figures; the card says so.
+- **Model ranges** are carried for hours, days and degree-hours; shift splits and longest runs show the model median only.
+- **Shareable state:** `?lens=proc&lim=32` opens the process lens at a given limit.
