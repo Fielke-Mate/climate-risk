@@ -29,6 +29,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 from climate_risk import deltas as dl  # noqa: E402
 from climate_risk import morph, weather  # noqa: E402
 from climate_risk.annual import annual_summary, wbgt_metric_names  # noqa: E402
+from climate_risk.heatwave import heatwave_metric_names  # noqa: E402
 from climate_risk.config import ROOT, WEATHER_DIR, load_sites, settings  # noqa: E402
 from concurrent.futures import ProcessPoolExecutor  # noqa: E402
 
@@ -43,7 +44,7 @@ METRICS = ["temp_mean", "temp_max", "hours_t_gt30", "days_tmax_gt30", "days_tmax
            "wbgt_shade_max", "wbgt_sun_max", "hours_utci_shade_gt28", "hours_utci_sun_gt32",
            "hours_utci_sun_gt38", "proc_hours_paint_application_max_temp", "proc_hours_paint_application_max_rh",
            "proc_hours_composite_room_cooling", "cdh24", "hdh19",
-           *wbgt_metric_names(settings()["heat"])]
+           *wbgt_metric_names(settings()["heat"]), *heatwave_metric_names(settings())]
 
 
 def style(ax):

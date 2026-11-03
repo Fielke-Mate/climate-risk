@@ -94,6 +94,14 @@ heat:
     paint_application_max_rh: {variable: relative_humidity, above: 85.0, label: "Paint / coating application: humidity above 85 %"}
     composite_room_cooling: {variable: temp_air, above: 32.0, label: "Composite layup room: outdoor air above 32 °C (cooling design placeholder)"}
 
+heatwave:
+  # D60: heatwave length. An event is at least min_days consecutive days with daily max air
+  # temperature above a threshold (30 C: common in DE/AT practice and relevant everywhere; 35 C:
+  # southern sites). Heat-safety spells use the same min_days over consecutive operating days.
+  min_days: 3
+  tmax_thresholds_c: [30, 35]
+  tropical_night_c: 20
+
 pvgis:
   url: https://re.jrc.ec.europa.eu/api/v5_3/tmy
 

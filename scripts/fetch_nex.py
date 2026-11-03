@@ -1,6 +1,6 @@
 """Download NEX-GDDP-CMIP6 daily data at the pilot sites (baseline + future windows).
 
-Usage: python scripts/fetch_nex.py [--workers 6] [--models ACCESS-CM2,...]
+Usage: python scripts/fetch_nex.py [--workers 6] [--models ACCESS-CM2,...] [--variables tasmax,tasmin]
 Resumable: cached variable-years are skipped.
 """
 
@@ -18,6 +18,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--models", default="")
+    ap.add_argument("--variables", default="", help="comma list; default all configured variables")
     args = ap.parse_args()
 
     cfg = settings()["future"]
@@ -28,7 +29,7 @@ def main() -> None:
     b0, b1 = cfg["baseline_years"]
     years = sorted(set(range(b0, b1 + 1)).union(*[range(p[0], p[1] + 1) for p in cfg["periods"].values()]))
     jobs = [(m, mem, sc, v, y) for m, mem in models.items() for sc in cfg["scenarios"]
-            for v in cfg["variables"] for y in years]
+            for v in (args.variables.split(",") if args.variables else cfg["variables"]) for y in years]
     todo = [j for j in jobs if not nex.cache_path(j[0], j[2], j[3], j[4]).exists()]
     print(f"{len(jobs)} variable-years, {len(todo)} to download", flush=True)
 
