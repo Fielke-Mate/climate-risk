@@ -26,28 +26,30 @@ Implementation notes:
 
 ## Results: worker heat-safety days (typical year, today → 2050 SSP5-8.5, median of 6 models)
 
+A heat-safety day has at least one working hour above WBGT 26 °C (ISO 7243 Class 2, workforce not acclimatised, D58). The UTCI column does not depend on the WBGT reference.
+
 | Site | Indoor, hall = outside | Indoor +2 °C | Indoor +4 °C | Outdoor in sun | Working hours of strong UTCI heat stress indoors (>32, hall = outside) |
 |---|---|---|---|---|---|
-| Sevilla (San Pablo) | 3 → 24 | 19 → 40 | 37 → 61 | 87 → 107 | 552 → 842 |
-| Illescas | 0 → 0 | 0 → 4 | 1 → 14 | 37 → 62 | 395 → 662 |
-| Getafe | 0 → 0 | 0 → 4 | 1 → 14 | 37 → 62 | 395 → 654 |
-| Marignane | 0 → 6 | 4 → 12 | 9 → 24 | 32 → 54 | 134 → 343 |
-| Toulouse (Blagnac) | 1 → 8 | 5 → 13 | 10 → 24 | 33 → 50 | 116 → 277 |
-| Nantes (Bouguenais) | 0 → 0 | 0 → 1 | 1 → 4 | 9 → 14 | 26 → 62 |
-| Saint-Nazaire (Montoir-de-Bretagne) | 0 → 0 | 0 → 0 | 0 → 1 | 4 → 8 | 2 → 12 |
-| Donauworth | 0 → 0 | 0 → 0 | 0 → 1 | 4 → 20 | 5 → 49 |
-| Meaulte | 0 → 0 | 0 → 0 | 0 → 2 | 4 → 8 | 13 → 36 |
-| Filton | 0 → 0 | 0 → 0 | 0 → 0 | 1 → 3 | 0 → 2 |
-| Bremen | 0 → 0 | 0 → 0 | 0 → 2 | 3 → 10 | 6 → 36 |
-| Broughton | 0 → 0 | 0 → 0 | 0 → 0 | 0 → 1 | 0 → 0 |
-| Nordenham | 0 → 0 | 0 → 0 | 0 → 0 | 1 → 4 | 0 → 6 |
-| Hamburg-Finkenwerder | 0 → 0 | 0 → 0 | 0 → 2 | 2 → 8 | 6 → 30 |
-| Stade | 0 → 0 | 0 → 0 | 0 → 2 | 2 → 7 | 3 → 27 |
+| Sevilla (San Pablo) | 36 → 59.5 | 52 → 79 | 76 → 98.5 | 124 → 143.5 | 552 → 842.5 |
+| Illescas | 1 → 13 | 9 → 29.5 | 24 → 50.5 | 73 → 96.5 | 395 → 662.5 |
+| Getafe | 1 → 13.5 | 9 → 30 | 24 → 51 | 73 → 95 | 395 → 654.5 |
+| Marignane | 9 → 24.5 | 18 → 41.5 | 33 → 59 | 64 → 86 | 134 → 343 |
+| Toulouse (Blagnac) | 10 → 23 | 18 → 33 | 28 → 47.5 | 57 → 74.5 | 116 → 277 |
+| Nantes (Bouguenais) | 0 → 3.5 | 4 → 7 | 7 → 12.5 | 21 → 29 | 26 → 61.5 |
+| Saint-Nazaire (Montoir-de-Bretagne) | 0 → 1 | 1 → 3 | 3 → 7 | 12 → 21.5 | 2 → 12 |
+| Donauworth | 0 → 1 | 0 → 6.5 | 1 → 11 | 22 → 38.5 | 5 → 49 |
+| Meaulte | 0 → 2 | 1 → 5 | 4 → 7.5 | 13 → 20 | 13 → 36.5 |
+| Filton | 0 → 0 | 0 → 0 | 0 → 2.5 | 5 → 8 | 0 → 2 |
+| Bremen | 0 → 2 | 0 → 6 | 3 → 10.5 | 11 → 22 | 6 → 35.5 |
+| Broughton | 0 → 0 | 0 → 0 | 0 → 0.5 | 3 → 5 | 0 → 0 |
+| Nordenham | 0 → 0.5 | 0 → 1.5 | 1 → 6.5 | 5 → 14 | 0 → 5.5 |
+| Hamburg-Finkenwerder | 0 → 2.5 | 0 → 5.5 | 2 → 11 | 10 → 20.5 | 6 → 30.5 |
+| Stade | 0 → 1.5 | 0 → 4.5 | 2 → 10.5 | 9 → 19 | 3 → 27 |
 
 ## Findings
 
-1. **With the hall at outdoor temperature, indoor WBGT exceedances are rare** (exhaust-ventilated hall, 0.3 m/s): Sevilla 3 → 24 days by 2050 (SSP5-8.5); Toulouse 8, Marignane 6.
-2. **Indoor results depend on the hall heat gain.** At +4 °C, Sevilla reaches 37 → 61 days, Toulouse and Marignane 24, and Getafe/Illescas 14. Engineering estimates of hall temperatures are the key missing input (see [methodology review](../methodology_review.md)).
-3. **Outdoor work in sun is where today's risk is clearest:** Sevilla 87 → 107 days, Madrid sites 37 → 62, Marignane 32 → 54, Toulouse 33 → 50, Donauwörth 4 → 20.
-4. **Indoor air speed:** replacing outdoor wind with 0.3 m/s raises indoor results (Sevilla +4 °C: 32 → 37 days); within 0.2–0.5 m/s it is a minor factor. Indoor UTCI strong-heat-stress working hours: Sevilla 552 → 842 a year by 2050.
+1. **With the hall at outdoor temperature, indoor heat-safety days are already material in the south** (exhaust-ventilated hall, 0.3 m/s, 26 °C reference): Sevilla 36 → 60 days by 2050 (SSP5-8.5), Marignane 9 → 25, Toulouse 10 → 23, Getafe/Illescas 1 → 13. Northern sites stay at 0–4 days. At the acclimatised reference (28 °C) the same cases were Sevilla 3 → 24, Toulouse 1 → 8, Marignane 0 → 6, so the choice of reference (D58) matters more than the climate scenario.
+2. **Indoor results depend on the hall heat gain.** At +4 °C, Sevilla reaches 76 → 99 days, Marignane 33 → 59, Getafe/Illescas 24 → 51 and Toulouse 28 → 48; northern German sites reach about 10–11 days by 2050. Engineering estimates of hall temperatures are the key missing input (see [methodology review](../methodology_review.md)).
+3. **Outdoor work in sun is where today's risk is clearest:** Sevilla 124 → 144 days, Madrid sites 73 → ~96, Marignane 64 → 86, Toulouse 57 → 75, Donauwörth 22 → 39; even the UK sites have 3–8 days.
+4. **Indoor air speed:** replacing outdoor wind with 0.3 m/s raises indoor results (Sevilla +4 °C at the 28 °C reference: 32 → 37 days); within 0.2–0.5 m/s it is a minor factor. Indoor UTCI strong-heat-stress working hours: Sevilla 552 → 842 a year by 2050.
 5. **ERA5 under-reads hot afternoons by about 1 °C at Sevilla and Hawarden** compared with airport stations, so results are, if anything, slightly low.
