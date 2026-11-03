@@ -696,7 +696,7 @@ function renderStory() {
   o2 += `<line x1="0" x2="${W0}" y1="${bl}" y2="${bl}" stroke="var(--line-2)"/>`;
   d.forEach((v, i) => {
     const len = Math.abs(v) / dm * H, cx = i * cw + cw / 2, x = cx - bw / 2, y = v >= 0 ? bl - len : bl, [w1, w2] = utciWords(UTCI[i][0]);
-    o2 += `<rect x="${x}" y="${y}" width="${bw}" height="${Math.max(len, 1)}" rx="2" fill="${v >= 0 ? "#FF3D8B" : "#0B41CD"}" data-t="${w1} ${w2} (UTCI ${UTCI[i][1]})<br>${fmt(A[i])} → ${fmt(B[i])} h · ${sgn(v)} h"/>`;
+    o2 += `<rect x="${x}" y="${y}" width="${bw}" height="${Math.max(len, 1)}" rx="2" fill="${UTCI[i][2]}" data-t="${w1} ${w2} (UTCI ${UTCI[i][1]})<br>${fmt(A[i])} → ${fmt(B[i])} h · ${sgn(v)} h"/>`;
     o2 += `<text class="val" x="${cx}" y="${v >= 0 ? y - 5 : y + len + 13}" text-anchor="middle"${Math.round(v) === 0 ? ' style="fill:var(--ink-3)"' : ""}>${Math.round(v) === 0 ? "0" : sgn(v)}</text>`;
     o2 += `<rect x="${cx - 5}" y="${kb}" width="10" height="10" rx="2" fill="${UTCI[i][2]}"/>`;
     o2 += `<text class="lab sm" x="${cx}" y="${kb + 23}" text-anchor="middle">${w1}</text><text class="lab sm" x="${cx}" y="${kb + 36}" text-anchor="middle">${w2}</text>`;

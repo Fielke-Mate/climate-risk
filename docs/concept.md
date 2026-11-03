@@ -356,7 +356,6 @@ The dashboard is built **around an interactive map of the portfolio**:
 
 1. **Methodology review actions** ([`methodology_review.md`](methodology_review.md)): indoor hall model / BMS calibration, EPW export, station bias correction first.
 2. **Getafe / Illescas** share one ERA5 cell (identical historical weather).
-3. **Parallel branch:** `claude/trusting-meitner-scy727` is re-running the pipeline for D58 (26 °C). Its code is already merged here (with D59 on top). When its outputs land, merge the branch again and regenerate outputs and the dashboard here with `phase1_historical.py`, `phase2_future.py` and `build_dashboard.py`; don't hand-merge the generated files.
 
 ## 14. Notes for productisation
 
