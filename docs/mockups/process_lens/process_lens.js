@@ -24,7 +24,7 @@ const PRESETS = {
   custom: { label: "Custom process", lim: null },
 };
 const qs = new URLSearchParams(location.search);
-const P = { on: qs.get("lens") !== "work", proc: "paint", lim: 35, run: qs.get("run") === "24" ? "24" : "op", alt: qs.get("alt") === "1" };
+const P = { on: qs.get("lens") !== "work", proc: "paint", lim: 35, run: qs.get("run") === "24" ? "24" : "op", alt: qs.get("alt") === "1", v: ["ladder", "bridge", "curve"].includes(qs.get("v")) ? qs.get("v") : "ladder" };
 const thr = () => P.lim - Number(S.hall);
 const procName = () => P.proc === "custom" ? "custom limit" : PRESETS[P.proc].label;
 const runText = () => P.run === "op" ? `runs ${DATA.meta.operating_hours.start}–${DATA.meta.operating_hours.end}` : "runs 24 h";
@@ -74,6 +74,14 @@ document.head.insertAdjacentHTML("beforeend", `<style>
   .proc-off .pl { display: none !important; } .proc-on .wk { display: none !important; }
   .sc svg .lim { stroke: var(--ink); stroke-width: 1.25; stroke-dasharray: 3 3; }
   .sc svg .eq { stroke: #D91877; stroke-width: 1.5; }
+  .dtstrip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 4px 0 2px; }
+  .dtstrip .dt { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; display: grid; gap: 1px; }
+  .dtstrip .dt.dk { background: var(--bg-2); border-color: transparent; }
+  .dtstrip .l { font-size: var(--fs-11); color: var(--ink-3); font-weight: 600; letter-spacing: .02em; }
+  .dtstrip .v { font-size: 20px; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .dtstrip .v small { font-size: var(--fs-12); color: var(--ink-3); font-weight: 500; }
+  .dtstrip .s { font-size: var(--fs-11); color: var(--ink-3); }
+  @media (max-width: 700px) { .dtstrip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   .sc svg text.eqt { fill: #D91877; font-weight: 600; }
 </style>`);
 expoG.classList.add("wk"); profG.classList.add("wk");
@@ -86,13 +94,13 @@ function syncControls() {
   if (P.on) { $("#hallgrp").style.opacity = 1; for (const b of $$("#ctl-hall button")) b.disabled = false; }
   const sel = $("#ctl-layer");
   sel.innerHTML = (P.on ? PROC_OPTS : WORK_OPTS);
-  if (![...sel.options].some(o => o.value === S.layer)) S.layer = P.on ? "proc_days" : "worker_days";
+  if (![...sel.options].some(o => o.value === S.layer)) S.layer = P.on ? "proc_hours" : "worker_days";
   sel.value = S.layer;
 }
 const WORK_OPTS = $("#ctl-layer").innerHTML;
-const PROC_OPTS = `<option value="proc_days">Process-stop days (an operating hour above the limit)</option>
-  <option value="proc_hours">Operating hours above the limit</option>
-  <option value="d_proc_days">Extra process-stop days vs today (2040 / 2050)</option>
+const PROC_OPTS = `<option value="proc_hours">Downtime hours (operating hours above the limit)</option>
+  <option value="d_proc_hours">Extra downtime hours vs today (2040 / 2050)</option>
+  <option value="proc_days">Process-stop days (an operating hour above the limit)</option>
   <option value="days_tmax_gt30">Days above 30 °C</option>
   <option value="warming">Warming in annual mean temperature (2040 / 2050)</option>`;
 const setLim = v => { P.lim = Math.min(45, Math.max(20, Math.round(v * 2) / 2)); };
@@ -105,13 +113,15 @@ $("#ctl-lim").addEventListener("change", e => { setLim(Number(e.target.value)); 
 /* ---------- map layers ---------- */
 Object.assign(LAYER, {
   proc_days: { unit: "days", d: 0, short: "Process-stop days", breaks: [1, 5, 15, 35, 70] },
-  proc_hours: { unit: "h", d: 0, short: "Operating hours above the limit", breaks: [10, 50, 150, 400, 800] },
+  proc_hours: { unit: "h", d: 0, short: "Downtime hours", breaks: [10, 50, 100, 250, 500] },
+  d_proc_hours: { unit: "h", d: 0, plus: true, short: "Extra downtime hours", breaks: [10, 25, 50, 100, 200] },
   d_proc_days: { unit: "days", d: 0, plus: true, short: "Extra process-stop days", breaks: [2, 5, 10, 20, 40] },
 });
 const _layerVal = layerVal;
 layerVal = function (site, period = S.period, scen = S.scen) {
   if (S.layer === "proc_days") return stats(site, varKey(period)).days;
   if (S.layer === "proc_hours") return stats(site, varKey(period)).hours;
+  if (S.layer === "d_proc_hours") return period === "hist" ? null : stats(site, varKey(period)).hours - stats(site, varKey("hist")).hours;
   if (S.layer === "d_proc_days") return period === "hist" ? null : stats(site, varKey(period)).days - stats(site, varKey("hist")).days;
   return _layerVal(site, period, scen);
 };
@@ -129,14 +139,14 @@ renderStrip = function () {
   if (!P.on) return _renderStrip();
   const v = inView(), n = v.length, k = varKey(), k0 = varKey("hist", S.yt);
   const per = `${S.period === "hist" ? "today" : `${S.period}, ${SCEN[S.scen]}`}, ${S.yt} year`;
-  const HIGH = 15, VHIGH = 35, d = (s, key) => stats(s.id, key).days;
+  const HIGH = 100, VHIGH = 250, d = (s, key) => stats(s.id, key).hours;   /* placeholder bands, hours a year */
   const nHigh = v.filter(s => d(s, k) >= HIGH && d(s, k) < VHIGH).length, nVHigh = v.filter(s => d(s, k) >= VHIGH).length, nToday = v.filter(s => d(s, k0) >= HIGH).length;
   const hNow = v.reduce((a, s) => a + stats(s.id, k).hours, 0), hToday = v.reduce((a, s) => a + stats(s.id, k0).hours, 0), dPct = hToday > 0 ? 100 * (hNow - hToday) / hToday : null;
   const tile = (ic, lab, val, foot) => `<div class="kstat"><div class="lab"><span class="ic">${ICON[ic]}</span>${lab}</div><div class="val">${val}</div><div class="foot">${foot}</div></div>`;
   $("#kstrip").innerHTML =
-    tile("therm", "Sites at high risk · process-stop days", `${nHigh + nVHigh}<small>of ${n}${n ? ` (${fmt(100 * (nHigh + nVHigh) / n)} %)` : ""}</small>`,
-      `High (15–34 days) ${nHigh} · Very high (35+) ${nVHigh} · limit ${limText()} · ${hallText()} · ${per}${S.period !== "hist" ? `<br>Today: ${nToday} of ${n} sites` : ""}`) +
-    tile("up", "Operating time over the process limit", `${fmt(hNow)}<small>hours a year</small>`,
+    tile("therm", "Sites at high risk · downtime hours", `${nHigh + nVHigh}<small>of ${n}${n ? ` (${fmt(100 * (nHigh + nVHigh) / n)} %)` : ""}</small>`,
+      `High (100–249 h) ${nHigh} · Very high (250+ h) ${nVHigh} · limit ${limText()} · ${hallText()} · ${per}${S.period !== "hist" ? `<br>Today: ${nToday} of ${n} sites` : ""}`) +
+    tile("up", "Process downtime", `${fmt(hNow)}<small>hours a year</small>`,
       `Operating hours above ${limText()} dry bulb (${procName().toLowerCase()}), summed over ${n} ${n === 1 ? "site" : "sites"} (one line per site) · ${hallText()} · ${runText()} · ${per}${S.period !== "hist" && dPct != null ? `<br>${sgn(dPct)} % vs today (${fmt(hToday)} h)` : ""}`);
 };
 
@@ -144,7 +154,7 @@ renderStrip = function () {
 const _renderStory = renderStory;
 renderStory = function () {
   if (!P.on) return _renderStory();
-  return `<div class="story">${card1()}${P.alt ? altSpells() + altCooling() : sensitivity() + whenGrid()}</div>
+  return `<div class="story">${card1()}${P.alt ? altSpells() + altCooling() : (P.v === "curve" ? sensitivity() : downtime()) + whenGrid()}</div>
     <p class="note">${SCEN[S.scen]} · ${runText()} local · limit applies to hall air (${hallText()}) · <b>Mock-up:</b> values from single weather years (typical meteorological year, hot and extreme years), futures shifted by the median month × hour change; the build uses the ${NY}-year statistics and model ranges.</p>`;
 };
 const YC = { early: 0.5, late: 1, night: 0.15 };
@@ -153,7 +163,7 @@ function card1() {
   const rows = YRS.map(y => { const st = stats(id, y.key); return { ...y, st, early: st.early, late: st.late, night: st.night, tot: st.hours }; });
   const gw = 46, lw = 150, rh = 20, gap = 8, bh = 11, W = Math.max(80, W0 - lw - 112);
   const mx = Math.max(...rows.map(r => r.tot + (op ? r.night : 0)), 1), yOf = i => i * rh + Math.floor(i / 3) * gap;
-  let o = `<svg class="chart" width="${W0}" viewBox="0 0 ${W0} ${yOf(8) + rh}" style="max-width:${W0}px" role="img" aria-label="Operating hours above the process limit by shift">`;
+  let o = `<svg class="chart" width="${W0}" viewBox="0 0 ${W0} ${yOf(8) + rh}" style="max-width:${W0}px" role="img" aria-label="Downtime hours by shift">`;
   rows.forEach((r, i) => {
     const y = yOf(i); let x = lw;
     if (i % 3 === 0) o += `<text class="grp" x="0" y="${y + 14}">${r.grp}</text>`;
@@ -173,13 +183,103 @@ function card1() {
   const latePct = rF.tot ? Math.round(100 * rF.late / rF.tot) : 0;
   const none = Math.max(...rows.map(r => r.tot)) < 0.5;
   const head = none ? `<i>No operating hour goes above ${limText()}</i> today or by 2050, even in a hot or extreme year (${hallText()}).${S.hall !== "4" ? " A larger hall heat gain (View bar) shows how sensitive this is." : ""}`
-    : `By ${per}, a typical year brings <b>${plural(tF, "process-stop day", "process-stop days")}</b> (today ${fmt(tN)}). A hot year brings <b>${fmt(hF)}</b> (today ${fmt(hN)}); an extreme year, with ${s.extreme_year} weather, brings <b>${fmt(xFs.days)}</b> (today ${fmt(xN)})${xFs.longest >= 2 ? `, up to <b>${fmt(xFs.longest)} days in a row</b>` : ""}. ${rF.tot >= 0.5 ? `<b>${latePct} %</b> of the operating hours above the limit fall on the late shift.` : ""}`;
+    : `By ${per}, a typical year brings <b>${fmt(rF.tot)} hours of downtime</b> (today ${fmt(g("hist").hours)}${g("hist").hours >= 50 ? `, ${sgn(100 * (rF.tot - g("hist").hours) / g("hist").hours)} %` : ""}). A hot year brings <b>${fmt(g(`hot_${sc}_${per}`).hours)} h</b> (today ${fmt(g("hotref").hours)}); an extreme year, with ${s.extreme_year} weather, <b>${fmt(xFs.hours)} h</b> (today ${fmt(g("extref").hours)}). ${rF.tot >= 0.5 ? `<b>${latePct} %</b> of it falls on the late shift.` : ""}`;
   return `<div class="sc"><div class="t">${head}</div>
-    <div class="sub">Operating hours above ${limText()} dry bulb by shift (${esc(procName().toLowerCase())}); a process-stop day is a day with at least one of these hours · ${hallText()} · ${runText()}</div>${o}${keys}
+    <div class="sub">Downtime: operating hours with hall air above ${limText()} (${esc(procName().toLowerCase())}), by shift; ${fmt(tF)} process-stop days in a typical ${per} year (today ${fmt(tN)}) · ${hallText()} · ${runText()}</div>${o}${keys}
     <div class="fn"><b>Typical</b>: the median of the last ${NY} years (${B0}–${B1}). <b>Hot year</b>: the site's hottest year in the last ${NY} years, as it happened. <b>Extreme</b>: the site's hottest year since ${E0}, adjusted to a current-day climate baseline. The 2040 and 2050 rows are the same years adjusted to those climates.</div></div>`;
 }
 
-/* Recommended card 2: how much headroom the limit has (exceedance curve) */
+/* Card 2: downtime at the limit, how climate change adds to it and what extra tolerance or cooling buys back.
+   Callout strip (annual and cumulative downtime) + one of two visuals: "ladder" (grouped columns per limit) or
+   "bridge" (waterfall: today -> climate -> 2050 -> each extra degree). */
+const OK = "#12805F";   /* PDE status green: hours bought back */
+function dtCtx() {
+  const id = S.site, yt = S.yt, per = futPer();
+  const ser = [["hist", "Today"], ["2040", "2040"], ["2050", "2050"]].map(([p, name], i) => {
+    const key = varKey(p, yt), y = storyYears().find(o => o.key === key);
+    return { key, name, color: y.color, st: stats(id, key) };
+  });
+  const at = (i, L = P.lim) => above(ser[i].st, L);
+  /* cumulative 2026-2050: linear between today (centre 2020), 2040 and 2050 */
+  const ty = ["hist", "2040", "2050"].map(p => above(stats(id, varKey(p, "typical")), P.lim));
+  const [h0, h1, h2] = ty, yr = y => y <= 2040 ? h0 + (h1 - h0) * (y - 2020) / 20 : h1 + (h2 - h1) * (y - 2040) / 10;
+  let cum = 0; for (let y = 2026; y <= 2050; y++) cum += yr(y);
+  const f = ser.find(s => s.name === per);
+  /* headroom compares like with like: the future year against today for the Year in the View bar */
+  const s0 = at(0); let eq = null; if (s0 > 0 && above(f.st, P.lim) > s0) for (let x = P.lim; x <= P.lim + 15; x += 0.1) if (above(f.st, x) <= s0) { eq = x; break; }
+  return { ser, at, cum, cumToday: h0 * 25, typ: ty, per, f, eq, ytn: { typical: "typical year", hot: "hot year", extreme: "extreme year" }[yt] };
+}
+function dtStrip(c) {
+  const tile = (lab, val, sub, color, dark) => `<div class="dt${dark ? " dk" : ""}"><span class="l">${lab}</span><span class="v" style="${color ? `color:${color}` : ""}">${val}<small> h</small></span><span class="s">${sub}</span></div>`;
+  const [a, b, d] = c.ser.map((_, i) => c.at(i)), dd = days => `≈ ${fmt(days / 16)} sixteen-hour days`;
+  return `<div class="dtstrip">${tile("Today", fmt(a), dd(a), c.ser[0].color)}${tile("2040", fmt(b), `${sgn(b - a)} h vs today`, c.ser[1].color)}${tile("2050", fmt(d), `${sgn(d - a)} h vs today`, c.ser[2].color)}
+    ${tile("Total 2026–2050", fmt(Math.round(c.cum / 10) * 10), `typical years · ${sgn(Math.round((c.cum - c.cumToday) / 10) * 10)} h from climate change`, null, true)}</div>`;
+}
+function downtime() {
+  const c = dtCtx(), W0 = paneW(30), fAt = above(c.f.st, P.lim), today = c.at(0), p1 = above(c.f.st, P.lim + 1), p2 = above(c.f.st, P.lim + 2);
+  const head = fAt < 0.5 ? `No downtime at ${limText()}, even in a ${c.per} ${c.ytn}: the hottest operating hour is <i>${fmt(c.f.st.mx, 1)} °C</i>.`
+    : `At ${limText()} ${c.ytn === "extreme year" ? "an" : "a"} ${c.ytn} costs <b>${fmt(today)} hours</b> of downtime today and <b>${fmt(fAt)} h</b> by ${c.per}: about <b>${fmt(Math.round(c.cum / 10) * 10)} h</b> in total from 2026 to 2050 (typical years). ${c.eq != null ? `<b>${fmt(c.eq - P.lim, 1)} °C</b> more process tolerance or hall cooling would hold ${c.per} at today's level; ` : ""}each extra 1 °C saves about <i>${fmt(fAt - p1)} h</i> a year by ${c.per}.`;
+  const vis = P.v === "bridge" ? bridge(c, W0) : ladder(c, W0);
+  const sub = P.v === "bridge" ? `How the ${c.per} downtime builds up from today, and what each extra °C of process tolerance or hall cooling buys back · ${c.ytn}`
+    : `Downtime hours a year for limits around yours (1 °C steps) · dashed: today's downtime at your limit · ${c.ytn}`;
+  return `<div class="sc"><div class="t">${head}</div>${dtStrip(c)}<div class="sub">${sub} · ${hallText()} · ${runText()}</div>${vis}</div>`;
+}
+function ladder(c, W0) {
+  const H = 210, m = { l: 44, r: 8, t: 22, b: 40 }, Ls = [-3, -2, -1, 0, 1, 2, 3].map(d => P.lim + d), gw = (W0 - m.l - m.r) / Ls.length, bw = Math.min(26, (gw - 14) / 3);
+  const vals = Ls.map(L => c.ser.map((_, i) => c.at(i, L))), hi0 = Math.max(1, ...vals.flat()), st = niceStep(hi0 / 4), hi = Math.ceil(hi0 / st) * st;
+  const Y = v => m.t + (H - m.t - m.b) * (1 - v / hi), gx = j => m.l + j * gw;
+  let o = `<svg class="chart" width="${W0}" viewBox="0 0 ${W0} ${H}" style="max-width:${W0}px" role="img" aria-label="Downtime hours for limits around the chosen one">`;
+  o += `<rect x="${gx(3) + 2}" y="${m.t - 18}" width="${gw - 4}" height="${H - m.t - m.b + 18 + 30}" rx="6" fill="var(--bg-2)"/>`;
+  for (let v = 0; v <= hi + 1e-9; v += st) o += `<line class="gridl" x1="${m.l}" x2="${W0 - m.r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${m.l - 6}" y="${Y(v) + 4}" text-anchor="end">${fmt(v)}</text>`;
+  vals.forEach((vs, j) => {
+    const x0 = gx(j) + (gw - 3 * bw - 4) / 2;
+    vs.forEach((v, i) => { const x = x0 + i * (bw + 2); o += `<rect x="${x}" y="${Y(v)}" width="${bw}" height="${Math.max(Y(0) - Y(v), v ? 1 : 0)}" rx="2" fill="${c.ser[i].color}" data-t="Limit ${fmt(Ls[j], 1)} °C<br>${c.ser[i].name}: ${fmt(v)} h a year"/>`;
+      if (j === 3 || i === 2) o += `<text class="val" x="${x + bw / 2}" y="${Y(v) - 4}" text-anchor="middle" style="font-size:10.5px${j === 3 ? ";font-weight:600" : ""}">${fmt(v)}</text>`; });
+    o += `<text x="${gx(j) + gw / 2}" y="${H - m.b + 16}" text-anchor="middle" style="${j === 3 ? "fill:var(--ink);font-weight:600" : ""}">${fmt(Ls[j], 0)} °C</text>`;
+  });
+  o += `<text x="${gx(3) + gw / 2}" y="${H - m.b + 30}" text-anchor="middle" style="fill:var(--ink)">your limit</text>`;
+  o += `<line class="axis" x1="${m.l}" x2="${W0 - m.r}" y1="${Y(0)}" y2="${Y(0)}"/>`;
+  const t0 = c.at(0);
+  if (t0 > 0) {
+    o += `<line class="lim" x1="${m.l}" x2="${W0 - m.r}" y1="${Y(t0)}" y2="${Y(t0)}"/>`;
+    if (c.eq != null && c.eq <= Ls[6] + 0.5) {
+      const ex = gx(3) + gw / 2 + (c.eq - P.lim) * gw;
+      o += `<path d="M${ex - 5},${Y(0) + 26} L${ex + 5},${Y(0) + 26} L${ex},${Y(0) + 19} Z" fill="#D91877"/><text class="eqt halo" x="${ex + 8}" y="${Y(0) + 30}">${fmt(c.eq, 1)} °C restores today's downtime</text>`;
+    }
+  }
+  o += `</svg>`;
+  return o + `<div class="keys">${c.ser.map(s => `<span><i style="background:${s.color}"></i>${s.name}</span>`).join("")}<span><i style="background:none;border-top:1.5px dashed var(--ink);height:0;border-radius:0;vertical-align:3px"></i>today's downtime at ${limText()}</span></div>`;
+}
+function bridge(c, W0) {
+  const a = c.at(0), b = c.at(1), d = c.at(2), f1 = above(c.ser[2].st, P.lim + 1), f2 = above(c.ser[2].st, P.lim + 2), f3 = above(c.ser[2].st, P.lim + 3);
+  const steps = [
+    { lab: ["Today", ""], kind: "tot", v: a, color: c.ser[0].color },
+    { lab: ["Climate", "to 2040"], kind: "up", from: a, to: b, color: c.ser[1].color },
+    { lab: ["Climate", "to 2050"], kind: "up", from: b, to: d, color: c.ser[2].color },
+    { lab: ["2050", ""], kind: "tot", v: d, color: c.ser[2].color },
+    { lab: ["+1 °C", "tolerance"], kind: "down", from: d, to: f1 },
+    { lab: ["+2 °C", ""], kind: "down", from: f1, to: f2 },
+    { lab: ["+3 °C", ""], kind: "down", from: f2, to: f3 },
+    { lab: ["2050 with", "+3 °C"], kind: "tot", v: f3, color: c.ser[2].color, light: true }];
+  const H = 220, m = { l: 44, r: 8, t: 18, b: 40 }, n = steps.length, cw = (W0 - m.l - m.r) / n, bw = Math.min(44, cw - 18);
+  const hi0 = Math.max(1, a, b, d), st = niceStep(hi0 / 4), hi = Math.ceil(hi0 / st) * st, Y = v => m.t + (H - m.t - m.b) * (1 - v / hi);
+  let o = `<svg class="chart" width="${W0}" viewBox="0 0 ${W0} ${H}" style="max-width:${W0}px" role="img" aria-label="Downtime bridge from today to 2050 and back with extra tolerance">`;
+  for (let v = 0; v <= hi + 1e-9; v += st) o += `<line class="gridl" x1="${m.l}" x2="${W0 - m.r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${m.l - 6}" y="${Y(v) + 4}" text-anchor="end">${fmt(v)}</text>`;
+  steps.forEach((s, i) => {
+    const cx = m.l + i * cw + cw / 2, x = cx - bw / 2;
+    let top, bot, fill, op = 1, lbl;
+    if (s.kind === "tot") { top = s.v; bot = 0; fill = s.color; op = s.light ? 0.45 : 1; lbl = fmt(s.v); }
+    else { top = Math.max(s.from, s.to); bot = Math.min(s.from, s.to); fill = s.kind === "up" ? s.color : OK; op = s.kind === "up" ? 0.55 : 0.85; lbl = sgn(s.to - s.from); }
+    o += `<rect x="${x}" y="${Y(top)}" width="${bw}" height="${Math.max(Y(bot) - Y(top), 1)}" rx="2" fill="${fill}" fill-opacity="${op}" ${s.kind === "up" ? `stroke="${s.color}" stroke-dasharray="3 2"` : ""}/>`;
+    o += `<text class="val" x="${cx}" y="${Y(top) - 5}" text-anchor="middle" style="font-weight:600;${s.kind === "down" ? `fill:${OK}` : ""}">${lbl}</text>`;
+    if (i < n - 1) { const nv = s.kind === "tot" ? s.v : s.to; o += `<line x1="${x + bw}" x2="${x + cw}" y1="${Y(nv)}" y2="${Y(nv)}" stroke="var(--line-2)" stroke-dasharray="2 2"/>`; }
+    o += `<text x="${cx}" y="${H - m.b + 16}" text-anchor="middle" style="fill:var(--ink-2)">${s.lab[0]}</text>${s.lab[1] ? `<text x="${cx}" y="${H - m.b + 29}" text-anchor="middle" style="fill:var(--ink-2)">${s.lab[1]}</text>` : ""}`;
+  });
+  o += `<line class="axis" x1="${m.l}" x2="${W0 - m.r}" y1="${Y(0)}" y2="${Y(0)}"/></svg>`;
+  return o + `<div class="keys"><span><i style="background:rgba(74,77,87,.55);outline:1px dashed #4A4D57"></i>added by climate change</span><span><i style="background:${OK}"></i>bought back by extra process tolerance or hall cooling, per °C</span></div>`;
+}
+
+/* Previous card 2: exceedance curve (kept for comparison, ?v=curve) */
 function sensitivity() {
   const id = S.site, sc = S.scen, per = futPer(), yt = S.yt, W0 = paneW(30), H = 210, m = { l: 44, r: 96, t: 12, b: 28 };
   const ser = [{ key: varKey("hist", yt), name: "Today", color: yt === "typical" ? "var(--c-today)" : yt === "hot" ? "var(--c-hot)" : "var(--c-ext)" },
