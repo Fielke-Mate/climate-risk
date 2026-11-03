@@ -206,7 +206,7 @@ select.ksel { height: 30px; font: inherit; font-size: var(--fs-125); padding: 0 
 .pane > *, .main > *, .cols > * { min-width: 0; }
 .pane h3 { margin: 0 0 6px; font-size: var(--fs-13); font-weight: 600; }
 .pane h3 .sub { font-weight: 400; color: var(--ink-3); font-size: var(--fs-12); }
-.note { font-size: var(--fs-12); color: var(--ink-3); margin: 6px 0 0; max-width: 78ch; }
+.note { font-size: var(--fs-12); color: var(--ink-3); margin: 6px 0 0; }
 .story { display: grid; gap: 12px; }
 .sc { border: 1px solid var(--line); border-radius: var(--r-sm, 8px); padding: 12px 14px; display: grid; gap: 6px; }
 .sc .t { font-size: var(--fs-13); font-weight: 600; line-height: 1.4; text-wrap: pretty; }
@@ -266,9 +266,12 @@ svg.chart .gridl { stroke: var(--line); }
 .hmleg .ramp i { flex: 1; }
 
 .tip { position: fixed; z-index: 20; pointer-events: none; background: var(--ink); color: #fff; padding: 6px 10px; border-radius: var(--r-xs); font-size: var(--fs-12); max-width: 260px; line-height: 1.4; display: none; box-shadow: var(--sh-2); }
-.about { display: grid; gap: 10px; max-width: 78ch; }
+.about { display: grid; gap: 10px; }
+/* fill wide panels with columns of readable width rather than one very long measure */
+.about ul { columns: 42ch auto; column-gap: 32px; }
+.about li { break-inside: avoid; margin-bottom: 5px; }
 .about p, .about li { color: var(--ink-2); }
-.about ul { margin: 0; padding-left: 18px; display: grid; gap: 5px; }
+.about ul { margin: 0; padding-left: 18px; }
 .sidefoot { font-size: var(--fs-115); color: var(--ink-2); border-top: 1px solid var(--line); margin-top: 14px; padding-top: 10px; display: grid; gap: 6px; line-height: 1.4; }
 .sidefoot p { margin: 0; }
 .sidefoot b { color: var(--ink-2); font-weight: 600; }
