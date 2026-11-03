@@ -212,6 +212,7 @@ svg.chart .grp { font-family: var(--font); fill: var(--ink); font-size: 12px; fo
 svg.chart .val { font-family: var(--font); fill: var(--ink); font-size: 12px; }
 svg.chart .lab.sm { font-size: 11px; }
 svg.chart .lab .u { fill: var(--ink-3); font-size: 11px; }
+svg.chart .val .u { fill: var(--ink-3); font-size: 11px; font-weight: 400; }
 .exact summary { cursor: pointer; font-size: var(--fs-125); color: var(--purple-600); font-weight: 500; margin-bottom: 6px; }
 svg.chart .lab.note2 { fill: var(--ink-3); font-size: 11px; }
 .sc .fn { font-size: var(--fs-115); color: var(--ink-3); border-top: 1px solid var(--line); padding-top: 6px; margin-top: 2px; }
@@ -394,7 +395,7 @@ svg.chart .gridl { stroke: var(--line); }
       </div>
 
       <section class="card" id="panel" aria-live="polite">
-        <div class="site-h"><h2 id="s-name"></h2><div class="chips" id="s-chips"></div></div>
+        <div class="site-h"><h2 id="s-name"></h2></div>
         <div class="tabs" role="tablist" aria-label="Site detail">
           <button role="tab" data-tab="summary">Summary</button>
           <button role="tab" data-tab="data">Indicators</button>
@@ -692,9 +693,6 @@ const futSub = () => S.yt === "hot" ? `${byId[S.site].hot_year} weather, ${SCEN[
 function renderHeader() {
   const s = byId[S.site], k = DATA.kpi[S.site];
   $("#s-name").textContent = s.name;
-  $("#s-chips").innerHTML = `<span class="chip">${COUNTRY[s.country]} · ${s.lat.toFixed(3)}, ${s.lon.toFixed(3)}</span>
-    <span class="chip">Hot year <b>${s.hot_year}</b> · extreme year <b>${s.extreme_year}</b></span>
-    <span class="chip">${SCEN[S.scen]} warming <b>${sgn(k.warming[`${S.scen}_2040`][0], 1)} °C</b> by 2040 · <b>${sgn(k.warming[`${S.scen}_2050`][0], 1)} °C</b> by 2050</span>`;
 }
 function cell(id, m, col, d) {
   const k = DATA.kpi[id][m];
@@ -821,7 +819,7 @@ function renderData() {
     ["Nights", [[`Warm nights (above ${HW.tropical_night_c} °C)`, "nights_tmin_gt20", "nights"], ["Longest run of warm nights", `tn${HW.tropical_night_c}_longest`, "nights"]]],
     ["Comfort and energy", [...(P_ ? [] : [["Strong UTCI heat stress (working hours)", E.utci32, "hours"]]), ["Cooling degree-hours above 24 °C", "cdh24", "°C·h"],
                             ["Heating degree-hours below 19 °C", "hdh19", "°C·h"]]]];
-  const W0 = paneW(), l = 230, r = 140, rowH = 34, gh = 22, w = W0 - l - r;
+  const W0 = paneW(), l = 230, r = 190, rowH = 34, gh = 22, w = W0 - l - r;
   const val = (m, p) => p === "hist" ? K[m].hist[yt] : K[m][`${sc}_${p}_${yt}`];
   let y = 0, o = "";
   for (const [g, rows] of groups) {
@@ -833,7 +831,7 @@ function renderData() {
       const lo = unit === "°C" ? Math.floor(Math.min(today, v40[1], v50[1], hot) - 2) : 0;
       const hi = Math.max(today, v40[2] ?? v40[0], r50[1], hot, lo + 1) * (unit === "°C" ? 1 : 1.06) + (unit === "°C" ? 1 : 0);
       const X = v => l + w * (v - lo) / (hi - lo);
-      o += `<text class="lab" x="12" y="${cy + 4}">${lab}<tspan class="u" dx="6">${unit}</tspan></text>`;
+      o += `<text class="lab" x="12" y="${cy + 4}">${lab}</text>`;
       o += `<line x1="${l}" x2="${l + w}" y1="${cy}" y2="${cy}" stroke="var(--line)"/>`;
       if (Math.max(today, r50[1], hot) < 0.5 && unit !== "°C") {
         o += `<text class="lab sm" x="${l + 4}" y="${cy + 4}" style="fill:var(--ink-3)">none today or by 2050</text>`;
@@ -844,7 +842,7 @@ function renderData() {
         for (const [v, c, n] of [[today, EXT() ? "var(--c-ext)" : "var(--c-today)", "Today"], [v40[0], "var(--c-2040)", "2040"], [v50[0], "var(--c-2050)", "2050"]])
           o += `<circle cx="${X(v)}" cy="${cy}" r="6.5" fill="${c}" stroke="#fff" stroke-width="2" data-t="${n}: ${fmt(v, d)} ${unit}"/>`;
       }
-      o += `<text class="val" x="${l + w + 12}" y="${cy + 4}">${fmt(today, d)} → ${fmt(v40[0], d)} → <tspan font-weight="600">${fmt(v50[0], d)}</tspan></text>`;
+      o += `<text class="val" x="${l + w + 12}" y="${cy + 4}">${fmt(today, d)} → ${fmt(v40[0], d)} → <tspan font-weight="600">${fmt(v50[0], d)}</tspan><tspan class="u" dx="5">${unit === "days in a row" ? "days" : unit}</tspan></text>`;
       y += rowH;
     }
     y += 6;
@@ -1198,20 +1196,31 @@ function procDowntime() {
   const art = yt === "extreme" ? "an" : "a";
   const head = f.down < 0.5 ? `No downtime at ${limText()}, even in ${art} ${per} ${ytn}.`
     : `At ${limText()} ${art} ${ytn} costs <b>${fmt(today)} hours</b> of downtime today and <b>${fmt(f.down)} h</b> by ${per}: about <b>${fmt(r10(cum))} h</b> in total from 2026 to 2050 (typical years). ${eq != null ? `<b>${fmt(eq - LIM(), 1)} °C</b> more process tolerance or hall cooling would hold ${per} at today's level; ` : ""}each extra 1 °C saves about <i>${fmt(f.down - p1)} h</i> a year by ${per}.`;
-  /* histograms: 1 C bins aligned to the limit, whole year of counted hours, same scale in every panel */
+  /* histograms: fixed 1 C bins on whole degrees, so the bars stay put when the limit moves and only the line and the
+     colouring move. The limit steps by 0.5 C; at a half-degree limit the one bin it falls in is drawn as two half-width
+     bars. Heights are hours per 1 C, the same scale for full and half bars; the scale comes from the full bins only, so
+     it does not change with the limit either. */
   const st = ser.map(s => hstats(id, s.key)), lim = LIM();
-  const lo = Math.floor(Math.min(...st.map(x => x.sorted[0])) - lim), hi = Math.ceil(Math.max(...st.map(x => x.mx)) - lim) + 1;
-  const edges = []; for (let k = lo; k <= hi; k++) edges.push(lim + k);
+  const e0 = Math.floor(Math.min(...st.map(x => x.sorted[0]))), e1 = Math.max(Math.ceil(Math.max(...st.map(x => x.mx))) + 1, Math.ceil(lim) + 1);
+  const edges = []; for (let t = e0; t <= e1; t++) edges.push(t);
   const counts = st.map(x => edges.slice(0, -1).map((e, i) => nAbove(x, e) - nAbove(x, edges[i + 1])));
   const mxC = Math.max(1, ...counts.flat()), lw = 64, rw = 136, rh = 64, gap = 12, top = 18, nb = edges.length - 1;
   const bw = (W0 - lw - rw) / nb, X = t => lw + (t - edges[0]) * bw, H = top + 3 * rh + 2 * gap + 22;
+  const split = lim % 1 !== 0;   /* the limit sits inside a whole-degree bin */
   let o = `<svg class="chart" width="${W0}" viewBox="0 0 ${W0} ${H}" style="max-width:${W0}px" role="img" aria-label="Operating hours at each temperature, with the process limit">`;
   ser.forEach((s, r) => {
-    const y0 = top + r * (rh + gap), base = y0 + rh, Yh = v => base - rh * v / mxC, a = nAbove(st[r], lim), tot = st[r].sorted.length;
+    const y0 = top + r * (rh + gap), base = y0 + rh, Yh = v => base - rh * Math.min(v, mxC) / mxC, a = nAbove(st[r], lim), tot = st[r].sorted.length;
+    const bar = (t0, t1, v, up) => { if (!v) return ""; const dens = v / (t1 - t0), x0 = X(t0) + 0.5, w = Math.max((t1 - t0) * bw - 1, 0.5);
+      return `<rect x="${x0}" y="${Yh(dens)}" width="${w}" height="${base - Yh(dens)}" rx="1" fill="${up ? s.color : "var(--c-today)"}" fill-opacity="${up ? 1 : 0.28}" data-t="${s.name}: ${fmt(t0, 1)}–${fmt(t1, 1)} °C<br>${fmt(v)} hours a year"/>`; };
     o += `<line x1="${lw}" x2="${W0 - rw}" y1="${base}" y2="${base}" stroke="var(--line-2)"/>`;
     o += `<text class="grp" x="0" y="${y0 + rh / 2}">${s.name}</text><text class="lab sm" x="0" y="${y0 + rh / 2 + 14}">${ytn.replace(" year", "")}</text>`;
-    counts[r].forEach((v, i) => { if (!v) return; const t = edges[i], up = t >= lim;
-      o += `<rect x="${X(t) + 0.5}" y="${Yh(v)}" width="${Math.max(bw - 1, 0.5)}" height="${base - Yh(v)}" rx="1" fill="${up ? s.color : "var(--c-today)"}" fill-opacity="${up ? 1 : 0.28}" data-t="${s.name}: ${fmt(t, 1)}–${fmt(t + 1, 1)} °C<br>${fmt(v)} hours a year"/>`; });
+    counts[r].forEach((v, i) => {
+      const t = edges[i];
+      if (split && t < lim && lim < t + 1) {
+        const lo = nAbove(st[r], t) - nAbove(st[r], lim), hi = nAbove(st[r], lim) - nAbove(st[r], t + 1);
+        o += bar(t, lim, lo, false) + bar(lim, t + 1, hi, true);
+      } else o += bar(t, t + 1, v, t >= lim);
+    });
     if (r > 0) o += `<path d="${counts[0].map((v, i) => `${i ? "L" : "M"}${X(edges[i]).toFixed(1)},${Yh(v).toFixed(1)}H${X(edges[i + 1]).toFixed(1)}`).join("")}" fill="none" stroke="var(--c-hot)" stroke-width="1" stroke-opacity=".7"/>`;
     o += `<text class="val" x="${W0 - rw + 12}" y="${y0 + rh / 2}" style="fill:${s.color};font-weight:600;font-size:13px">${fmt(a)} h above</text><text class="lab sm" x="${W0 - rw + 12}" y="${y0 + rh / 2 + 15}">${fmt(tot ? 100 * a / tot : 0, 1)} % of the hours</text>`;
   });
