@@ -31,7 +31,7 @@ Re-run with `scripts/fetch_nex.py` (resumable), then `scripts/phase2_future.py`.
   - **Humidity:** vapour pressure is scaled by the specific-humidity ratio and capped at saturation.
   - **Radiation and wind:** GHI/DNI/DHI, longwave and wind are scaled by monthly ratios.
   - **Smoothing:** all signals are interpolated day by day between mid-month anchors.
-- **Indicators:** the same as Phase 1, including heatwave length (D60): runs of consecutive hot days, warm nights and heat-safety days. Morphing keeps the order of days, so future runs lengthen only because warmer days cross the threshold more often; a perfect-model test shows this reproduces ~90 % of the models' projected lengthening on average and ~75 % for the 1-in-10 longest spell (see the climate science review, section 3.3).
+- **Indicators:** the same as Phase 1, with the Phase 3 WBGT (Liljegren) and the ISO 7243 Class 2 reference of 26 °C, workforce not acclimatised (D58), including heatwave length (D60): runs of consecutive hot days, warm nights and heat-safety days. Morphing keeps the order of days, so future runs lengthen only because warmer days cross the threshold more often; a perfect-model test shows this reproduces ~90 % of the models' projected lengthening on average and ~75 % for the 1-in-10 longest spell (see the climate science review, section 3.3).
 - **Reference years (D62):** the hot year (2015–2025, as observed) and the extreme year (2000–2025 adjusted to the 2020 climate) are morphed with the same deltas and summarised separately.
 
 ## Checks
@@ -70,21 +70,43 @@ These changes are **relative to today's climate (2015–2025)**, not to pre-indu
 
 | Site | Days > 30 °C: hist | 2050 SSP2-4.5 | 2050 SSP5-8.5 | WBGT degree-h > 25 (work hrs): hist | 2050 SSP2-4.5 | 2050 SSP5-8.5 |
 |---|---|---|---|---|---|---|
-| Sevilla (San Pablo) | 119 | 136 (129–145) | 141 (129–154) | 704 | 1195 (970–1415) | 1507 (1192–1676) |
-| Illescas | 89 | 106 (99–114) | 112 (103–117) | 82 | 264 (147–297) | 335 (262–470) |
-| Getafe | 89 | 105 (99–114) | 112 (104–117) | 82 | 267 (151–298) | 346 (271–470) |
-| Marignane | 61 | 80 (66–84) | 83 (81–86) | 189 | 550 (278–703) | 632 (539–922) |
-| Toulouse (Blagnac) | 44 | 58 (49–64) | 64 (58–71) | 182 | 449 (326–504) | 522 (435–717) |
-| Nantes (Bouguenais) | 12 | 19 (15–25) | 18 (16–27) | 19 | 71 (32–100) | 71 (60–156) |
-| Saint-Nazaire (Montoir-de-Bretagne) | 3 | 6 (3–9) | 6 (5–11) | 2 | 16 (5–28) | 14 (11–70) |
-| Donauworth | 9 | 21 (14–24) | 24 (21–31) | 0 | 16 (9–23) | 36 (22–62) |
-| Meaulte | 6 | 10 (8–14) | 12 (10–14) | 6 | 39 (12–54) | 38 (26–79) |
-| Filton | 1 | 3 (1–4) | 4 (1–6) | 0 | 0 (0–5) | 1 (0–23) |
-| Bremen | 6 | 12 (7–15) | 14 (11–16) | 1 | 26 (20–73) | 42 (29–88) |
-| Broughton | 0 | 1 (0–1) | 1 (0–2) | 0 | 0 (0–0) | 0 (0–2) |
-| Nordenham | 1 | 4 (2–5) | 4 (3–7) | 0 | 4 (2–24) | 12 (3–23) |
-| Hamburg-Finkenwerder | 4 | 10 (7–13) | 12 (9–18) | 2 | 20 (10–52) | 40 (17–78) |
-| Stade | 4 | 10 (6–12) | 12 (8–18) | 2 | 18 (9–42) | 33 (14–70) |
+| Sevilla (San Pablo) | 119 | 136 (129–145) | 141 (129–154) | 447 | 841 (644–1024) | 1115 (820–1209) |
+| Illescas | 89 | 106 (99–114) | 112 (103–117) | 17 | 103 (52–118) | 144 (111–226) |
+| Getafe | 89 | 105 (99–114) | 112 (104–117) | 17 | 109 (52–118) | 150 (121–231) |
+| Marignane | 61 | 80 (66–84) | 83 (81–86) | 116 | 367 (172–497) | 433 (373–673) |
+| Toulouse (Blagnac) | 44 | 58 (49–64) | 64 (58–71) | 123 | 314 (214–375) | 375 (309–527) |
+| Nantes (Bouguenais) | 12 | 19 (15–25) | 18 (16–27) | 6 | 37 (14–60) | 38 (29–100) |
+| Saint-Nazaire (Montoir-de-Bretagne) | 3 | 6 (3–9) | 6 (5–11) | 1 | 7 (2–16) | 7 (4–41) |
+| Donauworth | 9 | 21 (14–24) | 24 (21–31) | 0 | 4 (1–8) | 11 (8–25) |
+| Meaulte | 6 | 10 (8–14) | 12 (10–14) | 1 | 23 (4–30) | 22 (11–51) |
+| Filton | 1 | 3 (1–4) | 4 (1–6) | 0 | 0 (0–0) | 0 (0–9) |
+| Bremen | 6 | 12 (7–15) | 14 (11–16) | 0 | 14 (4–47) | 27 (15–53) |
+| Broughton | 0 | 1 (0–1) | 1 (0–2) | 0 | 0 (0–0) | 0 (0–0) |
+| Nordenham | 1 | 4 (2–5) | 4 (3–7) | 0 | 1 (0–16) | 7 (1–17) |
+| Hamburg-Finkenwerder | 4 | 10 (7–13) | 12 (9–18) | 0 | 10 (3–35) | 20 (6–42) |
+| Stade | 4 | 10 (6–12) | 12 (8–18) | 0 | 9 (3–31) | 16 (6–37) |
+
+### Working hours above the WBGT reference (indoor, hall = outside): typical year; future = model median (range)
+
+ISO 7243 Class 2 (moderate work). 26 °C = workforce not acclimatised (headline, D58); 28 °C = acclimatised (sensitivity).
+
+| Site | > 26 °C: hist | 2050 SSP2-4.5 | 2050 SSP5-8.5 | > 28 °C: hist | 2050 SSP5-8.5 |
+|---|---|---|---|---|---|
+| Sevilla (San Pablo) | 197 | 338 (263–385) | 420 (335–466) | 12 | 107 (38–125) |
+| Illescas | 2 | 38 (13–47) | 59 (45–101) | 0 | 0 (0–2) |
+| Getafe | 2 | 40 (13–48) | 62 (47–104) | 0 | 0 (0–2) |
+| Marignane | 51 | 150 (71–186) | 169 (147–247) | 0 | 28 (20–55) |
+| Toulouse (Blagnac) | 59 | 126 (88–160) | 148 (117–208) | 3 | 36 (17–56) |
+| Nantes (Bouguenais) | 0 | 15 (5–24) | 18 (13–43) | 0 | 0 (0–3) |
+| Saint-Nazaire (Montoir-de-Bretagne) | 0 | 2 (0–6) | 2 (1–14) | 0 | 0 (0–0) |
+| Donauworth | 0 | 0 (0–4) | 4 (0–10) | 0 | 0 (0–0) |
+| Meaulte | 0 | 10 (0–14) | 11 (3–23) | 0 | 0 (0–0) |
+| Filton | 0 | 0 (0–0) | 0 (0–0) | 0 | 0 (0–0) |
+| Bremen | 0 | 6 (0–18) | 8 (5–22) | 0 | 0 (0–0) |
+| Broughton | 0 | 0 (0–0) | 0 (0–0) | 0 | 0 (0–0) |
+| Nordenham | 0 | 0 (0–5) | 2 (0–7) | 0 | 0 (0–0) |
+| Hamburg-Finkenwerder | 0 | 4 (0–14) | 9 (2–18) | 0 | 0 (0–0) |
+| Stade | 0 | 4 (0–13) | 7 (1–16) | 0 | 0 (0–0) |
 
 ![Days above 30 °C](figures/days_tmax30_projection.png)
 
@@ -113,9 +135,9 @@ These changes are **relative to today's climate (2015–2025)**, not to pre-indu
 
 ## Findings
 
-1. **Heat stress grows much faster than temperature.** Small shifts in mean temperature produce large relative increases in WBGT degree-hours in working hours. In typical years by 2050 under SSP5-8.5: Sevilla 704 → ~1,507 (+114 %), Toulouse ×2.9, Marignane ×3.3, Getafe/Illescas ×4. Northern sites start from near zero and reach about 12–42 degree-hours.
+1. **Heat stress grows much faster than temperature.** Small shifts in mean temperature produce large relative increases in indoor WBGT degree-hours in working hours. In typical years by 2050 under SSP5-8.5: Sevilla 447 → ~1,115 (×2.5), Toulouse ×3.0, Marignane ×3.7, Getafe/Illescas ×8–9 (from a low base). Northern sites start from near zero and reach about 7–38 degree-hours.
 2. **Days above 30 °C (2050, SSP5-8.5):** Sevilla 119 → ~141, Madrid sites 89 → ~112, Toulouse 44 → ~64, Donauwörth 9 → ~24, northern Germany 4 → ~12. The UK sites stay low (≤ 4).
 3. **Peak amplification is not uniform.** For summer daily maximum temperature (SSP5-8.5, 2050), the 95th-percentile day warms **~1 °C more than the median day in northern Germany** (Hamburg, Stade, Bremen, Nordenham), ~0.3–0.6 °C more in western France, Toulouse, Donauwörth and the UK, and **about the same as the median in Spain**. The quantile-based method captures this site by site. The concept's earlier expectation of stronger peak amplification "especially in Iberia" is not supported by this ensemble.
 4. **The extreme tail is noisy.** The 99th percentile rests on ~3 days per month in an 11-year baseline, and models disagreed by more than 4 °C there. Deltas are therefore taken up to the 95th percentile and held constant beyond it.
-5. **Shaded WBGT > 28 °C (Class 2) is still rare in 2050** outside Sevilla (~186 h/yr under SSP5-8.5), Toulouse (~56 h) and Marignane (~53 h). This confirms the Phase 1 finding: the outcome for indoor workers will depend mainly on the Phase 3 WBGT method (natural wet bulb, sun vs shade) and on indoor offsets.
+5. **Working hours above the WBGT reference grow strongly and spread north.** At the headline reference (26 °C, not acclimatised; indoor, hall = outside), typical-year working hours by 2050 under SSP5-8.5 rise at Sevilla 197 → ~420, Marignane 51 → ~169, Toulouse 59 → ~149 and Getafe/Illescas 2 → ~60. Northern sites that never reach the reference today get a few hours to ~18 h a year (Nantes). At the acclimatised reference (28 °C), the exceedance stays limited to Sevilla (~107 h), Toulouse (~36 h) and Marignane (~28 h). Indoor heat gains (Phase 3, +2 / +4 °C) raise all of these.
 6. **Scenario spread before 2050 is modest** compared with the model spread, as expected: emissions pathways diverge mostly after mid-century.
