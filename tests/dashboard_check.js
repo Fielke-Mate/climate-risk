@@ -87,17 +87,22 @@ async function check(p, where) {
   paneText = await page.$eval("#pane", e => e.innerText);
   if (/weather in 2050/.test(paneText)) fail("typical charts", "typical view still shows the hot-year series");
 
-  // 1c. Summary tab: comparison year pickers and consistency with the Data summary table
-  await click('.tabs button[data-tab="summary"]');
+  // 1c. Heat stress tab: comfort-shift year pickers; Summary tab: hours chart consistent with the Indicators table
+  await click('.tabs button[data-tab="stress"]');
   await page.selectOption('select[data-cmp="cmpB"]', "hotref");
   paneText = await page.$eval("#pane", e => e.innerText);
-  if (!/Today, hot year against Today, typical year/.test(paneText)) fail("summary pickers", "comfort sentence does not follow the picked years");
+  if (!/Today, hot year against Today, typical year/.test(paneText)) fail("comfort pickers", "comfort sentence does not follow the picked years");
   const opts = await page.$$eval('select[data-cmp="cmpB"] option', os => os.map(o => o.textContent));
-  if (opts.length !== 9 || !opts.some(t => /^2040, hot year/.test(t)) || !opts.some(t => /^2050, extreme year/.test(t))) fail("summary pickers", `year options: ${opts.join(" | ")}`);
-  if ((await page.$$("#pane .sc:first-child svg text.val")).length !== 9) fail("summary bars", "expected nine year bars");
+  if (opts.length !== 9 || !opts.some(t => /^2040, hot year/.test(t)) || !opts.some(t => /^2050, extreme year/.test(t))) fail("comfort pickers", `year options: ${opts.join(" | ")}`);
   await page.selectOption('select[data-cmp="cmpA"]', "hotref");
   paneText = await page.$eval("#pane", e => e.innerText);
-  if (!/Pick two different years/.test(paneText)) fail("summary pickers", "same year twice not handled");
+  if (!/Pick two different years/.test(paneText)) fail("comfort pickers", "same year twice not handled");
+  await click('.tabs button[data-tab="summary"]');
+  if ((await page.$$("#pane .sc:first-child svg text.val")).length !== 9) fail("summary bars", "expected nine year bars");
+  if (await page.$('#pane select[data-cmp]')) fail("summary", "the comfort chart should have moved to Heat stress");
+  // charts are drawn at their pixel size: SVG text must not be scaled up
+  const scale = await page.$eval("#pane .sc svg", e => e.getBoundingClientRect().width / e.viewBox.baseVal.width);
+  if (scale > 1.02) fail("summary bars", `chart scaled up ${scale.toFixed(2)}x`);
   const barToday = await page.$eval("#pane .sc svg .val", e => e.textContent.split(" h")[0]);
   await click('.tabs button[data-tab="data"]');
   const tableToday = await page.$$eval("#pane table tbody tr", trs => {

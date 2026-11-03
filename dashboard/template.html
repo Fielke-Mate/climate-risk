@@ -14,11 +14,12 @@
   --r-lg:16px; --r-md:14px; --r-sm:10px; --r-xs:6px; --r-pill:999px; --r-bar:3px;
   --sh-1:0 1px 2px rgba(28,16,44,.06),0 2px 6px rgba(28,16,44,.05);
   --sh-2:0 2px 6px rgba(28,16,44,.06),0 18px 40px -20px rgba(28,16,44,.28);
-  --font:"Geist","Segoe UI",Arial,system-ui,sans-serif; --mono:"Geist Mono",ui-monospace,"Cascadia Mono",monospace;
+  --font:"Geist","Segoe UI",Arial,system-ui,sans-serif; --mono:var(--font);   /* numbers: main font + tabular figures (no slashed zeros) */
   --ease:cubic-bezier(.16,.84,.44,1);
   --fs-10:10px; --fs-105:10.5px; --fs-11:11px; --fs-115:11.5px; --fs-12:12px; --fs-125:12.5px; --fs-13:13px; --fs-14:14px; --fs-15:15px; --fs-16:16px;
   /* series */
-  --c-today:#9C96A8; --c-hot:#2A1052; --c-ext:#B54708; --c-2040:#0B41CD; --c-2050:#FF3D8B;
+  --c-today:#8E9099; --c-hot:#4A4D57; --c-ext:#1F2125; --c-2040:#12877F; --c-2050:#C2841A;
+  --c-2040-hot:#0A5E58; --c-2040-ext:#053632; --c-2050-hot:#8A5A0B; --c-2050-ext:#4F3304;
   /* map + land */
   --sea:#FBFAFD; --land:#ECEAF1; --land-edge:#D6D2DF;
 }
@@ -43,7 +44,7 @@ button { font-family: inherit; }
 .pbar .sp { flex: 1; }
 .ktag { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-11); font-weight: 600; line-height: 1.5; border-radius: var(--r-pill); padding: 1px 9px; white-space: nowrap; border: 1px solid transparent; }
 .ktag .d { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
-.ktag.k-look { background: var(--need-bg); color: var(--ink); border-color: var(--need-line); }
+.ktag.k-look { background: var(--need-bg); color: var(--need); border-color: var(--need); font-size: var(--fs-12); padding: 2px 10px; }
 .ktag.k-look .d { background: var(--need); }
 .ktag.k-edit { background: var(--purple-050); color: var(--purple-600); }
 
@@ -126,7 +127,7 @@ select.ksel { height: 30px; font: inherit; font-size: var(--fs-125); padding: 0 
 .kstat .ic svg { width: 15px; height: 15px; }
 .kstat .val { font-size: 22px; font-weight: 600; letter-spacing: -.02em; line-height: 1.2; font-variant-numeric: tabular-nums lining-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .kstat .val small { font-size: var(--fs-12); color: var(--ink-3); font-weight: 500; margin-left: 3px; letter-spacing: 0; }
-.kstat .foot { font-size: var(--fs-115); color: var(--ink-3); border-top: 1px solid var(--line); padding-top: 6px; margin-top: 2px; }
+.kstat .foot { font-size: var(--fs-12); color: var(--ink-2); border-top: 1px solid var(--line); padding-top: 6px; margin-top: 2px; line-height: 1.4; }
 
 .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 14px; align-items: start; }
 @media (max-width: 1240px) { .cols { grid-template-columns: minmax(0, 1fr); } }
@@ -142,26 +143,27 @@ select.ksel { height: 30px; font: inherit; font-size: var(--fs-125); padding: 0 
 /* map */
 .mapbox { position: relative; border-radius: var(--r-sm); overflow: hidden; background: var(--sea); border: 1px solid var(--line); }
 #map { width: 100%; height: auto; display: block; }
+#map * { vector-effect: non-scaling-stroke; }
 #map .land { fill: var(--land); stroke: var(--land-edge); stroke-width: .8; }
 #map .grat { fill: none; stroke: #EEEBF3; stroke-width: .7; }
-#map .site { cursor: pointer; stroke: #fff; stroke-width: 2.5; }
-#map .site:hover { stroke: var(--deep); }
+#map .site { cursor: pointer; stroke: #fff; stroke-width: 1.5; }
+#map .site:hover { stroke: var(--ink); }
 #map .site.off { display: none; }
-#map .sel-ring { fill: none; stroke: var(--purple-600); stroke-width: 3; }
-#map .leader { stroke: var(--ink-3); stroke-width: 1.5; }
+#map .sel-ring { fill: none; stroke: var(--ink); stroke-width: 2; }
+#map .leader { stroke: var(--ink-3); stroke-width: 1; }
 #map .leader.off { display: none; }
 #map .true-pt { fill: var(--ink-3); }
 #map .true-pt.off { display: none; }
-.mapsel { position: absolute; left: 12px; top: 12px; display: flex; align-items: center; gap: 10px; background: var(--deep); color: #fff; padding: 7px 12px; border-radius: var(--r-sm); box-shadow: var(--sh-2); font-size: var(--fs-11); max-width: calc(100% - 24px); }
+.mapsel { position: absolute; left: 12px; top: 12px; display: flex; align-items: center; gap: 10px; background: var(--ink); color: #fff; padding: 5px 10px; pointer-events: none; white-space: nowrap; border-radius: var(--r-sm); box-shadow: var(--sh-2); font-size: var(--fs-11); max-width: calc(100% - 24px); }
 .mapsel b { display: block; font-size: var(--fs-125); font-weight: 600; }
 .mapnote { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r-sm); box-shadow: var(--sh-2); padding: 10px 14px; font-size: var(--fs-125); color: var(--ink); max-width: calc(100% - 32px); text-align: center; }
 .mapnote button { margin-top: 6px; }
 .kbtn { height: 30px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: var(--r-sm); background: var(--surface); font: inherit; font-size: var(--fs-12); font-weight: 600; color: var(--purple-600); cursor: pointer; }
 .kbtn:hover { background: var(--purple-050); }
-.mapsel span { color: var(--purple-200); }
+.mapsel span { color: #D9D6E0; }
 .legend { margin-top: 8px; display: flex; align-items: center; gap: 6px 12px; font-size: var(--fs-11); color: var(--ink-2); flex-wrap: wrap; }
 .legend .bands { display: flex; gap: 2px 8px; flex-wrap: wrap; }
-.legend .bands span { display: inline-flex; align-items: center; gap: 4px; font-family: var(--mono); font-size: var(--fs-105); color: var(--ink-2); }
+.legend .bands span { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; font-size: var(--fs-11); color: var(--ink-2); }
 .legend .bands i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 .legend .mono { color: var(--ink-3); }
 .tview { margin-top: 10px; }
@@ -169,26 +171,30 @@ select.ksel { height: 30px; font: inherit; font-size: var(--fs-125); padding: 0 
 
 /* ranking */
 .rank { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 1px; }
-.rank li { display: grid; grid-template-columns: minmax(0, 10.5rem) minmax(0, 1fr) 4.5rem; gap: 10px; align-items: center; padding: 4px 6px; border-radius: var(--r-xs); cursor: pointer; font-size: var(--fs-125); }
+.rank li { display: grid; grid-template-columns: minmax(0, 10.5rem) minmax(0, 1fr) 4.5rem; gap: 10px; align-items: center; padding: 2px 6px; line-height: 1.35; border-radius: var(--r-xs); cursor: pointer; font-size: var(--fs-125); }
 .rank li:hover { background: var(--bg-2); }
 .rank li.on { background: var(--purple-050); }
 .rank li.on .nm { color: var(--purple-600); font-weight: 600; }
 .rank .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rank .bar { height: 8px; background: var(--bg-2); border-radius: 0 var(--r-bar) var(--r-bar) 0; position: relative; }
 .rank .bar i { position: absolute; inset: 0 auto 0 0; border-radius: 0 var(--r-bar) var(--r-bar) 0; }
-.rank .val { text-align: right; font-family: var(--mono); font-size: var(--fs-12); color: var(--ink-2); }
+.rank .val { text-align: right; font-variant-numeric: tabular-nums; font-size: var(--fs-12); color: var(--ink-2); }
+.rank li.gap { cursor: default; color: var(--ink-3); padding: 0 6px; line-height: 1; }
+.rank li.gap:hover { background: none; }
+.rank li.more { cursor: default; padding-top: 4px; }
+.rank li.more:hover { background: none; }
 .empty { color: var(--ink-3); font-size: var(--fs-125); padding: 14px 4px; }
 
 /* site card */
-.site-h { padding: 14px 16px 0; display: grid; gap: 8px; }
+.site-h { padding: 12px 16px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
 .site-h h2 { margin: 0; font-size: var(--fs-16); font-weight: 600; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip { font-size: var(--fs-12); padding: 2px 10px; border-radius: var(--r-pill); background: var(--bg-2); color: var(--ink-2); }
+.chip { font-size: var(--fs-115); padding: 1px 9px; border-radius: var(--r-pill); background: var(--bg-2); color: var(--ink-2); }
 .chip b { color: var(--ink); font-weight: 600; }
-.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); padding: 10px 16px 0; overflow-x: auto; }
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); padding: 6px 16px 0; overflow-x: auto; }
 .tabs button { border: 0; background: none; padding: 8px 10px; cursor: pointer; color: var(--ink-2); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; font-size: var(--fs-13); }
 .tabs button[aria-selected="true"] { color: var(--purple-600); border-bottom-color: var(--purple); font-weight: 600; }
-.pane { padding: 14px 16px 18px; display: grid; gap: 22px; }
+.pane { padding: 14px 16px 18px; display: grid; gap: 22px; align-content: start; }
 .pane > *, .main > *, .cols > * { min-width: 0; }
 .pane h3 { margin: 0 0 6px; font-size: var(--fs-13); font-weight: 600; }
 .pane h3 .sub { font-weight: 400; color: var(--ink-3); font-size: var(--fs-12); }
@@ -199,10 +205,12 @@ select.ksel { height: 30px; font: inherit; font-size: var(--fs-125); padding: 0 
 .sc .t b { color: #D91877; font-weight: 600; }
 .sc .t i { font-style: normal; color: #0B41CD; font-weight: 600; }
 .sc .sub { font-size: var(--fs-12); color: var(--ink-3); }
-.sc svg .lab { font-family: var(--font, inherit); fill: var(--ink-2); font-size: 11.5px; }
-.sc svg .val { fill: var(--ink); }
-.sc svg .lab.sm { font-size: 11px; }
-.sc svg .lab.note2 { fill: var(--ink-3); font-size: 11px; }
+svg.chart .lab { font-family: var(--font); fill: var(--ink-2); font-size: 12px; }
+svg.chart .grp { font-family: var(--font); fill: var(--ink); font-size: 12px; font-weight: 600; }
+svg.chart .val { font-family: var(--font); fill: var(--ink); font-size: 12px; }
+svg.chart .lab.sm { font-size: 11px; }
+svg.chart .lab.note2 { fill: var(--ink-3); font-size: 11px; }
+.sc .why { font-size: var(--fs-12); color: var(--ink-2); background: var(--bg); border-radius: var(--r-xs); padding: 6px 9px; }
 .cmp { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: var(--fs-12); color: var(--ink-2); }
 .cmp select { height: 28px; }
 
@@ -215,7 +223,7 @@ thead th { font-size: var(--fs-11); font-weight: 600; color: var(--ink-3); verti
 thead th .k { display: inline-block; width: 10px; height: 3px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
 thead th small { display: block; font-weight: 400; }
 tbody th { font-weight: 400; text-align: left; color: var(--ink); }
-td.v { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+td.v { font-variant-numeric: tabular-nums; }
 td .rg { display: block; font-size: var(--fs-11); color: var(--ink-3); }
 td .up { color: var(--pink-600); font-weight: 500; }
 .ph { display: inline-block; font-size: var(--fs-105); font-weight: 600; color: var(--ink); background: var(--need-bg); border: 1px solid var(--need-line); border-radius: var(--r-pill); padding: 0 7px; margin-left: 6px; vertical-align: 1px; white-space: nowrap; }
@@ -238,7 +246,7 @@ td .up { color: var(--pink-600); font-weight: 500; }
 
 /* charts */
 svg.chart { width: 100%; height: auto; display: block; overflow: visible; }
-svg.chart text { font-family: var(--mono); font-size: 11px; fill: var(--ink-3); }
+svg.chart text { font-family: var(--font); font-variant-numeric: tabular-nums; font-size: 11px; fill: var(--ink-3); }
 svg.chart .axis { stroke: var(--line-2); }
 svg.chart .gridl { stroke: var(--line); }
 .series-key { display: flex; gap: 14px; flex-wrap: wrap; font-size: var(--fs-12); color: var(--ink-2); margin-top: 4px; }
@@ -249,11 +257,11 @@ svg.chart .gridl { stroke: var(--line); }
 .hmleg .ramp { display: flex; width: 140px; height: 8px; border-radius: 4px; overflow: hidden; }
 .hmleg .ramp i { flex: 1; }
 
-.tip { position: fixed; z-index: 20; pointer-events: none; background: var(--deep); color: #fff; padding: 6px 10px; border-radius: var(--r-xs); font-size: var(--fs-12); max-width: 260px; line-height: 1.4; display: none; box-shadow: var(--sh-2); }
+.tip { position: fixed; z-index: 20; pointer-events: none; background: var(--ink); color: #fff; padding: 6px 10px; border-radius: var(--r-xs); font-size: var(--fs-12); max-width: 260px; line-height: 1.4; display: none; box-shadow: var(--sh-2); }
 .about { display: grid; gap: 10px; max-width: 78ch; }
 .about p, .about li { color: var(--ink-2); }
 .about ul { margin: 0; padding-left: 18px; display: grid; gap: 5px; }
-.sidefoot { font-size: var(--fs-11); color: var(--ink-3); border-top: 1px solid var(--line); margin-top: 14px; padding-top: 10px; display: grid; gap: 6px; line-height: 1.4; }
+.sidefoot { font-size: var(--fs-115); color: var(--ink-2); border-top: 1px solid var(--line); margin-top: 14px; padding-top: 10px; display: grid; gap: 6px; line-height: 1.4; }
 .sidefoot p { margin: 0; }
 .sidefoot b { color: var(--ink-2); font-weight: 600; }
 
@@ -274,11 +282,11 @@ svg.chart .gridl { stroke: var(--line); }
   .cols > .card, .leftcol > .card { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
   .phead { padding-top: 10px; }
   .cbody { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; padding-top: 8px; padding-bottom: 10px; }
-  .mapbox { flex: 1 1 auto; min-height: 140px; }
+  .mapbox { flex: 1 1 0; min-height: 160px; }   /* the map takes the space the ranking leaves */
   #map { height: 100%; }
-  .tview { flex: 0 1 auto; max-height: 32%; min-height: 0; overflow-y: auto; margin-top: 6px; }
-  .site-h { padding-top: 10px; gap: 6px; }
-  .tabs { padding-top: 6px; }
+  .tview { flex: 0 1 auto; max-height: 55%; min-height: 0; overflow-y: auto; margin-top: 6px; }   /* fits without scrolling unless the window is short */
+  .site-h { padding-top: 10px; }
+  .tabs { padding-top: 4px; }
   .phead, .site-h, .tabs, .legend { flex: none; }
   .vbar .cnt { display: none; }   /* the filter summary already shows the count */
   .pane { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
@@ -362,7 +370,7 @@ svg.chart .gridl { stroke: var(--line); }
         <div class="site-h"><h2 id="s-name"></h2><div class="chips" id="s-chips"></div></div>
         <div class="tabs" role="tablist" aria-label="Site detail">
           <button role="tab" data-tab="summary">Summary</button>
-          <button role="tab" data-tab="data">Data summary</button>
+          <button role="tab" data-tab="data">Indicators</button>
           <button role="tab" data-tab="temp">Temperature</button>
           <button role="tab" data-tab="stress">Heat stress</button>
           <button role="tab" data-tab="about">About the data</button>
@@ -385,7 +393,7 @@ const PROFILES = DATA.meta.worker_profiles, DEF_PROF = DATA.meta.default_profile
 const PROF = () => PROFILES[S.prof] || PROFILES[DEF_PROF];
 const PSUF = () => S.prof === DEF_PROF || !PROFILES[S.prof] ? "" : "_" + S.prof;
 const WR = () => PROF().ref, WA = () => PROF().acc;
-const S = { scen: "ssp245", period: "2050", yt: "typical", layer: "worker_days", site: null, tab: "summary", sel: null, open: {}, expo: "in", hall: "0", prof: DATA.meta.default_profile, cmpA: null, cmpB: null };
+const S = { scen: "ssp245", period: "2050", yt: "typical", layer: "worker_days", site: null, tab: "summary", sel: null, open: {}, expo: "in", hall: "0", prof: DATA.meta.default_profile, cmpA: null, cmpB: null, rankAll: false };
 /* exposure -> metric keys. Indoor: no solar radiation (shaded WBGT, UTCI with radiant temperature = air), hall at outdoor temperature plus the chosen heat gain. */
 const EXPO = () => {
   const x = S.expo === "sun" ? "sun" : S.hall === "0" ? "shade" : "in" + S.hall, tag = S.expo === "sun" ? "sun" : "in" + S.hall, P = PSUF();
@@ -448,12 +456,15 @@ const LAYER = {
   warming: { unit: "°C", d: 1, plus: true, short: "Warming", breaks: [0.5, 0.8, 1.1, 1.4, 1.7] },
 };
 const lv = (v, info) => v == null ? "–" : (info.plus ? sgn(v, info.d) : fmt(v, info.d));
+/* "1 day", "2 days" */
+const lu = (v, info) => info.unit === "days" && v != null && Math.round(Math.abs(v)) === 1 ? "day" : info.unit;
 function band(v, info) { if (v == null) return -1; let i = 0; while (i < info.breaks.length && v >= info.breaks[i]) i++; return i; }
 function colorFor(v, info) { const i = band(v, info); return i < 0 ? "#C9C4D3" : RISK[i]; }
 function bandLabels(info) { const b = info.breaks, u = info.d ? 1 : 0, f = x => (info.plus ? "+" : "") + fmt(x, u);
   return [`< ${f(b[0])}`, ...b.slice(0, -1).map((x, i) => `${f(x)}–${f(b[i + 1])}`), `≥ ${f(b[b.length - 1])}`]; }
 const inView = () => SITES.filter(s => S.sel.has(s.id));
 const POS = {};   /* displayed marker positions (after spreading overlaps) */
+let MAPK = 1;     /* map units per screen pixel */
 
 /* ---------- filters ---------- */
 function countries() { const c = {}; for (const s of SITES) (c[s.country] ||= []).push(s); return Object.entries(c).sort((a, b) => b[1].length - a[1].length); }
@@ -537,16 +548,20 @@ function renderStrip() {
 
 /* ---------- map ---------- */
 function drawMap() {
-  const svg = $("#map"), bm = DATA.basemap;
+  const svg = $("#map"), bm = DATA.basemap, box = $(".mapbox");
   const xs = SITES.map(s => s.x), ys = SITES.map(s => s.y);
-  /* landscape frame (1.3 : 1) around the sites: the card keeps its width but is shorter */
-  const yA = Math.min(...ys) - 70, yB = Math.max(...ys) + 45, fh = yB - yA, fw = fh * 1.3;
-  const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
-  svg.setAttribute("viewBox", `${(cx - fw / 2).toFixed(1)} ${yA.toFixed(1)} ${fw.toFixed(1)} ${fh.toFixed(1)}`);
-  /* Nearby sites (e.g. Getafe / Illescas, Nantes / Saint-Nazaire, the Hamburg cluster) overlap at
-     this scale. Nudge markers apart until none overlaps, so every site can be clicked; a short
-     leader line and dot keep the true location visible. */
-  const R = 14, GAP = 3;
+  /* frame: the sites' bounding box with a small margin, widened or heightened to the shape of the map box,
+     so the map fills its card and stays as close in as the sites allow (one-screen layout); elsewhere 1.3 : 1 */
+  const fixed = matchMedia("(min-width: 1100px) and (min-height: 620px)").matches;
+  const bw = Math.max(box.clientWidth, 200), aspect = fixed ? bw / Math.max(box.clientHeight, 140) : 1.3;
+  let x0 = Math.min(...xs) - 30, y0 = Math.min(...ys) - 30, fw = Math.max(...xs) + 30 - x0, fh = Math.max(...ys) + 30 - y0;
+  if (fw / fh < aspect) { const nw = fh * aspect; x0 -= (nw - fw) / 2; fw = nw; } else { const nh = fw / aspect; y0 -= (nh - fh) / 2; fh = nh; }
+  svg.setAttribute("viewBox", `${x0.toFixed(1)} ${y0.toFixed(1)} ${fw.toFixed(1)} ${fh.toFixed(1)}`);
+  /* markers are 8 px in radius on screen at any zoom (k = map units per screen pixel). Nearby sites
+     (Getafe / Illescas, Nantes / Saint-Nazaire, the Hamburg cluster) are nudged apart until none overlaps,
+     so every site can be clicked; a short leader line and dot keep the true location visible. */
+  const k = fw / bw, R = 8 * k, GAP = 2 * k;
+  MAPK = k;
   for (const s of SITES) POS[s.id] = { x: s.x, y: s.y };
   for (let it = 0; it < 200; it++) {
     let moved = false;
@@ -562,14 +577,14 @@ function drawMap() {
   }
   let h = `<path class="grat" d="${bm.graticule}"/>` + bm.land.map(d => `<path class="land" d="${d}"/>`).join("");
   h += SITES.filter(s => Math.hypot(POS[s.id].x - s.x, POS[s.id].y - s.y) > 1).map(s =>
-    `<line class="leader" data-id="${s.id}" x1="${s.x}" y1="${s.y}" x2="${POS[s.id].x.toFixed(1)}" y2="${POS[s.id].y.toFixed(1)}"/><circle class="true-pt" data-id="${s.id}" cx="${s.x}" cy="${s.y}" r="3"/>`).join("");
-  h += `<circle id="ring" class="sel-ring" r="22"/><g id="sites">` + SITES.map(s => `<circle class="site" data-id="${s.id}" cx="${POS[s.id].x.toFixed(1)}" cy="${POS[s.id].y.toFixed(1)}" r="${R}" tabindex="0" role="button" aria-label="${s.name}"/>`).join("") + `</g>`;
+    `<line class="leader" data-id="${s.id}" x1="${s.x}" y1="${s.y}" x2="${POS[s.id].x.toFixed(1)}" y2="${POS[s.id].y.toFixed(1)}"/><circle class="true-pt" data-id="${s.id}" cx="${s.x}" cy="${s.y}" r="${(2.5 * k).toFixed(2)}"/>`).join("");
+  h += `<circle id="ring" class="sel-ring" r="${(R + 4 * k).toFixed(2)}"/><g id="sites">` + SITES.map(s => `<circle class="site" data-id="${s.id}" cx="${POS[s.id].x.toFixed(1)}" cy="${POS[s.id].y.toFixed(1)}" r="${R.toFixed(2)}" tabindex="0" role="button" aria-label="${s.name}"/>`).join("") + `</g>`;
   svg.innerHTML = h;
   for (const c of $$("#sites circle")) {
     const id = c.dataset.id;
     c.addEventListener("click", () => selectSite(id));
     c.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectSite(id); } });
-    hover(c, () => { const info = LAYER[S.layer]; return `<b>${byId[id].name}</b><br>${info.short}: ${lv(layerVal(id), info)} ${info.unit}<br><span style="opacity:.7">Click for the site card</span>`; });
+    hover(c, () => { const info = LAYER[S.layer]; return `<b>${byId[id].name}</b><br>${info.short}: ${lv(layerVal(id), info)} ${lu(layerVal(id), info)}<br><span style="opacity:.7">Click for the site card</span>`; });
   }
 }
 function updateMap() {
@@ -581,21 +596,42 @@ function updateMap() {
   ring.style.display = s && S.sel.has(s.id) ? "" : "none";
   if (s) { ring.setAttribute("cx", POS[s.id].x); ring.setAttribute("cy", POS[s.id].y); }
   for (const el of $$("#map .leader, #map .true-pt")) el.classList.toggle("off", !S.sel.has(el.dataset.id));
-  $("#mapsel").hidden = !s;
-  if (s) $("#mapsel").innerHTML = `<div><b>${s.name}</b><span>${info.short}: ${lv(layerVal(s.id), info)} ${info.unit}</span></div>`;
+  $("#mapsel").hidden = !s || !S.sel.has(s.id);
+  if (s) $("#mapsel").innerHTML = `<div><b>${s.name}</b><span>${info.short}: ${lv(layerVal(s.id), info)} ${lu(layerVal(s.id), info)}</span></div>`;
+  placeMapsel();
   const changeToday = S.period === "hist" && info.plus;
   $("#mapnote").hidden = !changeToday;
   if (changeToday) {
     $("#mapnote").innerHTML = `<b>${info.short}</b> compares the future with today, so there is nothing to show for today.<br><button type="button" class="kbtn" id="go2050">Show 2050</button>`;
     $("#go2050").addEventListener("click", () => $(`#ctl-period button[data-v="2050"]`).click());
   }
-  $("#legend").innerHTML = `<span>${info.short} (${info.unit})</span><span class="bands">${bandLabels(info).map((l, i) => `<span><i style="background:${RISK[i]}"></i>${l}</span>`).join("")}</span>`;
+  /* legend: name the indicator once ("Worker heat-safety days a year", not "... days (days)") */
+  const legName = info.unit === "days" ? `${info.short} a year` : `${info.short} (${info.unit})`;
+  $("#legend").innerHTML = `<span>${legName}</span><span class="bands">${bandLabels(info).map((l, i) => `<span><i style="background:${RISK[i]}"></i>${l}</span>`).join("")}</span>`;
   const rows = inView().map(x => ({ s: x, v: layerVal(x.id) })).sort((a, b) => (b.v ?? -1e9) - (a.v ?? -1e9));
   const rmx = Math.max(...rows.map(r => r.v ?? 0), 1e-9);
-  $("#rank").innerHTML = changeToday ? `<li class="empty">Choose 2040 or 2050 to rank sites by ${info.short.toLowerCase()}.</li>` : rows.length ? rows.map(r => `<li data-id="${r.s.id}" class="${r.s.id === S.site ? "on" : ""}" tabindex="0">
-      <span class="nm">${r.s.name}</span><span class="bar"><i style="width:${r.v == null ? 0 : Math.max(1, 100 * Math.max(0, r.v) / rmx)}%;background:${colorFor(r.v, info)}"></i></span>
-      <span class="val">${lv(r.v, info)}</span></li>`).join("") : `<li class="empty">No sites in view. Tick a country or site in the filters.</li>`;
-  for (const li of $$("#rank li[data-id]")) { li.addEventListener("click", () => selectSite(li.dataset.id)); li.addEventListener("keydown", e => { if (e.key === "Enter") selectSite(li.dataset.id); }); }
+  /* top 5 plus the selected site (no scrolling inside the card); "Show all" lists every site */
+  const TOP = 5, at = rows.findIndex(r => r.s.id === S.site), cut = !S.rankAll && rows.length > TOP + 1;
+  const shown = cut ? [...rows.slice(0, TOP).map((r, i) => [r, i]), ...(at >= TOP ? [null, [rows[at], at]] : [])] : rows.map((r, i) => [r, i]);
+  const li = ([r, i]) => `<li data-id="${r.s.id}" class="${r.s.id === S.site ? "on" : ""}" tabindex="0">
+      <span class="nm">${i + 1}. ${r.s.name}</span><span class="bar"><i style="width:${r.v == null ? 0 : Math.max(1, 100 * Math.max(0, r.v) / rmx)}%;background:${colorFor(r.v, info)}"></i></span>
+      <span class="val">${lv(r.v, info)}</span></li>`;
+  const more = rows.length > TOP + 1 ? `<li class="more"><button type="button" class="lnk" id="rankall">${S.rankAll ? `Show top ${TOP}` : `Show all ${rows.length}`}</button></li>` : "";
+  $("#rank").innerHTML = changeToday ? `<li class="empty">Choose 2040 or 2050 to rank sites by ${info.short.toLowerCase()}.</li>` : rows.length
+    ? shown.map(x => x ? li(x) : `<li class="gap" aria-hidden="true">⋯</li>`).join("") + more : `<li class="empty">No sites in view. Tick a country or site in the filters.</li>`;
+  for (const el of $$("#rank li[data-id]")) { el.addEventListener("click", () => selectSite(el.dataset.id)); el.addEventListener("keydown", e => { if (e.key === "Enter") selectSite(el.dataset.id); }); }
+  const ra = $("#rankall"); if (ra) ra.addEventListener("click", () => { S.rankAll = !S.rankAll; updateMap(); });
+}
+/* the selected site's label sits beside its marker (flips to the left near the right edge) */
+function placeMapsel() {
+  const el = $("#mapsel"), box = $(".mapbox"), c = $(`#sites circle[data-id="${S.site}"]`);
+  if (el.hidden || !c) return;
+  const b = box.getBoundingClientRect(), r = c.getBoundingClientRect();
+  const cx = r.left + r.width / 2 - b.left, cy = r.top + r.height / 2 - b.top, gap = r.width / 2 + 10;
+  let x = cx + gap;
+  if (x + el.offsetWidth > b.width - 6) x = cx - gap - el.offsetWidth;
+  el.style.left = `${Math.max(6, x)}px`;
+  el.style.top = `${Math.max(6, Math.min(b.height - el.offsetHeight - 6, cy - el.offsetHeight / 2))}px`;
 }
 
 /* ---------- site card ---------- */
@@ -631,90 +667,105 @@ function cell(id, m, col, d) {
 }
 function thead(cols, first) { return `<thead><tr><th>${first}</th>${cols.map(c => `<th><span class="k" style="background:${c.color}"></span>${c.label}<small>${c.sub}</small></th>`).join("")}</tr></thead>`; }
 
-/* ---------- Summary tab: story cards ---------- */
-/* the nine years both story cards use: typical year, hot reference year and extreme reference year
-   (D62), today / 2040 / 2050. key = TMY chart series (comfort card); kpi = headline value (bar card) */
+/* ---------- Summary tab: story card ---------- */
+/* the nine years the story card and the comfort chart use: typical year, hot reference year and extreme
+   reference year (D62), today / 2040 / 2050. key = TMY chart series (comfort chart); kpi = headline value
+   (bar chart). Colour = period (today grey, 2040 teal, 2050 ochre: never the map's risk colours or the
+   purple UI accent); within a period, darker = hotter year. */
 function storyYears() {
-  const sc = S.scen;
+  const sc = S.scen, ey = byId[S.site].extreme_year, hy = byId[S.site].hot_year;
   return [
-    { key: "hist", kpi: "hist", short: "Today · typical", name: "Today, typical year", color: "var(--c-today)" },
-    { key: "hotref", kpi: "hotref", short: "Today · hot year", name: "Today, hot year", color: "var(--c-hot)" },
-    { key: "extref", kpi: "extref", short: "Today · extreme", name: "Today, extreme year", color: "var(--c-ext)" },
-    { key: `${sc}_2040`, kpi: `${sc}_2040_typical`, short: "2040 · typical", name: "2040, typical year", color: "var(--c-2040)" },
-    { key: `hot_${sc}_2040`, kpi: `hotref_${sc}_2040`, short: "2040 · hot year", name: "2040, hot year", color: "#062A86" },
-    { key: `ext_${sc}_2040`, kpi: `extref_${sc}_2040`, short: "2040 · extreme", name: "2040, extreme year", color: "#021552" },
-    { key: `${sc}_2050`, kpi: `${sc}_2050_typical`, short: "2050 · typical", name: "2050, typical year", color: "var(--c-2050)" },
-    { key: `hot_${sc}_2050`, kpi: `hotref_${sc}_2050`, short: "2050 · hot year", name: "2050, hot year", color: "#A3005A" },
-    { key: `ext_${sc}_2050`, kpi: `extref_${sc}_2050`, short: "2050 · extreme", name: "2050, extreme year", color: "#5C0033" }];
+    { key: "hist", kpi: "hist", grp: "Today", sub: "typical", name: "Today, typical year", color: "var(--c-today)" },
+    { key: "hotref", kpi: "hotref", grp: "Today", sub: `hot year (${hy})`, name: "Today, hot year", color: "var(--c-hot)" },
+    { key: "extref", kpi: "extref", grp: "Today", sub: `extreme (${ey})`, name: "Today, extreme year", color: "var(--c-ext)" },
+    { key: `${sc}_2040`, kpi: `${sc}_2040_typical`, grp: "2040", sub: "typical", name: "2040, typical year", color: "var(--c-2040)" },
+    { key: `hot_${sc}_2040`, kpi: `hotref_${sc}_2040`, grp: "2040", sub: `hot year (${hy})`, name: "2040, hot year", color: "var(--c-2040-hot)" },
+    { key: `ext_${sc}_2040`, kpi: `extref_${sc}_2040`, grp: "2040", sub: `extreme (${ey})`, name: "2040, extreme year", color: "var(--c-2040-ext)" },
+    { key: `${sc}_2050`, kpi: `${sc}_2050_typical`, grp: "2050", sub: "typical", name: "2050, typical year", color: "var(--c-2050)" },
+    { key: `hot_${sc}_2050`, kpi: `hotref_${sc}_2050`, grp: "2050", sub: `hot year (${hy})`, name: "2050, hot year", color: "var(--c-2050-hot)" },
+    { key: `ext_${sc}_2050`, kpi: `extref_${sc}_2050`, grp: "2050", sub: `extreme (${ey})`, name: "2050, extreme year", color: "var(--c-2050-ext)" }];
 }
 const futPer = () => S.period === "hist" ? "2050" : S.period;
 /* keep a picked year when the scenario changes; empty = follow the View bar */
 const cmpKey = (k, auto) => { const v = k ? k.replace(/ssp\d+/, S.scen) : auto; return storyYears().some(o => o.key === v) ? v : auto; };
 /* "Moderate heat" -> ["Moderate", "heat stress"]; "No thermal stress" -> ["No thermal", "stress"] */
 const utciWords = n => { const w = n.split(" "), last = w.pop(); return last === "stress" ? [w.join(" "), "stress"] : [w.join(" "), `${last} stress`]; };
+/* drawing width (CSS px) for charts in the site card: SVGs are drawn at their real size and never scaled up,
+   so their text matches the rest of the page however wide the panel is */
+const paneW = (inset = 0) => Math.max(300, Math.floor(($("#pane") ? $("#pane").clientWidth : 640) - 34 - inset));
+const plural = (n, one, many) => `${fmt(n)} ${Math.round(n) === 1 ? one : many}`;
 function renderStory() {
-  const id = S.site, sc = S.scen, T = DATA.tmy[id], K = DATA.kpi[id], E = EXPO(), hy = byId[id].hot_year, per = futPer();
-  const sh = E.byShift;
-  const sum = a => a.reduce((x, y) => x + y, 0), YRS = storyYears(), W0 = 560;
-  /* story 1: working hours above the headline WBGT reference split by shift. Totals are the multi-year values of the Data summary tab;
+  const id = S.site, sc = S.scen, K = DATA.kpi[id], E = EXPO(), s = byId[id], hy = s.hot_year, ey = s.extreme_year, per = futPer();
+  const sh = E.byShift, YRS = storyYears(), W0 = paneW(30);
+  /* working hours above the headline WBGT reference split by shift. Totals are the multi-year values of the Indicators tab;
      the early/late split follows the per-shift values of the same year. Night (22–06) lies outside the working hours. */
   const pick = (m, k) => k === "hist" ? K[m].hist.typical : k === "hotref" || k === "extref" ? K[m][k] : K[m][k][0];
   const rows = YRS.map(y => {
     const tot = pick(E.hours, y.kpi), e = pick(sh("early"), y.kpi), l = pick(sh("late"), y.kpi), f = e + l > 0 ? e / (e + l) : 0;
     return { ...y, early: tot * f, late: tot * (1 - f), night: pick(sh("night"), y.kpi), tot };
   });
-  const SHADE = { early: 0.45, late: 1, night: 0.7 }, SHN = { early: "Early shift 06–14", late: "Late shift 14–22", night: "Night shift 22–06" };
-  const lw = 150, W = W0 - lw - 96, rh = 22, gap = 8, bh = 12;
+  const SHADE = { early: 0.5, late: 1, night: 0.15 }, SHN = { early: "Early shift 06–14", late: "Late shift 14–22", night: "Night shift 22–06" };
+  /* rows grouped by period: period name once, then typical / hot / extreme as sub-labels */
+  const gw = 46, lw = 150, rh = 20, gap = 8, bh = 11, W = Math.max(80, W0 - lw - 112);
   const mx = Math.max(...rows.map(r => r.tot + r.night), 1), yOf = i => i * rh + Math.floor(i / 3) * gap;
-  let o = `<svg class="chart" viewBox="0 0 ${W0} ${yOf(rows.length - 1) + rh}" role="img" aria-label="Working hours above the WBGT limit by shift">`;
+  let o = `<svg class="chart" width="${W0}" viewBox="0 0 ${W0} ${yOf(rows.length - 1) + rh}" style="max-width:${W0}px" role="img" aria-label="Working hours above the WBGT limit by shift">`;
   rows.forEach((r, i) => {
     const y = yOf(i); let x = lw;
-    o += `<text class="lab" x="0" y="${y + 14}">${r.short}</text>`;
-    for (const s of ["early", "late", "night"]) {
-      const len = W * r[s] / mx;
-      if (len > 0) o += `<rect x="${x}" y="${y + 4}" width="${Math.max(len - 1, 0.5)}" height="${bh}" rx="2" fill="${r.color}" fill-opacity="${SHADE[s]}" ${s === "night" ? `stroke="${r.color}" stroke-width="1"` : ""} data-t="${r.name}<br>${SHN[s]}: ${fmt(r[s])} h"/>`;
+    if (i % 3 === 0) o += `<text class="grp" x="0" y="${y + 14}">${r.grp}</text>`;
+    o += `<text class="lab" x="${gw}" y="${y + 14}">${r.sub}</text>`;
+    for (const k of ["early", "late", "night"]) {
+      const len = W * r[k] / mx;
+      if (len > 0) o += `<rect x="${x}" y="${y + 5}" width="${Math.max(len - 1, 0.5)}" height="${bh}" rx="2" fill="${r.color}" fill-opacity="${SHADE[k]}" ${k === "night" ? `stroke="${r.color}" stroke-width="1"` : ""} data-t="${r.name}<br>${SHN[k]}: ${fmt(r[k])} h"/>`;
       x += len;
     }
     o += `<text class="val" x="${x + 6}" y="${y + 14}">${fmt(r.tot)} h${r.night >= 0.5 ? `<tspan style="fill:var(--ink-3)"> +${fmt(r.night)} night</tspan>` : ""}</text>`;
   });
   o += `</svg>`;
-  const swatch = (op, extra = "") => `<i style="background:var(--c-2050);opacity:${op};${extra}"></i>`;
-  const keys1 = `<div class="keys"><span>${swatch(0.45)}Early 06–14</span><span>${swatch(1)}Late 14–22</span><span>${swatch(0.7, "outline:1px solid var(--c-2050)")}Night 22–06 (outside working hours, not in the total)</span><span>Bar colour = year, as in the other charts</span></div>`;
+  /* the shift legend uses neutral greys: bar colour means the period, the shade means the shift */
+  const swatch = (op, extra = "") => `<i style="background:rgba(74,77,87,${op});${extra}"></i>`;
+  const keys1 = `<div class="keys"><span>${swatch(0.5)}Early 06–14</span><span>${swatch(1)}Late 14–22</span><span>${swatch(0.15, "outline:1px solid #4A4D57")}Night 22–06 (outside working hours, not in the total)</span><span>Colour = period: today grey, 2040 teal, 2050 ochre; darker = hotter year</span></div>`;
   const wd = K[E.days], tNow = wd.hist.typical, hNow = wd.hotref, tF = wd[`${sc}_${per}_typical`][0], hF = wd[`hotref_${sc}_${per}`][0];
-  const xNow = wd.extref, xF = wd[`extref_${sc}_${per}`][0], ey = byId[id].extreme_year, sp = K[E.longest], spF = sp[`extref_${sc}_${per}`][0];
+  const xNow = wd.extref, xF = wd[`extref_${sc}_${per}`][0], spF = K[E.longest][`extref_${sc}_${per}`][0];
   const rF = rows.find(r => r.kpi === `${sc}_${per}_typical`), latePct = rF.tot ? Math.round(100 * rF.late / rF.tot) : 0;
   const none = Math.max(tF, hF, hNow, xF, xNow, ...rows.map(r => r.tot)) < 0.5;
-  const story1 = `<div class="sc"><div class="t">${none
-      ? `<i>No working hour goes above WBGT ${WR()} °C</i> today or by 2050, even in a hot year (${E.label}, ${profText()}).${S.expo === "in" && S.hall !== "4" ? " A larger hall heat gain (View bar) shows how sensitive this is." : ""}`
-      : `By ${per} a typical year brings <b>${fmt(tF)} worker heat-safety days</b> (today ${fmt(tNow)}); a hot year would bring <b>${fmt(hF)}</b> (today ${fmt(hNow)}),
-      and an extreme year like ${ey} <b>${fmt(xF)}</b> (today ${fmt(xNow)})${spF >= 2 ? `, with up to <b>${fmt(spF)} working days in a row</b> over the limit` : ""}.
-      ${rF.tot >= 0.5 ? `<b>${latePct} %</b> of the working hours above the limit fall on the late shift.` : `No working hours exceed the limit in a typical ${per} year.`}`}</div>
-    <div class="sub">Working hours above WBGT ${WR()} °C (ISO 7243: ${profText()}) · ${E.label}</div>${o}${keys1}</div>`;
-  /* story 2: comfort shift, one column per UTCI band, year B minus year A */
+  const headline = none
+    ? `<i>No working hour goes above WBGT ${WR()} °C</i> today or by 2050, even in a hot or extreme year (${E.label}, ${profText()}).${S.expo === "in" && S.hall !== "4" ? " A larger hall heat gain (View bar) shows how sensitive this is." : ""}`
+    : `By ${per}, a typical year brings <b>${plural(tF, "worker heat-safety day", "worker heat-safety days")}</b> (today ${fmt(tNow)}).
+       A hot year brings <b>${fmt(hF)}</b> (today ${fmt(hNow)}); an extreme year, with ${ey} weather, brings <b>${fmt(xF)}</b> (today ${fmt(xNow)})${spF >= 2 ? `, up to <b>${fmt(spF)} working days in a row</b>` : ""}.
+       ${rF.tot >= 0.5 ? `<b>${latePct} %</b> of the working hours above the limit fall on the late shift.` : ""}`;
+  /* the extreme year can show fewer hours than the hot year: say why on screen */
+  const lower = [0, 3, 6].some(i => rows[i + 2].tot + 0.5 < rows[i + 1].tot);
+  const why = !lower ? "" : `<div class="why"><b>Why can the extreme year show fewer hours?</b> ${ey} is the site's hottest year since ${E0} in today's climate ${s.extreme_rule.startsWith("dry")
+      ? "on <i>dry</i> heat (most hours above 30 °C, longest hot spells), because humid heat is rare here"
+      : "on humid heat over the whole year (indoor WBGT degree-hours)"}. Working hours above WBGT ${WR()} °C depend on humidity, the exposure and the worker profile, so the hot year (${hy}) can still have more of them.</div>`;
+  return `<div class="story"><div class="sc"><div class="t">${headline}</div>
+    <div class="sub">Working hours above WBGT ${WR()} °C by shift; a heat-safety day is a day with at least one of these hours · ISO 7243: ${profText()} · ${E.label}</div>${o}${keys1}${why}</div></div>
+    <p class="note">${SCEN[sc]} · median of ${DATA.meta.models.length} climate models · typical = median of ${B0}–${B1}; hot year = ${hy} as it happened; extreme year = ${ey} in today's climate (About the data explains these) · working hours ${DATA.meta.operating_hours.start}–${DATA.meta.operating_hours.end} local · full table in Indicators, comfort shift in Heat stress.</p>`;
+}
+/* comfort shift (Heat stress tab): one column per UTCI band, year B minus year A, compact */
+function comfortShift() {
+  const id = S.site, sc = S.scen, T = DATA.tmy[id], E = EXPO(), per = futPer(), YRS = storyYears(), W0 = paneW();
   const a = cmpKey(S.cmpA, "hist"), b = cmpKey(S.cmpB, `${S.yt === "hot" ? "hot_" : EXT() ? "ext_" : ""}${sc}_${per}`);
   const ub = S.expo === "sun" ? "utci_bands_sun" : `utci_bands_${E.tag}`;
   const A = T[a][ub], B = T[b][ub], d = B.map((v, i) => v - A[i]);
-  const dm = Math.max(...d.map(Math.abs), 1), cw = W0 / 9, bw = 30, H = 46, top = 20, bl = top + H, kb = top + 2 * H + 22;
-  let o2 = `<svg class="chart" viewBox="0 0 ${W0} ${kb + 40}" role="img" aria-label="Change in hours per UTCI thermal stress band">`;
-  o2 += `<line x1="0" x2="${W0}" y1="${bl}" y2="${bl}" stroke="var(--line-2)"/>`;
+  const dm = Math.max(...d.map(Math.abs), 1), cw = W0 / 9, bw = Math.min(30, cw - 10), H = 34, top = 16, bl = top + H, lb = top + 2 * H + 30;
+  let o = `<svg class="chart" width="${W0}" viewBox="0 0 ${W0} ${lb + 16}" style="max-width:${W0}px" role="img" aria-label="Change in hours per UTCI thermal stress band">`;
+  o += `<line x1="0" x2="${W0}" y1="${bl}" y2="${bl}" stroke="var(--line-2)"/>`;
   d.forEach((v, i) => {
     const len = Math.abs(v) / dm * H, cx = i * cw + cw / 2, x = cx - bw / 2, y = v >= 0 ? bl - len : bl, [w1, w2] = utciWords(UTCI[i][0]);
-    o2 += `<rect x="${x}" y="${y}" width="${bw}" height="${Math.max(len, 1)}" rx="2" fill="${UTCI[i][2]}" data-t="${w1} ${w2} (UTCI ${UTCI[i][1]})<br>${fmt(A[i])} → ${fmt(B[i])} h · ${sgn(v)} h"/>`;
-    o2 += `<text class="val" x="${cx}" y="${v >= 0 ? y - 5 : y + len + 13}" text-anchor="middle"${Math.round(v) === 0 ? ' style="fill:var(--ink-3)"' : ""}>${Math.round(v) === 0 ? "0" : sgn(v)}</text>`;
-    o2 += `<rect x="${cx - 5}" y="${kb}" width="10" height="10" rx="2" fill="${UTCI[i][2]}"/>`;
-    o2 += `<text class="lab sm" x="${cx}" y="${kb + 23}" text-anchor="middle">${w1}</text><text class="lab sm" x="${cx}" y="${kb + 36}" text-anchor="middle">${w2}</text>`;
+    o += `<rect x="${x}" y="${y}" width="${bw}" height="${Math.max(len, 1)}" rx="2" fill="${UTCI[i][2]}" data-t="${w1} ${w2} (UTCI ${UTCI[i][1]})<br>${fmt(A[i])} → ${fmt(B[i])} h · ${sgn(v)} h"/>`;
+    o += `<text class="val" x="${cx}" y="${v >= 0 ? y - 4 : y + len + 12}" text-anchor="middle"${Math.round(v) === 0 ? ' style="fill:var(--ink-3)"' : ""}>${Math.round(v) === 0 ? "0" : sgn(v)}</text>`;
+    o += `<text class="lab sm" x="${cx}" y="${lb}" text-anchor="middle">${w1}</text><text class="lab sm" x="${cx}" y="${lb + 13}" text-anchor="middle">${w2}</text>`;
   });
-  o2 += `<text class="lab note2" x="0" y="11">▲ more hours</text><text class="lab note2" x="0" y="${top + 2 * H + 6}">▼ fewer hours</text></svg>`;
-  const heat = sum(d.slice(5)), comf = d[3], yName = k => YRS.find(x => x.key === k).name;
+  o += `</svg>`;
+  const heat = d.slice(5).reduce((x, y) => x + y, 0), comf = d[3], yName = k => YRS.find(x => x.key === k).name;
   const sel = (k, cur) => `<select class="ksel" data-cmp="${k}" aria-label="${k === "cmpA" ? "Compare with" : "Year to compare"}">${YRS.map(y => `<option value="${y.key}" ${y.key === cur ? "selected" : ""}>${esc(y.name)}</option>`).join("")}</select>`;
-  const story2 = `<div class="sc"><div class="t">${a === b ? "Pick two different years to see how thermal comfort shifts." : `Thermal comfort shifts ${heat >= 0 ? "towards heat" : "away from heat"}: <b>${sgn(heat)} hours</b> of heat stress (UTCI above 28) and <i>${sgn(comf)} hours</i> with no thermal stress, ${esc(yName(b))} against ${esc(yName(a))}.`}</div>
+  return `<div class="sc"><div class="t">${a === b ? "Pick two different years to see how thermal comfort shifts." : `Thermal comfort shifts ${heat >= 0 ? "towards heat" : "away from heat"}: <b>${sgn(heat)} hours</b> of heat stress (UTCI above 28) and <i>${sgn(comf)} hours</i> with no thermal stress, ${esc(yName(b))} against ${esc(yName(a))}.`}</div>
     <div class="cmp">Compare ${sel("cmpB", b)} with ${sel("cmpA", a)}</div>
-    <div class="sub">Change in hours a year per UTCI thermal stress band, all hours · ${E.label}</div>${o2}</div>`;
-  return `<div class="story">${story1}${story2}</div>
-    <p class="note">${SCEN[sc]}; future values are the median of ${DATA.meta.models.length} climate models. Typical year: the median of the ${NY} years ${B0}–${B1} (bars) or the typical meteorological year (comfort chart). Hot year: the site's hottest year of ${B0}–${B1} (${hy}, ranked on humid heat), as it happened and adjusted to the 2040 and 2050 climate. Extreme year: the hottest year of ${E0}–${B1} once adjusted to today's climate (${ey}), and its 2040 and 2050 versions. Working hours ${DATA.meta.operating_hours.start}–${DATA.meta.operating_hours.end} local time. Sentences are generated from the data; the full table is in Data summary.</p>`;
+    <div class="sub">Change in hours a year per UTCI band (above the line: more hours; below: fewer), all hours · ${E.label}</div>${o}</div>`;
 }
 
-/* ---------- Data summary tab ---------- */
+/* ---------- Indicators tab ---------- */
 function renderData() {
   const cols = columns(), id = S.site, E = EXPO();
   const rows = [["Days above 30 °C", "days_tmax_gt30", 0], ["Days above 35 °C", "days_tmax_gt35", 0], ["Warm nights (minimum above 20 °C)", "nights_tmin_gt20", 0],
@@ -738,11 +789,11 @@ function stackRows(get, colors, labels, unit) {
     + `<div class="keys">${labels.map((l, i) => `<span><i style="background:${colors[i]}"></i>${l}${unit}</span>`).join("")}</div>`;
 }
 function niceStep(r) { const p = Math.pow(10, Math.floor(Math.log10(r || 1))), f = r / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; }
-function lineChart({ series, xLabels, unit, w = 640, h = 220, xTicks, bars }) {
+function lineChart({ series, xLabels, unit, w = Math.min(820, paneW()), h = 220, xTicks, bars }) {
   const m = { l: 44, r: 10, t: 10, b: 26 }, all = series.flatMap(s => s.values).concat(bars ? bars.values : []);
   let lo = Math.min(0, ...all), hi = Math.max(...all); const st = niceStep((hi - lo) / 4); hi = Math.ceil(hi / st) * st; lo = Math.floor(lo / st) * st;
   const n = xLabels.length, cw = (w - m.l - m.r) / n, X = i => m.l + cw * (i + .5), Y = v => m.t + (h - m.t - m.b) * (1 - (v - lo) / (hi - lo || 1));
-  let o = `<svg class="chart" viewBox="0 0 ${w} ${h}" role="img">`;
+  let o = `<svg class="chart" width="${w}" viewBox="0 0 ${w} ${h}" style="max-width:${w}px" role="img">`;
   for (let v = lo; v <= hi + 1e-9; v += st) o += `<line class="gridl" x1="${m.l}" x2="${w - m.r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${m.l - 6}" y="${Y(v) + 4}" text-anchor="end">${fmt(v, st < 1 ? 1 : 0)}</text>`;
   o += `<line class="axis" x1="${m.l}" x2="${w - m.r}" y1="${Y(lo)}" y2="${Y(lo)}"/>`;
   (xTicks || xLabels.map((_, i) => i)).forEach(i => o += `<text x="${X(i)}" y="${h - 8}" text-anchor="middle">${xLabels[i]}</text>`);
@@ -763,7 +814,7 @@ function fingerprint(d) {
   const mx = Math.max(...mMean.map(Math.abs), ...hMean.map(Math.abs), 0.1);
   let best = { v: -1e9 }; d.forEach((r, m) => r.forEach((v, h) => { if (v > best.v) best = { v, m, h }; }));
   const col = v => v >= 0 ? "#FF3D8B" : "#0B41CD";
-  let o = `<svg class="chart" viewBox="0 0 ${w} ${t + gh + 64}" role="img" aria-label="Temperature change by month and hour of day">`;
+  let o = `<svg class="chart" width="${w}" viewBox="0 0 ${w} ${t + gh + 64}" style="max-width:${w}px" role="img" aria-label="Temperature change by month and hour of day">`;
   d.forEach((r, m) => r.forEach((v, h) => o += `<rect x="${l + h * cw}" y="${t + m * ch}" width="${cw - 1.5}" height="${ch - 1.5}" rx="2" fill="${DIV[bin(v)]}" data-t="${MONTHS[m]}, ${String(h).padStart(2, "0")}:00<br>${sgn(v, 2)} °C"/>`));
   MONTHS.forEach((mn, m) => o += `<text x="${l - 6}" y="${t + m * ch + 13}" text-anchor="end">${mn}</text>`);
   [0, 6, 12, 18, 23].forEach(h => o += `<text x="${l + h * cw + cw / 2}" y="${t + gh + 12}" text-anchor="middle">${String(h).padStart(2, "0")}h</text>`);
@@ -830,6 +881,7 @@ function renderStress() {
   return `<div><h3>Work heat stress by shift: ISO 7243 WBGT <span class="sub">${PROF().label} · ${EXPO().label}</span></h3>
       <div class="tw"><table>${thead(cols, "Hours a year")}<tbody>${rows}</tbody></table></div>
       <p class="note">${expoNote} ${S.yt === "hot" ? `2040 and 2050 are the actual ${hy} weather adjusted to those climates (Year: Hot).` : EXT() ? `Today is the extreme year ${byId[id].extreme_year} in today's climate; 2040 and 2050 are that year adjusted to those climates (Year: Extreme).` : "Today and the future use the typical year; the hot year is the actual " + hy + " weather."}</p></div>
+    <div><h3>Thermal comfort shift <span class="sub">UTCI, ${EXPO().label}</span></h3>${comfortShift()}</div>
     <div><h3>UTCI thermal stress scale</h3><div class="utci-scale">${UTCI.map(u => `<div class="${u[3] ? "dk" : ""}" style="background:${u[2]}">${u[0]}<br>${u[1]}</div>`).join("")}</div></div>
     <div><h3>Condition of person: share of hours in each UTCI band <span class="sub">${EXPO().label}</span></h3>
       ${stackRows(c => T[tmyKey(c.key)][ub], UTCI.map(u => u[2]), UTCI.map(u => u[0]), "")}</div>
@@ -902,6 +954,9 @@ function init() {
   S.site = byId[h] ? h : "SVQ";
   if (byId[h]) S.open[byId[h].country] = true;
   renderTree(); renderAll();
+  /* the map frame and the site-card charts are sized to their boxes: fit again once laid out and on resize */
+  drawMap(); updateMap();
+  let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { drawMap(); updateMap(); renderPanel(); }, 150); });
   addEventListener("hashchange", () => { const x = location.hash.slice(1); if (byId[x] && x !== S.site) selectSite(x); });
 }
 init();

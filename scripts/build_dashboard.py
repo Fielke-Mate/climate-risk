@@ -300,7 +300,7 @@ def main() -> None:
         f'@font-face{{font-family:"{fam}";src:url(data:font/woff2;base64,'
         f'{base64.b64encode((DASH / "fonts" / fn).read_bytes()).decode()}) format("woff2");'
         f'font-weight:100 900;font-style:normal;font-display:swap;}}'
-        for fam, fn in (("Geist", "geist.woff2"), ("Geist Mono", "geistmono.woff2")))
+        for fam, fn in (("Geist", "geist.woff2"),))   # numbers use Geist with tabular figures (no slashed zeros)
     page = template.replace("/*__FONTS__*/", fonts).replace("/*__DATA__*/null", json.dumps(data, separators=(",", ":")))
     (DASH / "page.html").write_text(page)
     (DASH / "index.html").write_text(
