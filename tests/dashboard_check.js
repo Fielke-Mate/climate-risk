@@ -48,7 +48,7 @@ async function check(p, where) {
   // 1. Every view combination x every tab (one site)
   for (const scen of ["ssp245", "ssp585"])
     for (const period of ["hist", "2040", "2050"])
-      for (const yt of ["typical", "hot"])
+      for (const yt of ["typical", "hot", "extreme"])
         for (const expo of ["in", "sun"])
           for (const hall of expo === "in" ? ["0", "2", "4"] : ["0"]) {
             await click(`#ctl-scen button[data-v="${scen}"]`);
@@ -79,26 +79,47 @@ async function check(p, where) {
   await click('.tabs button[data-tab="temp"]');
   let paneText = await page.$eval("#pane", e => e.innerText);
   if (!/weather in 2050/.test(paneText)) fail("hot charts", "temperature tab does not show the hot year adjusted to 2050");
+  // Year = Extreme (D62): the extreme reference year in today's climate and adjusted to 2050
+  await click('#ctl-yt button[data-v="extreme"]');
+  paneText = await page.$eval("#pane", e => e.innerText);
+  if (!/Extreme year \d{4} \(today's climate\)/.test(paneText) || !/weather in 2050/.test(paneText)) fail("extreme charts", "temperature tab does not show the extreme year");
   await click('#ctl-yt button[data-v="typical"]');
   paneText = await page.$eval("#pane", e => e.innerText);
   if (/weather in 2050/.test(paneText)) fail("typical charts", "typical view still shows the hot-year series");
 
-  // 1c. Summary tab: comparison year pickers and consistency with the Data summary table
+  // 1b'. The working-time tile names the selected site and its own hours, and follows a click on the map
+  for (const sid of ["TLS", "XFW"]) {
+    await page.$eval(`#map [data-id="${sid}"]`, e => e.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    await page.waitForTimeout(150);
+    const name = await page.$eval("#s-name", e => e.textContent);
+    const line = await page.$eval("#kstrip .selsite", e => e.textContent).catch(() => "");
+    if (!line.startsWith(name + ":")) fail("tile site line", `expected "${name}: …", got "${line}"`);
+  }
+  // 1c. Summary tab: comfort-shift year pickers and the hours chart (consistent with the Indicators table)
   await click('.tabs button[data-tab="summary"]');
   await page.selectOption('select[data-cmp="cmpB"]', "hotref");
   paneText = await page.$eval("#pane", e => e.innerText);
-  if (!/Today, hot year against Today, typical year/.test(paneText)) fail("summary pickers", "comfort sentence does not follow the picked years");
+  if (!/Today, hot year against Today, typical year/.test(paneText)) fail("comfort pickers", "comfort sentence does not follow the picked years");
   const opts = await page.$$eval('select[data-cmp="cmpB"] option', os => os.map(o => o.textContent));
-  if (opts.length !== 6 || !opts.some(t => /^2040, hot year/.test(t)) || !opts.some(t => /^2050, hot year/.test(t))) fail("summary pickers", `year options: ${opts.join(" | ")}`);
-  if ((await page.$$("#pane .sc:first-child svg text.val")).length !== 6) fail("summary bars", "expected six year bars");
+  if (opts.length !== 9 || !opts.some(t => /^2040, hot year/.test(t)) || !opts.some(t => /^2050, extreme year/.test(t))) fail("comfort pickers", `year options: ${opts.join(" | ")}`);
   await page.selectOption('select[data-cmp="cmpA"]', "hotref");
   paneText = await page.$eval("#pane", e => e.innerText);
-  if (!/Pick two different years/.test(paneText)) fail("summary pickers", "same year twice not handled");
+  if (!/Pick two different years/.test(paneText)) fail("comfort pickers", "same year twice not handled");
+  if ((await page.$$("#pane .sc:first-child svg text.val")).length !== 9) fail("summary bars", "expected nine year bars");
+  // charts are drawn at their pixel size: SVG text must not be scaled up, and charts fill the panel
+  for (const tab of ["summary", "temp", "stress"]) {
+    await click(`.tabs button[data-tab="${tab}"]`);
+    const fit = await page.$$eval("#pane svg.chart", ss => ss.map(e => [e.getBoundingClientRect().width / e.viewBox.baseVal.width, e.getBoundingClientRect().width / document.querySelector("#pane").clientWidth]));
+    if (fit.some(([sc]) => sc > 1.02)) fail(`${tab} charts`, `chart scaled up: ${fit.map(f => f[0].toFixed(2)).join(", ")}`);
+    if (fit.some(([, share]) => share < 0.8)) fail(`${tab} charts`, `chart narrower than the panel: ${fit.map(f => f[1].toFixed(2)).join(", ")}`);
+  }
+  await click('.tabs button[data-tab="summary"]');
   const barToday = await page.$eval("#pane .sc svg .val", e => e.textContent.split(" h")[0]);
   await click('.tabs button[data-tab="data"]');
   const tableToday = await page.$$eval("#pane table tbody tr", trs => {
-    const tr = trs.find(t => /^Working hours above WBGT \d+ °C/.test(t.querySelector("th").innerText) && !/acclimatised workforce/.test(t.querySelector("th").innerText));
-    return tr.querySelectorAll("td")[0].innerText.trim();
+    /* textContent: the table sits in a collapsed "Exact values" section */
+    const tr = trs.find(t => /^Working hours above WBGT \d+ °C/.test(t.querySelector("th").textContent) && !/acclimatised workforce/.test(t.querySelector("th").textContent));
+    return tr.querySelector("td").firstChild.textContent.trim();
   });
   if (barToday !== tableToday) fail("summary vs data", `today bar ${barToday} h, table ${tableToday} h`);
 

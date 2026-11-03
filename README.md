@@ -11,6 +11,7 @@ The first focus is **extreme heat**: risk to **worker health and productivity** 
 - Phase 3 (heat-stress metrics): [`docs/phase3/README.md`](docs/phase3/README.md)
 - Code review and functional test (Nov 2026): [`docs/code_review_2026-11.md`](docs/code_review_2026-11.md)
 - Methodology review (building services): [`docs/methodology_review.md`](docs/methodology_review.md)
+- Methodology review (climate science: future hot years and amplified extremes): [`docs/climate_science_review.md`](docs/climate_science_review.md)
 - Dashboard prototype: `dashboard/index.html` (self-contained; open in a browser or host on GitHub Pages). Rebuild with `scripts/build_dashboard.py`.
 
 ## Setup
@@ -25,12 +26,14 @@ ERA5 downloads need a free Copernicus CDS account. Put the API key in the `CDSAP
 ## Workflow
 
 ```bash
-.venv/bin/python scripts/fetch_era5.py
-.venv/bin/python scripts/phase1_historical.py
-.venv/bin/python scripts/fetch_nex.py        # Phase 2 data, resumable (~2.5 h)
-.venv/bin/python scripts/phase2_future.py
+.venv/bin/python scripts/fetch_era5.py       # ERA5 2000-2025
+.venv/bin/python scripts/fetch_nex.py        # climate model data, resumable (~3 h); Phase 1 needs it for the 2000-2025 adjustment
+.venv/bin/python scripts/phase1_historical.py   # --reuse-adjustment skips the model data
+.venv/bin/python scripts/phase2_future.py       # --reuse-deltas skips the model data
 .venv/bin/python -m pytest
 node tests/dashboard_check.js   # browser test of dashboard/index.html (needs Playwright)
 ```
 
-Settings (baseline years, operating hours, thresholds) live in `config/settings.yaml`. Sites live in `data/sites/pilot_aerospace_europe.csv`.
+Settings (baseline years, operating hours, thresholds, heatwave definitions) live in `config/settings.yaml`.
+
+Behind a proxy that re-signs TLS (as in the cloud environment), point Python at its CA bundle for the NEX download, e.g. `REQUESTS_CA_BUNDLE=/root/.ccr/ca-bundle.crt`. Sites live in `data/sites/pilot_aerospace_europe.csv`.

@@ -1,16 +1,16 @@
-site_id,name,hot_year,hot_op_wbgt_shade_degree_hours_gt_base,hot_op_hours_wbgt_shade_gt_ref,hot_op_days_wbgt_shade_gt_ref,hot_hours_t_gt30,hot_temp_max,hot_days_tmax_gt35,median_op_hours_wbgt_shade_gt_ref
-SVQ,Sevilla (San Pablo),2025,736.6,321.0,54.0,996.0,41.6,51.0,197.0
-ILL,Illescas,2022,47.3,11.0,3.0,864.0,41.2,53.0,2.0
-GET,Getafe,2022,47.3,11.0,3.0,864.0,41.2,53.0,2.0
-MRS,Marignane,2025,196.2,92.0,17.0,444.0,38.3,18.0,51.0
-TLS,Toulouse (Blagnac),2025,250.5,107.0,17.0,322.0,42.2,14.0,59.0
-NTE,Nantes (Bouguenais),2019,72.2,28.0,5.0,94.0,37.8,2.0,0.0
-SNR,Saint-Nazaire (Montoir-de-Bretagne),2024,22.6,14.0,3.0,13.0,32.7,0.0,0.0
-DON,Donauworth,2015,3.6,0.0,0.0,133.0,35.7,1.0,0.0
-MLT,Meaulte,2025,21.8,9.0,1.0,43.0,35.2,1.0,0.0
-FIL,Filton,2022,0.0,0.0,0.0,46.0,34.9,0.0,0.0
-BRE,Bremen,2015,15.2,7.0,1.0,28.0,35.6,1.0,0.0
-BRG,Broughton,2022,0.0,0.0,0.0,15.0,33.9,0.0,0.0
-NOR,Nordenham,2015,4.6,2.0,1.0,7.0,31.7,0.0,0.0
-XFW,Hamburg-Finkenwerder,2015,9.1,4.0,1.0,20.0,35.4,1.0,0.0
-STD,Stade,2015,8.6,5.0,1.0,21.0,35.1,1.0,0.0
+site_id,name,hot_year,extreme_year,extreme_rule,hot_op_wbgt_shade_degree_hours_gt_base,hot_op_hours_wbgt_shade_gt_ref,hot_op_days_wbgt_shade_gt_ref,hot_hours_t_gt30,hot_temp_max,hot_days_tmax_gt35,hot_hw30_longest,extreme_op_wbgt_shade_degree_hours_gt_base,extreme_op_hours_wbgt_shade_gt_ref,extreme_op_days_wbgt_shade_gt_ref,extreme_hours_t_gt30,extreme_temp_max,extreme_days_tmax_gt35,extreme_hw30_longest,median_op_hours_wbgt_shade_gt_ref
+SVQ,Sevilla (San Pablo),2025,2006,humid heat (WBGT degree-hours),736.6,321.0,54.0,996.0,41.6,51.0,50.0,935.2,398.0,55.0,1104.0,42.7,66.0,49.0,197.0
+ILL,Illescas,2022,2003,humid heat (WBGT degree-hours),47.3,11.0,3.0,864.0,41.2,53.0,46.0,77.5,23.0,8.0,961.0,41.9,45.0,42.0,2.0
+GET,Getafe,2022,2003,humid heat (WBGT degree-hours),47.3,11.0,3.0,864.0,41.2,53.0,46.0,79.1,23.0,8.0,970.0,42.0,46.0,42.0,2.0
+MRS,Marignane,2025,2003,humid heat (WBGT degree-hours),196.2,92.0,17.0,444.0,38.3,18.0,19.0,270.1,116.0,22.0,678.0,38.6,24.0,30.0,51.0
+TLS,Toulouse (Blagnac),2025,2003,humid heat (WBGT degree-hours),250.5,107.0,17.0,322.0,42.2,14.0,14.0,381.7,168.0,29.0,568.0,41.5,27.0,16.0,59.0
+NTE,Nantes (Bouguenais),2019,2003,humid heat (WBGT degree-hours),72.2,28.0,5.0,94.0,37.8,2.0,4.0,215.2,84.0,11.0,172.0,39.0,7.0,12.0,0.0
+SNR,Saint-Nazaire (Montoir-de-Bretagne),2024,2003,humid heat (WBGT degree-hours),22.6,14.0,3.0,13.0,32.7,0.0,2.0,147.8,62.0,8.0,73.0,34.5,0.0,4.0,0.0
+DON,Donauworth,2015,2003,dry heat (hours above 30 °C),3.6,0.0,0.0,133.0,35.7,1.0,4.0,0.9,0.0,0.0,170.0,37.7,6.0,12.0,0.0
+MLT,Meaulte,2025,2003,humid heat (WBGT degree-hours),21.8,9.0,1.0,43.0,35.2,1.0,3.0,63.9,29.0,4.0,92.0,36.2,4.0,10.0,0.0
+FIL,Filton,2022,2022,dry heat (hours above 30 °C),0.0,0.0,0.0,46.0,34.9,0.0,4.0,0.0,0.0,0.0,46.0,34.8,0.0,4.0,0.0
+BRE,Bremen,2015,2018,dry heat (hours above 30 °C),15.2,7.0,1.0,28.0,35.6,1.0,1.0,0.0,0.0,0.0,79.0,35.4,1.0,5.0,0.0
+BRG,Broughton,2022,2022,dry heat (hours above 30 °C),0.0,0.0,0.0,15.0,33.9,0.0,2.0,0.0,0.0,0.0,15.0,33.8,0.0,2.0,0.0
+NOR,Nordenham,2015,2018,dry heat (hours above 30 °C),4.6,2.0,1.0,7.0,31.7,0.0,1.0,0.0,0.0,0.0,21.0,32.0,0.0,2.0,0.0
+XFW,Hamburg-Finkenwerder,2015,2018,dry heat (hours above 30 °C),9.1,4.0,1.0,20.0,35.4,1.0,1.0,0.0,0.0,0.0,72.0,35.1,1.0,5.0,0.0
+STD,Stade,2015,2018,dry heat (hours above 30 °C),8.6,5.0,1.0,21.0,35.1,1.0,1.0,0.0,0.0,0.0,67.0,34.9,0.0,5.0,0.0

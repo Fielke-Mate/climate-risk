@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 
 from .heat import heat_frame, utci_indoor, wbgt_liljegren
+from .heatwave import daily_heatwave_metrics, run_lengths
 from .weather import operating_hours_mask
 
 
@@ -51,10 +52,13 @@ def wbgt_exposures(hc: dict) -> list[str]:
 
 def wbgt_metric_names(hc: dict) -> list[str]:
     """Every WBGT count annual_summary makes: days, hours, acclimatised hours and hours per shift,
-    for each exposure and worker profile."""
+    plus heat-safety spells (D60: longest run of consecutive operating days with a working hour above
+    the reference, and the number of runs of at least `heatwave.min_days`), for each exposure and
+    worker profile."""
     return [n for suf in wbgt_profiles(hc) for x in wbgt_exposures(hc)
             for n in (f"op_days_wbgt_{x}_gt_ref{suf}", f"op_hours_wbgt_{x}_gt_ref{suf}", f"op_hours_wbgt_{x}_gt_ref{suf}_acc",
-                      *[f"op_hours_wbgt_{x}_gt_ref{suf}_{sh}" for sh in SHIFTS])]
+                      *[f"op_hours_wbgt_{x}_gt_ref{suf}_{sh}" for sh in SHIFTS],
+                      f"op_longest_wbgt_{x}_gt_ref{suf}", f"op_spells_wbgt_{x}_gt_ref{suf}")]
 
 
 def annual_summary(hourly: pd.DataFrame, lat: float, lon: float, timezone: str, cfg: dict,
@@ -84,6 +88,11 @@ def annual_summary(hourly: pd.DataFrame, lat: float, lon: float, timezone: str, 
         days_tmax_gt35=("tmax", lambda s: int((s > 35).sum())),
         nights_tmin_gt20=("tmin", lambda s: int((s > 20).sum())),
     )
+    # D60: heatwave length (runs of consecutive hot days / warm nights) on a gap-free calendar
+    local_days = daily.index.tz_localize(None)
+    hw = daily_heatwave_metrics(pd.Series(daily["tmax"].to_numpy(), index=local_days),
+                                pd.Series(daily["tmin"].to_numpy(), index=local_days), cfg)
+    dy = dy.join(hw)
     op = df[df["op"]]
     in_cols = {f"wbgt_in{int(o)}": f"in{int(o)}" for o in offsets}
     opd = op.groupby("date")[["wbgt_shade", "wbgt_sun", *in_cols]].max()
@@ -119,11 +128,19 @@ def annual_summary(hourly: pd.DataFrame, lat: float, lon: float, timezone: str, 
     shift_groups = {sh: df[operating_hours_mask(df.index, timezone, a, b, op_cfg["days"])].groupby("year")
                     for sh, (a, b) in SHIFTS.items()}
     gd = opd.groupby("year")
+    min_days = int(cfg["heatwave"]["min_days"])
+
+    def spells(s, r):  # runs over consecutive operating days (a non-working day doesn't end a spell)
+        runs = run_lengths((s > r).to_numpy())
+        return (int(runs.max()) if len(runs) else 0), int((runs >= min_days).sum())
     for suf, (ref, ref_a) in wbgt_profiles(hc).items():
         for tag, col in expo_cols.items():
             summary[f"op_days_wbgt_{tag}_gt_ref{suf}"] = gd[col].apply(lambda s, r=ref: int((s > r).sum()))
             summary[f"op_hours_wbgt_{tag}_gt_ref{suf}"] = go[col].apply(lambda s, r=ref: _count(s, r))
             summary[f"op_hours_wbgt_{tag}_gt_ref{suf}_acc"] = go[col].apply(lambda s, r=ref_a: _count(s, r))
+            sp = gd[col].apply(lambda s, r=ref: spells(s, r))
+            summary[f"op_longest_wbgt_{tag}_gt_ref{suf}"] = sp.str[0]
+            summary[f"op_spells_wbgt_{tag}_gt_ref{suf}"] = sp.str[1]
             for sh, gs in shift_groups.items():
                 summary[f"op_hours_wbgt_{tag}_gt_ref{suf}_{sh}"] = gs[col].apply(lambda s, r=ref: _count(s, r))
     for name, lim in hc.get("process_limits", {}).items():
@@ -140,3 +157,12 @@ def select_hot_year(summary: pd.DataFrame) -> int:
     """
     ranked = summary.sort_values(["op_wbgt_shade_degree_hours_gt_base", "hours_t_gt30", "temp_max"], ascending=False)
     return int(ranked.index[0])
+
+
+def select_extreme_year(summary: pd.DataFrame, min_wbgt_degree_hours: float) -> tuple[int, str]:
+    """D62: the extreme reference year from the adjusted 2000-2025 record, and the rule used. Ranked like
+    the hot year (D42) unless humid heat is negligible at the site; then on dry heat."""
+    if summary["op_wbgt_shade_degree_hours_gt_base"].max() >= min_wbgt_degree_hours:
+        return select_hot_year(summary), "humid heat (WBGT degree-hours)"
+    ranked = summary.sort_values(["hours_t_gt30", "temp_max"], ascending=False)
+    return int(ranked.index[0]), "dry heat (hours above 30 °C)"
