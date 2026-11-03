@@ -1,7 +1,12 @@
 """Per-year summary statistics and hot reference year selection.
 
-Phase 3: heat-stress metrics use the full methods in heat.py (Liljegren WBGT in sun
-and shade, UTCI in sun and shade). "Working hours" follow config operating_hours.
+Phase 3: heat-stress metrics use the full methods in heat.py (Liljegren WBGT, UTCI).
+"Working hours" follow config operating_hours.
+
+Naming: columns called "*wbgt_shade*" hold the INDOOR value with the hall at outdoor
+temperature (no solar radiation, indoor air speed, D52); "*in2*" / "*in4*" are the same
+with the hall 2 / 4 C warmer. "*sun*" is outdoor work in direct sun. "hours_utci_shade_gt28"
+is outdoor shade (outdoor wind); "op_hours_utci_in*" are indoor UTCI.
 """
 
 from __future__ import annotations

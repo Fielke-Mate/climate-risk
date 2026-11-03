@@ -110,12 +110,16 @@ def build(hourly: pd.DataFrame, selection: pd.DataFrame | None = None, blend_hou
             year_a, year_b = year_of[month], year_of[next_month]
             if year_a == year_b:
                 continue
-            boundary = pd.Timestamp(f"{NOMINAL_YEAR}-{next_month:02d}-01", tz="UTC")
-            window = [boundary + pd.Timedelta(hours=k) for k in range(-blend_hours, blend_hours)]
-            # wrap the Dec->Jan join into the same nominal year
-            window = [w if w.year == NOMINAL_YEAR else w.replace(year=NOMINAL_YEAR) for w in window]
-            a = lookup([source_time(w, year_a) for w in window]).to_numpy()
-            b = lookup([source_time(w, year_b) for w in window]).to_numpy()
+            # The Dec -> Jan join sits at the start of the following nominal year, so that the
+            # outgoing December continues into ITS next January (year_a + 1) and the incoming
+            # January is preceded by ITS previous December (year_b - 1).
+            boundary_year = NOMINAL_YEAR if next_month > 1 else NOMINAL_YEAR + 1
+            boundary = pd.Timestamp(f"{boundary_year}-{next_month:02d}-01", tz="UTC")
+            raw = [boundary + pd.Timedelta(hours=k) for k in range(-blend_hours, blend_hours)]
+            a = lookup([source_time(w, year_a + (w.year - NOMINAL_YEAR)) for w in raw]).to_numpy()
+            b = lookup([source_time(w, year_b + (w.year - boundary_year)) for w in raw]).to_numpy()
+            # position in the nominal year (the Jan part of the Dec -> Jan join wraps to the start)
+            window = [w if w.year == NOMINAL_YEAR else w.replace(year=NOMINAL_YEAR) for w in raw]
             weights = (np.arange(2 * blend_hours) + 0.5) / (2 * blend_hours)
             for j, w in enumerate(window):
                 if np.isnan(a[j]).any() or np.isnan(b[j]).any():

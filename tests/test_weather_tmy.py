@@ -93,3 +93,22 @@ def test_hot_year_degree_hours_separates_years_without_exceedances():
     summary = annual_summary(hourly, 40.3, -3.7, "Europe/Madrid", settings())
     assert summary["op_wbgt_shade_degree_hours_gt_base"].nunique() > 1
     assert select_hot_year(summary) == 2019
+
+
+def test_dec_jan_join_blends_with_the_adjacent_months():
+    # Each calendar year has a constant temperature equal to (year - 2000), so the blend
+    # across the Dec -> Jan join shows which source years were used.
+    hourly = _synthetic()
+    hourly["temp_air"] = ((hourly.index - pd.Timedelta(hours=1)).year - 2000).astype(float)
+    hourly["temp_dew"] = hourly["temp_air"] - 5
+    sel = pd.DataFrame({"month": range(1, 13), "year": [2018] + [2017] * 10 + [2016]})
+    out, _ = tmy.build(hourly, selection=sel)
+    # Dec 31 (source 2016) blends towards Jan 2017 (its continuation); Jan 1 (source 2018)
+    # blends back towards Dec 2017 (its predecessor). Values must stay within 16..18 and the
+    # Jan-side blend must not reach back to Jan 2016 (value 16) or Dec 2018.
+    dec31 = out.loc["2001-12-31 18:00":"2002-01-01 00:00", "temp_air"]
+    jan1 = out.loc["2001-01-01 01:00":"2001-01-01 08:00", "temp_air"]
+    # Fixed: Dec side blends 16 -> 17 (max ~16.47), Jan side 17 -> 18 (min ~17.53).
+    # The old code blended 16 -> 18 on both sides (Dec max ~16.94, Jan min ~17.06).
+    assert dec31.min() >= 16.0 and dec31.max() < 16.5
+    assert jan1.min() > 17.5 and jan1.max() <= 18.0

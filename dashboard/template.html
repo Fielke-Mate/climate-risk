@@ -147,8 +147,16 @@ select.ksel { height: 30px; font: inherit; font-size: var(--fs-125); padding: 0 
 #map .site:hover { stroke: var(--deep); }
 #map .site.off { display: none; }
 #map .sel-ring { fill: none; stroke: var(--purple-600); stroke-width: 3; }
+#map .leader { stroke: var(--ink-3); stroke-width: 1.5; }
+#map .leader.off { display: none; }
+#map .true-pt { fill: var(--ink-3); }
+#map .true-pt.off { display: none; }
 .mapsel { position: absolute; left: 12px; top: 12px; display: flex; align-items: center; gap: 10px; background: var(--deep); color: #fff; padding: 7px 12px; border-radius: var(--r-sm); box-shadow: var(--sh-2); font-size: var(--fs-11); max-width: calc(100% - 24px); }
 .mapsel b { display: block; font-size: var(--fs-125); font-weight: 600; }
+.mapnote { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r-sm); box-shadow: var(--sh-2); padding: 10px 14px; font-size: var(--fs-125); color: var(--ink); max-width: calc(100% - 32px); text-align: center; }
+.mapnote button { margin-top: 6px; }
+.kbtn { height: 30px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: var(--r-sm); background: var(--surface); font: inherit; font-size: var(--fs-12); font-weight: 600; color: var(--purple-600); cursor: pointer; }
+.kbtn:hover { background: var(--purple-050); }
 .mapsel span { color: var(--purple-200); }
 .legend { margin-top: 8px; display: flex; align-items: center; gap: 6px 12px; font-size: var(--fs-11); color: var(--ink-2); flex-wrap: wrap; }
 .legend .bands { display: flex; gap: 2px 8px; flex-wrap: wrap; }
@@ -197,9 +205,6 @@ tbody th { font-weight: 400; text-align: left; color: var(--ink); }
 td.v { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 td .rg { display: block; font-size: var(--fs-11); color: var(--ink-3); }
 td .up { color: var(--pink-600); font-weight: 500; }
-.seg-s { display: inline-flex; height: 26px; padding: 2px; gap: 2px; border-radius: 7px; background: var(--bg-2); margin: 0 0 8px; flex-wrap: wrap; }
-.seg-s button { height: 22px; padding: 0 9px; border: 0; background: none; border-radius: 5px; font-size: var(--fs-12); color: var(--ink-2); cursor: pointer; }
-.seg-s button[aria-pressed="true"] { background: #fff; color: var(--ink); box-shadow: 0 1px 2px rgba(28,16,44,.14); font-weight: 600; }
 .ph { display: inline-block; font-size: var(--fs-105); font-weight: 600; color: var(--ink); background: var(--need-bg); border: 1px solid var(--need-line); border-radius: var(--r-pill); padding: 0 7px; margin-left: 6px; vertical-align: 1px; white-space: nowrap; }
 .prov { display: inline-block; font-size: var(--fs-105); font-weight: 600; color: var(--purple-600); background: var(--purple-050); border-radius: var(--r-pill); padding: 0 7px; margin-left: 6px; vertical-align: 1px; white-space: nowrap; }
 
@@ -288,8 +293,8 @@ footer p { margin: 0; max-width: 120ch; }
               <option value="worker_days">Worker heat-safety days (WBGT above 28 °C)</option>
               <option value="days_tmax_gt30">Days above 30 °C</option>
               <option value="op_wbgt_shade_degree_hours_gt_base">Indoor heat stress (WBGT degree-hours, hall = outside)</option>
-              <option value="d_days30">Extra days above 30 °C vs today</option>
-              <option value="warming">Warming (annual mean)</option>
+              <option value="d_days30">Extra days above 30 °C vs today (2040 / 2050)</option>
+              <option value="warming">Warming in annual mean temperature (2040 / 2050)</option>
             </select>
           </div>
         </div>
@@ -297,6 +302,7 @@ footer p { margin: 0; max-width: 120ch; }
           <div class="mapbox">
             <svg id="map" role="img" aria-label="Map of the selected sites coloured by the chosen heat indicator"></svg>
             <div class="mapsel" id="mapsel"></div>
+            <div class="mapnote" id="mapnote" hidden></div>
           </div>
           <div class="legend" id="legend"></div>
           <details class="tview" open><summary>Ranking</summary><ol class="rank" id="rank"></ol></details>
@@ -347,6 +353,7 @@ const UTCI = [
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const fmt = (v, d = 0) => v == null || Number.isNaN(v) ? "–" : Number(v).toLocaleString("en-GB", { maximumFractionDigits: d, minimumFractionDigits: d });
 const sgn = (v, d = 0) => v == null ? "–" : (v > 0 ? "+" : "") + fmt(v, d);
+const esc = t => String(t).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
 const ICON = {
   pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg>',
@@ -387,6 +394,7 @@ function colorFor(v, info) { const i = band(v, info); return i < 0 ? "#C9C4D3" :
 function bandLabels(info) { const b = info.breaks, u = info.d ? 1 : 0, f = x => (info.plus ? "+" : "") + fmt(x, u);
   return [`< ${f(b[0])}`, ...b.slice(0, -1).map((x, i) => `${f(x)}–${f(b[i + 1])}`), `≥ ${f(b[b.length - 1])}`]; }
 const inView = () => SITES.filter(s => S.sel.has(s.id));
+const POS = {};   /* displayed marker positions (after spreading overlaps) */
 
 /* ---------- filters ---------- */
 function countries() { const c = {}; for (const s of SITES) (c[s.country] ||= []).push(s); return Object.entries(c).sort((a, b) => b[1].length - a[1].length); }
@@ -442,7 +450,7 @@ function bindFilters() {
     if (!q) { res.hidden = true; return; }
     const hits = SITES.filter(s => s.name.toLowerCase().includes(q) || COUNTRY[s.country].toLowerCase().includes(q));
     res.hidden = false;
-    res.innerHTML = hits.length ? hits.map(s => `<button type="button" data-id="${s.id}"><span>${s.name}</span><small>${COUNTRY[s.country]}</small></button>`).join("") : `<p class="fhint" style="padding:6px 9px;margin:0">No site matches “${inp.value}”.</p>`;
+    res.innerHTML = hits.length ? hits.map(s => `<button type="button" data-id="${s.id}"><span>${s.name}</span><small>${COUNTRY[s.country]}</small></button>`).join("") : `<p class="fhint" style="padding:6px 9px;margin:0">No site matches “${esc(inp.value)}”.</p>`;
   });
   res.addEventListener("click", e => { const b = e.target.closest("[data-id]"); if (!b) return; S.sel.add(b.dataset.id); inp.value = ""; res.hidden = true; S.open.EU = true; S.open[byId[b.dataset.id].country] = true; selectSite(b.dataset.id); renderTree(); });
 }
@@ -474,12 +482,31 @@ function renderStrip() {
 function drawMap() {
   const svg = $("#map"), bm = DATA.basemap;
   const xs = SITES.map(s => s.x), ys = SITES.map(s => s.y);
-  /* landscape frame (1.6 : 1) around the sites: the card keeps its width but is much shorter */
+  /* landscape frame (1.3 : 1) around the sites: the card keeps its width but is shorter */
   const yA = Math.min(...ys) - 70, yB = Math.max(...ys) + 45, fh = yB - yA, fw = fh * 1.3;
   const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
   svg.setAttribute("viewBox", `${(cx - fw / 2).toFixed(1)} ${yA.toFixed(1)} ${fw.toFixed(1)} ${fh.toFixed(1)}`);
+  /* Nearby sites (e.g. Getafe / Illescas, Nantes / Saint-Nazaire, the Hamburg cluster) overlap at
+     this scale. Nudge markers apart until none overlaps, so every site can be clicked; a short
+     leader line and dot keep the true location visible. */
+  const R = 14, GAP = 3;
+  for (const s of SITES) POS[s.id] = { x: s.x, y: s.y };
+  for (let it = 0; it < 200; it++) {
+    let moved = false;
+    for (let i = 0; i < SITES.length; i++) for (let j = i + 1; j < SITES.length; j++) {
+      const a = POS[SITES[i].id], b = POS[SITES[j].id];
+      let dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
+      if (d >= 2 * R + GAP) continue;
+      if (d < 1e-6) { dx = 1; dy = 0; d = 1; }
+      const push = (2 * R + GAP - d) / 2 + 0.1;
+      a.x -= dx / d * push; a.y -= dy / d * push; b.x += dx / d * push; b.y += dy / d * push; moved = true;
+    }
+    if (!moved) break;
+  }
   let h = `<path class="grat" d="${bm.graticule}"/>` + bm.land.map(d => `<path class="land" d="${d}"/>`).join("");
-  h += `<circle id="ring" class="sel-ring" r="22"/><g id="sites">` + SITES.map(s => `<circle class="site" data-id="${s.id}" cx="${s.x}" cy="${s.y}" r="14" tabindex="0" role="button" aria-label="${s.name}"/>`).join("") + `</g>`;
+  h += SITES.filter(s => Math.hypot(POS[s.id].x - s.x, POS[s.id].y - s.y) > 1).map(s =>
+    `<line class="leader" data-id="${s.id}" x1="${s.x}" y1="${s.y}" x2="${POS[s.id].x.toFixed(1)}" y2="${POS[s.id].y.toFixed(1)}"/><circle class="true-pt" data-id="${s.id}" cx="${s.x}" cy="${s.y}" r="3"/>`).join("");
+  h += `<circle id="ring" class="sel-ring" r="22"/><g id="sites">` + SITES.map(s => `<circle class="site" data-id="${s.id}" cx="${POS[s.id].x.toFixed(1)}" cy="${POS[s.id].y.toFixed(1)}" r="${R}" tabindex="0" role="button" aria-label="${s.name}"/>`).join("") + `</g>`;
   svg.innerHTML = h;
   for (const c of $$("#sites circle")) {
     const id = c.dataset.id;
@@ -495,13 +522,20 @@ function updateMap() {
   for (const c of $$("#sites circle")) { const id = c.dataset.id; c.classList.toggle("off", !S.sel.has(id)); c.style.fill = colorFor(layerVal(id), info); }
   const s = byId[S.site], ring = $("#ring");
   ring.style.display = s && S.sel.has(s.id) ? "" : "none";
-  if (s) { ring.setAttribute("cx", s.x); ring.setAttribute("cy", s.y); }
+  if (s) { ring.setAttribute("cx", POS[s.id].x); ring.setAttribute("cy", POS[s.id].y); }
+  for (const el of $$("#map .leader, #map .true-pt")) el.classList.toggle("off", !S.sel.has(el.dataset.id));
   $("#mapsel").hidden = !s;
   if (s) $("#mapsel").innerHTML = `<div><b>${s.name}</b><span>${info.short}: ${lv(layerVal(s.id), info)} ${info.unit}</span></div>`;
+  const changeToday = S.period === "hist" && info.plus;
+  $("#mapnote").hidden = !changeToday;
+  if (changeToday) {
+    $("#mapnote").innerHTML = `<b>${info.short}</b> compares the future with today, so there is nothing to show for today.<br><button type="button" class="kbtn" id="go2050">Show 2050</button>`;
+    $("#go2050").addEventListener("click", () => $(`#ctl-period button[data-v="2050"]`).click());
+  }
   $("#legend").innerHTML = `<span>${info.short} (${info.unit})</span><span class="bands">${bandLabels(info).map((l, i) => `<span><i style="background:${RISK[i]}"></i>${l}</span>`).join("")}</span>`;
   const rows = inView().map(x => ({ s: x, v: layerVal(x.id) })).sort((a, b) => (b.v ?? -1e9) - (a.v ?? -1e9));
   const rmx = Math.max(...rows.map(r => r.v ?? 0), 1e-9);
-  $("#rank").innerHTML = rows.length ? rows.map(r => `<li data-id="${r.s.id}" class="${r.s.id === S.site ? "on" : ""}" tabindex="0">
+  $("#rank").innerHTML = changeToday ? `<li class="empty">Choose 2040 or 2050 to rank sites by ${info.short.toLowerCase()}.</li>` : rows.length ? rows.map(r => `<li data-id="${r.s.id}" class="${r.s.id === S.site ? "on" : ""}" tabindex="0">
       <span class="nm">${r.s.name}</span><span class="bar"><i style="width:${r.v == null ? 0 : Math.max(1, 100 * Math.max(0, r.v) / rmx)}%;background:${colorFor(r.v, info)}"></i></span>
       <span class="val">${lv(r.v, info)}</span></li>`).join("") : `<li class="empty">No sites in view. Tick a country or site in the filters.</li>`;
   for (const li of $$("#rank li[data-id]")) { li.addEventListener("click", () => selectSite(li.dataset.id)); li.addEventListener("keydown", e => { if (e.key === "Enter") selectSite(li.dataset.id); }); }
@@ -590,7 +624,6 @@ function renderTemp() {
     <div><h3>When the warming happens <span class="sub">2050 ${SCEN[sc]} minus today, by month and hour of day</span></h3>${heatmap(diff, "°C")}<p class="note">Local time, median of ${DATA.meta.models.length} models applied to the typical year. Afternoon warming adds directly to the work-time heat load.</p></div>
     <div><h3>Average daily maximum temperature by month</h3>${mon}${skey([["var(--c-today)", "Today (typical)"], ["var(--c-hot)", `Hot year ${hy} (actual)`, 1], ["var(--c-2040)", `2040 ${SCEN[sc]}`], ["var(--c-2050)", `2050 ${SCEN[sc]}`]])}</div>`;
 }
-function seg(id, opts, cur) { return `<div class="seg-s" data-seg="${id}">${opts.map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${v === cur}">${l}</button>`).join("")}</div>`; }
 function renderStress() {
   const id = S.site, T = DATA.tmy[id], cols = columns(), hy = byId[id].hot_year;
   const ex = EXPO().shift;
@@ -641,7 +674,6 @@ function renderPanel() {
   const pane = $("#pane");
   pane.innerHTML = { summary: renderSummary, temp: renderTemp, stress: renderStress, about: renderAbout }[S.tab]();
   for (const el of $$("[data-t]", pane)) hover(el, el.dataset.t);
-  for (const g of $$("[data-seg]", pane)) g.addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S[g.dataset.seg] = b.dataset.v; store.set("cr-" + g.dataset.seg, b.dataset.v); renderPanel(); });
 }
 
 /* ---------- wiring ---------- */
@@ -659,9 +691,10 @@ function bindToggle(id, key) {
   }
 }
 function init() {
-  for (const k of ["scen", "period", "yt", "layer", "tab", "expo", "hall"]) { const v = store.get("cr-" + k); if (v) S[k] = v; }
-  if (!LAYER[S.layer]) S.layer = "worker_days";
-  if (!["in", "sun"].includes(S.expo)) S.expo = "in";
+  /* restore remembered view settings, ignoring anything an older version of the page stored */
+  const VALID = { scen: DATA.meta.scenarios, period: ["hist", ...DATA.meta.periods], yt: ["typical", "hot"], layer: Object.keys(LAYER),
+    tab: ["summary", "temp", "stress", "about"], expo: ["in", "sun"], hall: ["0", "2", "4"] };
+  for (const [k, ok] of Object.entries(VALID)) { const v = store.get("cr-" + k); if (v && ok.includes(v)) S[k] = v; }
   S.sel = new Set(SITES.map(s => s.id));
   S.open = { EU: true };
   bindToggle("ctl-scen", "scen"); bindToggle("ctl-period", "period"); bindToggle("ctl-yt", "yt"); bindToggle("ctl-expo", "expo"); bindToggle("ctl-hall", "hall");

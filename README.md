@@ -9,6 +9,7 @@ The first focus is **extreme heat**: risk to **worker health and productivity** 
 - Phase 1 (historical weather files): [`docs/phase1/README.md`](docs/phase1/README.md)
 - Phase 2 (future weather files): [`docs/phase2/README.md`](docs/phase2/README.md)
 - Phase 3 (heat-stress metrics): [`docs/phase3/README.md`](docs/phase3/README.md)
+- Code review and functional test (Nov 2026): [`docs/code_review_2026-11.md`](docs/code_review_2026-11.md)
 - Methodology review (building services): [`docs/methodology_review.md`](docs/methodology_review.md)
 - Dashboard prototype: `dashboard/index.html` (self-contained; open in a browser or host on GitHub Pages). Rebuild with `scripts/build_dashboard.py`.
 
@@ -29,6 +30,7 @@ ERA5 downloads need a free Copernicus CDS account. Put the API key in the `CDSAP
 .venv/bin/python scripts/fetch_nex.py        # Phase 2 data, resumable (~2.5 h)
 .venv/bin/python scripts/phase2_future.py
 .venv/bin/python -m pytest
+node tests/dashboard_check.js   # browser test of dashboard/index.html (needs Playwright)
 ```
 
 Settings (baseline years, operating hours, thresholds) live in `config/settings.yaml`. Sites live in `data/sites/pilot_aerospace_europe.csv`.
