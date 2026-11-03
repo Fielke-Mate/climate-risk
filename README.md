@@ -13,6 +13,7 @@ The first focus is **extreme heat**: risk to **worker health and productivity** 
 - Methodology review (building services): [`docs/methodology_review.md`](docs/methodology_review.md)
 - Methodology review (climate science: future hot years and amplified extremes): [`docs/climate_science_review.md`](docs/climate_science_review.md)
 - Dashboard prototype: `dashboard/index.html` (self-contained; open in a browser or host on GitHub Pages). Rebuild with `scripts/build_dashboard.py`.
+- Process-limit lens (plan and mock-up, not built yet): [`docs/process_lens_plan.md`](docs/process_lens_plan.md)
 
 ## Setup
 

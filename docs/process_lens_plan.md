@@ -1,0 +1,77 @@
+# Process-limit lens: plan and mock-up (draft, Nov 2026)
+
+A second way to read the dashboard: instead of worker heat stress (WBGT against an ISO 7243 reference), the user sets a **dry-bulb process limit** (paint application, sealant, composite layup, chiller rating, anything) and sees the same headline, map, ranking and Summary cards in terms of **hours and days above that limit**. Layout, controls, year colours and the nine-year structure (typical / hot / extreme × today / 2040 / 2050) stay as they are, so the two lenses can be toggled without the page moving.
+
+Renders: `docs/mockups/process_lens/` (built on the current dashboard, D61–D65). Numbers in the renders are illustrative (see "Mock-up caveats").
+
+| Render | Shows |
+|---|---|
+| `01_overview_sevilla.png` | Whole page in the process lens: header toggle, View bar, KPI tiles, map, Summary |
+| `02_summary_recommended_sevilla.png` | Summary tab with the two recommended cards |
+| `03_summary_alternatives_sevilla.png` | The two alternatives considered, in the same slots |
+| `04_summary_recommended_toulouse_extreme.png` | Recommended cards at a temperate site, Year = Extreme |
+| `05_worker_lens_unchanged.png` | Worker lens after the toggle is added: unchanged apart from the toggle |
+
+## 1. Controls
+
+- **Header: "Heat risk to  Workers | Processes".** One toggle, remembered per viewer. Everything below follows it.
+- **View bar, process lens:** Scenario, Period, Year (typical / hot / extreme) and Hall gain stay. **Exposure** and **Worker** are hidden: sun does not change air temperature, and the worker profile has no meaning here. Three controls take their place:
+  - **Process**: presets with their limit (paint / coating 35 °C, sealant / adhesive 30 °C, composite layup room 32 °C, chiller rated ambient 38 °C, all placeholders until real specifications arrive) plus "Custom".
+  - **Limit**: a stepper, 20–45 °C in 0.5 °C steps. Typing or stepping to a value that no preset uses switches the preset to "Custom".
+  - **Runs**: 06–22 (the working hours, as now) or 24 h, for continuous processes. In 24 h mode the night shift counts in the totals.
+- **Hall gain applies to the process**: the process sits in the hall, so the limit is tested against hall air (outdoor + 0 / 2 / 4 °C). For dry bulb this is exact: hours above 35 °C with a +2 °C hall = outdoor hours above 33 °C.
+
+## 2. What each element becomes
+
+| Element | Worker lens (now) | Process lens |
+|---|---|---|
+| KPI tile 1 | Sites at high risk · worker heat-safety days | Sites at high risk · **process-stop days** (same 15 / 35-day bands, to confirm) |
+| KPI tile 2 | Working time over the safe limit | **Operating time over the process limit**, hours a year summed over sites, % change vs today |
+| Map "Colour by" | Worker days, days > 30 °C, WBGT degree-hours, extra days > 30 °C, warming | **Process-stop days** (default), **operating hours above the limit**, **extra process-stop days vs today**, days > 30 °C, warming |
+| Summary card 1 | Working hours above WBGT ref by shift, nine years | **Operating hours above the limit by shift, nine years**; headline gives stop days (typical / hot / extreme), longest run and late-shift share. Same chart, same footnote |
+| Summary card 2 | Climate here (UTCI bands) | **Recommended: limit headroom curve** (section 3) |
+| Summary card 3 | Thermal comfort shift (UTCI) | **Recommended: when the limit is exceeded, month × hour** (section 3) |
+| Indicators | Dot timeline, worker / heat / heatwave / comfort groups | Process group replaces the worker group: stop days, operating hours above, longest run, degree-hours above the limit, 1 % design temperature, hottest operating hour. Heat, heatwave and energy groups unchanged |
+| Temperature | Distribution, warming fingerprint, monthly Tmax | Unchanged, plus the limit as a vertical line on the temperature distribution |
+| Heat stress tab | WBGT by shift, UTCI | Renamed **Process** in this lens: hours above the limit by shift (table with model ranges) and the current placeholder process table |
+| About | Method | Adds the process-lens definitions below |
+
+**Definitions.** An *operating hour above the limit* is an hour in the running window with hall air above the limit. A *process-stop day* is a day with at least one such hour, matching the worker heat-safety day (D57). Both come from the same 11-year statistics as the worker numbers (median year for typical, 90th percentile for hot, the extreme reference year), with the 6-model median and range.
+
+## 3. Summary cards 2 and 3: options and recommendation
+
+The two UTCI cards answer "how comfortable is it here", which has no meaning for a process. Four candidates were drawn; I recommend **A and B**.
+
+**A. Limit headroom curve (recommended).** Operating hours above every limit from limit − 4 to limit + 4 °C, one line each for today, 2040 and 2050 (for the Year in the View bar), the chosen limit as a dashed line, and an arrow showing how many °C the limit would have to rise for the future year to match today's hours. Headline example (Sevilla, 35 °C, typical): *2050 brings 385 operating hours above the limit (today 266). Holding today's level needs +1.3 °C of headroom: a limit of 36.3 °C, or that much cooling. With 2 °C more tolerance, 2050 drops to 201 h.*
+Why: process limits are uncertain (placeholders now, spec tolerances of ±1–2 °C later), so a single-threshold answer is fragile. This card makes the result robust to the limit and expresses climate change in °C of lost headroom, the unit a spec change or cooling upgrade is sized in.
+
+**B. When the limit is exceeded (recommended).** Month × hour-of-day grid of hours above the limit for a chosen year (defaults to the View bar year), in that year's colour; month totals to the right, hour totals beneath, non-running hours greyed, and slots that are new compared with today outlined in magenta. Same layout as the warming fingerprint on the Temperature tab. Headline example: *In 2050, typical year, 71 % of the hours above the limit fall in Jul–Aug, all between 11:00 and 22:00. The early shift takes 16 %; 10 month-hour slots are new.*
+Why: it tells the site whether operational changes (earlier shifts, night running, a summer shutdown window) can absorb the exposure or whether it needs capital (cooling, a higher-spec material). Card 1 gives the shift split but not the season or the hour window.
+
+**C. Stoppage run length (alternative).** Stop days split by the length of the run they belong to (1, 2, 3–4, 5+ days), nine years. Good question (a single day can be rescheduled, a 10-day run cannot), but at hot sites it saturates: Sevilla puts 93–94 % of its 2050 stop days in runs of 3+ days, so the bars are almost all one shade. The longest run is already in card 1's headline. Better as an Indicators row.
+
+**D. Cooling needed to hold the limit (alternative).** Per year, the 1 % design temperature and the hottest operating hour against the limit, with the cooling gap and degree-hours above the limit. The most engineering-flavoured option, but the hottest hour of one year is noisy, it overlaps with A's headroom arrow, and design conditions belong in a table with model ranges. Recommend these as Indicators rows (1 % design temperature, degree-hours above the limit).
+
+## 4. Data and build
+
+The headline numbers must come from the multi-year pipeline, so the limit cannot be applied in the browser to a single year. Instead the pipeline pre-computes a **threshold ladder**:
+
+1. `config/settings.yaml`: `process_lens: {ladder_c: [20, 46, 0.5], presets: {...}, stop_day_min_hours: 1}`.
+2. `annual.py`: per year, histogram the hall-air dry bulb at 0.5 °C bins for operating hours, all hours and each shift, plus a histogram of each day's maximum (operating and 24 h). Cumulative sums give hours and days above every rung at once (53 rungs, no 53 passes). Hall gain needs no extra data: it is a shift of the rung index. Degree-hours and the longest run per rung come from the same pass. Stored in a separate long table (`outputs/phase1/dbt_ladder.parquet`, `outputs/phase2/dbt_ladder_future.parquet`), not 53 more CSV columns.
+3. Ensemble step: the same median / 90th percentile / extreme-year and model median / min / max as today, per rung. A per-rung median of monotonic curves is still monotonic, so curve A cannot zigzag.
+4. `build_dashboard.py`: ladder arrays into `DATA.kpi[site].proc`, and for card B the reference-year hourly dry bulb (TMY, hot and extreme years and their futures, 6-model median per hour, uint8 at 0.25 °C) as in the mock-up.
+5. Template: the lens state, the three controls, the overrides listed in section 2, and the tests (`tests/dashboard_check.js`: toggle, stepper, presets, 24 h; pytest: ladder at 30 °C equals `hours_t_gt30`, ladder at 35 and 32 °C equal the existing `proc_hours_*` all-hours values, monotonic in the limit).
+
+**Re-run needed.** The ladder needs the hourly weather, which is not in the repository (ERA5 hourly and the future files are gitignored). Implementation therefore re-runs `fetch_era5.py` (the CDS key is set in this environment, as at 3 Nov 2026), `phase1_historical.py --reuse-adjustment` and `phase2_future.py --reuse-deltas`; NEX does not need fetching again. Existing outputs should be unchanged, which doubles as a regression check.
+
+**Page size.** The page is about 3.9 MB now. Ladder arrays add roughly 1–1.5 MB and the card-B hourly data about 2.5 MB (the mock-up is 8.7 MB because it carries hourly data for every year and computes everything in the browser). If 7–8 MB is too heavy for sharing, card B can drop to 1 °C rungs or month × 2-hour blocks.
+
+## 5. Mock-up caveats
+
+The renders compute everything in the browser from single weather years: "typical" is the typical meteorological year, not the 11-year median; futures are the reference years shifted by the dashboard's median month × hour change, which ignores the extra hot-day warming of the real morph, so the mock-up likely **understates** 2040 / 2050 exceedance at hot sites. No model ranges. Treat the numbers as layout and story checks, not results. The mock-up sources (`process_lens.js`, `mock_data.py`, `build_mock.py`) are kept next to the renders; the 8.7 MB built page is not committed.
+
+## 6. Open points
+
+- **Stop-day definition and bands.** 1 hour above the limit makes a stop day, and High / Very high are 15 / 35 days, mirroring the worker lens. A paint line that can pause for an hour may want "2+ hours" or "any hour in the shift"; this is a setting, not a code change.
+- **Humidity limits.** Several real process limits are RH or dew-point margins (paint: RH above 85 %, surface 3 °C above dew point). The ladder approach extends to RH and dew point with the same machinery; out of scope for the dry-bulb version.
+- **Indoor conditions.** As for workers, hall air = outdoor + gain; a conditioned room needs its own design conditions and is not represented.
