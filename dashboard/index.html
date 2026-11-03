@@ -267,9 +267,7 @@ svg.chart .gridl { stroke: var(--line); }
 
 .tip { position: fixed; z-index: 20; pointer-events: none; background: var(--ink); color: #fff; padding: 6px 10px; border-radius: var(--r-xs); font-size: var(--fs-12); max-width: 260px; line-height: 1.4; display: none; box-shadow: var(--sh-2); }
 .about { display: grid; gap: 10px; }
-/* fill wide panels with columns of readable width rather than one very long measure */
-.about ul { columns: 42ch auto; column-gap: 32px; }
-.about li { break-inside: avoid; margin-bottom: 5px; }
+.about li { margin-bottom: 5px; }
 .about p, .about li { color: var(--ink-2); }
 .about ul { margin: 0; padding-left: 18px; }
 .sidefoot { font-size: var(--fs-115); color: var(--ink-2); border-top: 1px solid var(--line); margin-top: 14px; padding-top: 10px; display: grid; gap: 6px; line-height: 1.4; }
@@ -750,8 +748,8 @@ function renderStory() {
       ? "on <i>dry</i> heat (most hours above 30 °C, longest hot spells), because humid heat is rare here"
       : "on humid heat over the whole year (indoor WBGT degree-hours)"}. Working hours above WBGT ${WR()} °C depend on humidity, the exposure and the worker profile, so the hot year (${hy}) can still have more of them.</div>`;
   return `<div class="story"><div class="sc"><div class="t">${headline}</div>
-    <div class="sub">Working hours above WBGT ${WR()} °C by shift; a heat-safety day is a day with at least one of these hours · ISO 7243: ${profText()} · ${E.label}</div>${o}${keys1}${why}</div></div>
-    <p class="note">${SCEN[sc]} · median of ${DATA.meta.models.length} climate models · typical = median of ${B0}–${B1}; hot year = ${hy} as it happened; extreme year = ${ey} in today's climate (About the data explains these) · working hours ${DATA.meta.operating_hours.start}–${DATA.meta.operating_hours.end} local · full table in Indicators, comfort shift in Heat stress.</p>`;
+    <div class="sub">Working hours above WBGT ${WR()} °C by shift; a heat-safety day is a day with at least one of these hours · ISO 7243: ${profText()} · ${E.label}</div>${o}${keys1}${why}</div>${comfortShift()}</div>
+    <p class="note">${SCEN[sc]} · median of ${DATA.meta.models.length} climate models · typical = median of ${B0}–${B1}; hot year = ${hy} as it happened; extreme year = ${ey} in today's climate (About the data explains these) · working hours ${DATA.meta.operating_hours.start}–${DATA.meta.operating_hours.end} local · full table in Indicators.</p>`;
 }
 /* comfort shift (Heat stress tab): one column per UTCI band, year B minus year A, compact */
 function comfortShift() {
@@ -800,7 +798,7 @@ function stackRows(get, colors, labels, unit) {
     + `<div class="keys">${labels.map((l, i) => `<span><i style="background:${colors[i]}"></i>${l}${unit}</span>`).join("")}</div>`;
 }
 function niceStep(r) { const p = Math.pow(10, Math.floor(Math.log10(r || 1))), f = r / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; }
-function lineChart({ series, xLabels, unit, w = Math.min(820, paneW()), h = 220, xTicks, bars }) {
+function lineChart({ series, xLabels, unit, w = paneW(), h = 220, xTicks, bars }) {
   const m = { l: 44, r: 10, t: 10, b: 26 }, all = series.flatMap(s => s.values).concat(bars ? bars.values : []);
   let lo = Math.min(0, ...all), hi = Math.max(...all); const st = niceStep((hi - lo) / 4); hi = Math.ceil(hi / st) * st; lo = Math.floor(lo / st) * st;
   const n = xLabels.length, cw = (w - m.l - m.r) / n, X = i => m.l + cw * (i + .5), Y = v => m.t + (h - m.t - m.b) * (1 - (v - lo) / (hi - lo || 1));
@@ -820,16 +818,17 @@ const DIV = ["#0B41CD", "#7C97E8", "#C7D3F6", "#F2F0F5", "#FF9EC4", "#FF3D8B", "
 const DIV_BREAKS = [-1.5, -0.75, -0.25, 0.25, 0.75, 1.5];
 function fingerprint(d) {
   const bin = v => { let i = 0; while (i < DIV_BREAKS.length && v >= DIV_BREAKS[i]) i++; return i; };
-  const w = 640, cw = 19.5, ch = 19, l = 34, t = 4, gw = cw * 24, gh = ch * 12, rx = l + gw + 12, bw = w - rx - 44;
+  /* fills the panel at pixel size: month-hour cells widen with the panel, the monthly bars keep 150 px */
+  const w = paneW(), l = 34, t = 4, bw = 150, cw = Math.max(16, (w - l - 12 - bw - 44) / 24), ch = Math.min(24, Math.max(19, cw * 0.55)), gw = cw * 24, gh = ch * 12, rx = l + gw + 12;
   const mMean = d.map(r => r.reduce((a, b) => a + b, 0) / 24), hMean = Array.from({ length: 24 }, (_, h) => d.reduce((a, r) => a + r[h], 0) / 12);
   const mx = Math.max(...mMean.map(Math.abs), ...hMean.map(Math.abs), 0.1);
   let best = { v: -1e9 }; d.forEach((r, m) => r.forEach((v, h) => { if (v > best.v) best = { v, m, h }; }));
   const col = v => v >= 0 ? "#FF3D8B" : "#0B41CD";
   let o = `<svg class="chart" width="${w}" viewBox="0 0 ${w} ${t + gh + 64}" style="max-width:${w}px" role="img" aria-label="Temperature change by month and hour of day">`;
   d.forEach((r, m) => r.forEach((v, h) => o += `<rect x="${l + h * cw}" y="${t + m * ch}" width="${cw - 1.5}" height="${ch - 1.5}" rx="2" fill="${DIV[bin(v)]}" data-t="${MONTHS[m]}, ${String(h).padStart(2, "0")}:00<br>${sgn(v, 2)} °C"/>`));
-  MONTHS.forEach((mn, m) => o += `<text x="${l - 6}" y="${t + m * ch + 13}" text-anchor="end">${mn}</text>`);
+  MONTHS.forEach((mn, m) => o += `<text x="${l - 6}" y="${(t + m * ch + ch / 2 + 3).toFixed(1)}" text-anchor="end">${mn}</text>`);
   [0, 6, 12, 18, 23].forEach(h => o += `<text x="${l + h * cw + cw / 2}" y="${t + gh + 12}" text-anchor="middle">${String(h).padStart(2, "0")}h</text>`);
-  mMean.forEach((v, m) => { const len = Math.abs(v) / mx * bw; o += `<rect x="${rx}" y="${t + m * ch + 4}" width="${Math.max(len, 1)}" height="${ch - 9}" rx="2" fill="${col(v)}" data-t="${MONTHS[m]} average: ${sgn(v, 2)} °C"/><text x="${rx + len + 4}" y="${t + m * ch + 13}">${sgn(v, 1)}</text>`; });
+  mMean.forEach((v, m) => { const len = Math.abs(v) / mx * bw; o += `<rect x="${rx}" y="${(t + m * ch + ch / 2 - 5.5).toFixed(1)}" width="${Math.max(len, 1)}" height="10" rx="2" fill="${col(v)}" data-t="${MONTHS[m]} average: ${sgn(v, 2)} °C"/><text x="${rx + len + 4}" y="${(t + m * ch + ch / 2 + 3).toFixed(1)}">${sgn(v, 1)}</text>`; });
   o += `<text x="${rx}" y="${t + gh + 12}">month avg</text>`;
   const by = t + gh + 20, bh = 32;
   hMean.forEach((v, h) => { const len = Math.abs(v) / mx * bh; o += `<rect x="${l + h * cw}" y="${by + bh - len}" width="${cw - 1.5}" height="${Math.max(len, 1)}" rx="2" fill="${col(v)}" data-t="${String(h).padStart(2, "0")}:00 average: ${sgn(v, 2)} °C"/>`; });
@@ -892,7 +891,6 @@ function renderStress() {
   return `<div><h3>Work heat stress by shift: ISO 7243 WBGT <span class="sub">${PROF().label} · ${EXPO().label}</span></h3>
       <div class="tw"><table>${thead(cols, "Hours a year")}<tbody>${rows}</tbody></table></div>
       <p class="note">${expoNote} ${S.yt === "hot" ? `2040 and 2050 are the actual ${hy} weather adjusted to those climates (Year: Hot).` : EXT() ? `Today is the extreme year ${byId[id].extreme_year} in today's climate; 2040 and 2050 are that year adjusted to those climates (Year: Extreme).` : "Today and the future use the typical year; the hot year is the actual " + hy + " weather."}</p></div>
-    <div><h3>Thermal comfort shift <span class="sub">UTCI, ${EXPO().label}</span></h3>${comfortShift()}</div>
     <div><h3>UTCI thermal stress scale</h3><div class="utci-scale">${UTCI.map(u => `<div class="${u[3] ? "dk" : ""}" style="background:${u[2]}">${u[0]}<br>${u[1]}</div>`).join("")}</div></div>
     <div><h3>Condition of person: share of hours in each UTCI band <span class="sub">${EXPO().label}</span></h3>
       ${stackRows(c => T[tmyKey(c.key)][ub], UTCI.map(u => u[2]), UTCI.map(u => u[0]), "")}</div>
