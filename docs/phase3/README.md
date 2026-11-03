@@ -9,6 +9,7 @@
 | **WBGT, outdoor in sun** | Liljegren et al. (2008), via `pywbgt` (Argonne C code) | Temperature, dew point, pressure, 10 m wind (adjusted to 2 m), global solar radiation, sun position |
 | **WBGT, indoor** | The same model with solar radiation = 0 and 0.3 m/s air speed (D52: exhaust-ventilated warehouse, no active cooling) | Hall at outdoor temperature (D14), with sensitivity cases at +2 and +4 °C (same moisture) |
 | **Reference** | ISO 7243 Class 2 (moderate work): **26 °C not acclimatised (headline, D58)**; 28 °C acclimatised (sensitivity) | Working hours 06:00–22:00 local |
+| **Worker profiles (D59)** | Reference per profile, not acclimatised / acclimatised: light 29/30, moderate 26/28 (default), moderate in disposable coveralls + hood 24/26 (clothing adjustment +2), heavy 22/25 | Columns `*_gt_ref` = default profile; `*_gt_ref_<profile>` for the others; `_acc` = acclimatised; `_early/_late/_night` = shifts |
 | **Worker heat-safety days** | Days with at least one working hour above the reference | Indoor (+0/+2/+4 °C) and outdoor in sun |
 | **UTCI, indoor** | `pythermalcomfort` (Bröde et al. 2012): hall temperature incl. heat gain, radiant temperature = air, indoor air speed (10 m equivalent, floored at 0.5 m/s) | D51, D52: the right index for naturally ventilated / unconditioned halls |
 | **UTCI, sun** | Radiant temperature = air + ASHRAE 55 SolarCal gain for a standing person (DNI, sun position, absorptivity 0.7, ground reflectance 0.2) | The 2-inch WBGT globe was not used for this, because it overstated radiant temperature (~107 °C) |

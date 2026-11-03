@@ -20,9 +20,10 @@ import pandas as pd
 import requests
 from pythermalcomfort.models import utci as utci_model
 
-from climate_risk.config import ROOT, WEATHER_DIR, load_sites, settings
 from concurrent.futures import ProcessPoolExecutor
 
+from climate_risk.annual import wbgt_metric_names, wbgt_profiles
+from climate_risk.config import ROOT, WEATHER_DIR, load_sites, settings
 from climate_risk.heat import heat_frame, utci_indoor, wbgt_liljegren
 from climate_risk.weather import operating_hours_mask
 
@@ -39,17 +40,13 @@ TEMP_BANDS = [(-99, 16, "< 16"), (16, 21, "16–21"), (21, 24, "21–24 optimal"
               (25, 30, "25–30"), (30, 35, "30–35"), (35, 99, "> 35")]
 UTCI_BANDS = [(-99, -13), (-13, 0), (0, 9), (9, 26), (26, 28), (28, 32), (32, 38), (38, 46), (46, 99)]
 SHIFTS = {"early": ("06:00", "14:00"), "late": ("14:00", "22:00"), "night": ("22:00", "06:00")}
-KPI_METRICS = ["days_tmax_gt30", "days_tmax_gt35", "hours_t_gt30", "nights_tmin_gt20", "temp_max", "temp_mean",
-               "op_days_wbgt_sun_gt_ref", "op_days_wbgt_shade_gt_ref", "op_hours_wbgt_sun_gt_ref", "op_hours_wbgt_shade_gt_ref",
-               "op_hours_wbgt_shade_gt_ref_acc", "op_wbgt_shade_degree_hours_gt_base", "wbgt_sun_max", "wbgt_shade_max",
-               "op_days_wbgt_in2_gt_ref", "op_days_wbgt_in4_gt_ref", "op_hours_wbgt_in2_gt_ref", "op_hours_wbgt_in4_gt_ref",
-               "op_hours_wbgt_in2_gt_ref_acc", "op_hours_wbgt_in4_gt_ref_acc",
-               "op_hours_utci_in0_gt28", "op_hours_utci_in0_gt32", "op_hours_utci_in2_gt28", "op_hours_utci_in2_gt32",
-               "op_hours_utci_in4_gt28", "op_hours_utci_in4_gt32", "op_hours_utci_sun_gt32",
-               *[f"op_hours_wbgt_{x}_gt_ref_{sh}" for x in ("shade", "sun", "in2", "in4") for sh in ("early", "late", "night")],
-               "hours_utci_shade_gt28", "hours_utci_sun_gt32", "hours_utci_sun_gt38",
-               "proc_hours_paint_application_max_temp", "proc_hours_paint_application_max_rh", "proc_hours_composite_room_cooling",
-               "cdh24", "hdh19"]
+KPI_METRICS = ["days_tmax_gt30", "days_tmax_gt35", "hours_t_gt30", "nights_tmin_gt20", "temp_max", "temp_mean", "op_wbgt_shade_degree_hours_gt_base",
+               "wbgt_sun_max", "wbgt_shade_max", "op_hours_utci_in0_gt28", "op_hours_utci_in0_gt32", "op_hours_utci_in2_gt28",
+               "op_hours_utci_in2_gt32", "op_hours_utci_in4_gt28", "op_hours_utci_in4_gt32", "op_hours_utci_sun_gt32",
+               "hours_utci_shade_gt28", "hours_utci_sun_gt32",
+               "hours_utci_sun_gt38", "proc_hours_paint_application_max_temp", "proc_hours_paint_application_max_rh",
+               "proc_hours_composite_room_cooling", "cdh24", "hdh19",
+               *wbgt_metric_names(settings()["heat"])]
 INDOOR_OFFSETS = [0.0, 2.0, 4.0]
 
 
@@ -140,7 +137,7 @@ def tmy_stats(df: pd.DataFrame, site) -> dict:
     local = hour_start_local(df.index, tz)
     month, hour = local.month.to_numpy(), local.hour.to_numpy()
     hc = settings()["heat"]
-    v_in, ref, ref_a = hc.get("indoor_air_speed_ms", 0.3), hc["wbgt_reference_c"], hc["wbgt_reference_acclimatised_c"]
+    v_in, profiles = hc.get("indoor_air_speed_ms", 0.3), wbgt_profiles(hc)
     hf = heat_frame(df, site.lat, site.lon, indoor_air_speed=v_in)
     u_sh, u_su = hf["utci_shade"].to_numpy(), hf["utci_sun"].to_numpy()
     u_in = {off: utci_indoor(df, off, v_in) for off in INDOOR_OFFSETS}
@@ -152,11 +149,13 @@ def tmy_stats(df: pd.DataFrame, site) -> dict:
     shifts = {}
     for name, (a, b) in SHIFTS.items():
         m = operating_hours_mask(df.index, tz, a, b)
-        # "gt_ref" = above the headline (not acclimatised) WBGT reference, "gt_ref_acc" = acclimatised (D58)
-        sh = {"sun_gt_ref": int((w_su[m] > ref).sum()), "sun_gt_ref_acc": int((w_su[m] > ref_a).sum())}
-        for off, w in w_in.items():
-            sh[f"in{int(off)}_gt_ref"] = int((w[m] > ref).sum())
-            sh[f"in{int(off)}_gt_ref_acc"] = int((w[m] > ref_a).sum())
+        # "gt_ref<profile>" = above the worker profile's (not acclimatised) WBGT reference,
+        # "gt_ref<profile>_acc" = acclimatised (D58, D59); the default profile has no suffix
+        sh = {}
+        for suf, (ref, ref_a) in profiles.items():
+            for tag, w in (("sun", w_su), *((f"in{int(off)}", w) for off, w in w_in.items())):
+                sh[f"{tag}_gt_ref{suf}"] = int((w[m] > ref).sum())
+                sh[f"{tag}_gt_ref{suf}_acc"] = int((w[m] > ref_a).sum())
         shifts[name] = sh
     hist_bins = np.arange(-10, 47)
     return {
@@ -272,6 +271,11 @@ def main() -> None:
             "indoor_air_speed": cfg["heat"].get("indoor_air_speed_ms", 0.3),
             "wbgt_ref": cfg["heat"]["wbgt_reference_c"],
             "wbgt_ref_acc": cfg["heat"]["wbgt_reference_acclimatised_c"],
+            "default_profile": cfg["heat"]["default_worker_profile"],
+            "worker_profiles": {k: {"label": v["label"], "short": v["short"], "examples": v["examples"], "cav": v["clothing_adjustment_c"],
+                                    "ref": v["reference_c"] - v["clothing_adjustment_c"],
+                                    "acc": v["reference_acclimatised_c"] - v["clothing_adjustment_c"]}
+                                for k, v in cfg["heat"]["worker_profiles"].items()},
             "process_limits": {k: v["label"] for k, v in cfg["heat"]["process_limits"].items()},
         },
         "basemap": basemap, "sites": site_rows, "kpi": kpi, "tmy": tmy,
