@@ -217,6 +217,8 @@ svg.chart .lab { font-family: var(--font); fill: var(--ink-2); font-size: 12px; 
 svg.chart .grp { font-family: var(--font); fill: var(--ink); font-size: 12px; font-weight: 600; }
 svg.chart .val { font-family: var(--font); fill: var(--ink); font-size: 12px; }
 svg.chart .lab.sm { font-size: 11px; }
+svg.chart .lab .u { fill: var(--ink-3); font-size: 11px; }
+.exact summary { cursor: pointer; font-size: var(--fs-125); color: var(--purple-600); font-weight: 500; margin-bottom: 6px; }
 svg.chart .lab.note2 { fill: var(--ink-3); font-size: 11px; }
 .sc .why { font-size: var(--fs-12); color: var(--ink-2); background: var(--bg); border-radius: var(--r-xs); padding: 6px 9px; }
 .cmp { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: var(--fs-12); color: var(--ink-2); }
@@ -748,7 +750,7 @@ function renderStory() {
       ? "on <i>dry</i> heat (most hours above 30 °C, longest hot spells), because humid heat is rare here"
       : "on humid heat over the whole year (indoor WBGT degree-hours)"}. Working hours above WBGT ${WR()} °C depend on humidity, the exposure and the worker profile, so the hot year (${hy}) can still have more of them.</div>`;
   return `<div class="story"><div class="sc"><div class="t">${headline}</div>
-    <div class="sub">Working hours above WBGT ${WR()} °C by shift; a heat-safety day is a day with at least one of these hours · ISO 7243: ${profText()} · ${E.label}</div>${o}${keys1}${why}</div>${comfortShift()}</div>
+    <div class="sub">Working hours above WBGT ${WR()} °C by shift; a heat-safety day is a day with at least one of these hours · ISO 7243: ${profText()} · ${E.label}</div>${o}${keys1}${why}</div>${climateHere()}${comfortShift()}</div>
     <p class="note">${SCEN[sc]} · median of ${DATA.meta.models.length} climate models · typical = median of ${B0}–${B1}; hot year = ${hy} as it happened; extreme year = ${ey} in today's climate (About the data explains these) · working hours ${DATA.meta.operating_hours.start}–${DATA.meta.operating_hours.end} local · full table in Indicators.</p>`;
 }
 /* comfort shift (Heat stress tab): one column per UTCI band, year B minus year A, compact */
@@ -776,8 +778,50 @@ function comfortShift() {
 
 /* ---------- Indicators tab ---------- */
 function renderData() {
-  const cols = columns(), id = S.site, E = EXPO();
-  const rows = [["Days above 30 °C", "days_tmax_gt30", 0], ["Days above 35 °C", "days_tmax_gt35", 0], ["Warm nights (minimum above 20 °C)", "nights_tmin_gt20", 0],
+  const cols = columns(), id = S.site, E = EXPO(), K = DATA.kpi[id], sc = S.scen, s = byId[id], yt = S.yt;
+  /* dot timeline (concept 3): each indicator on its own scale, today -> 2040 -> 2050 for the year type in the
+     View bar; band = 2050 model range; diamond = the hot year as it happened (a year people remember) */
+  const groups = [
+    ["Workers", [[`Worker heat-safety days`, E.days, "days"], [`Working hours above WBGT ${WR()} °C`, E.hours, "hours"],
+                 ["Longest run of heat-safety days", E.longest, "days in a row"]]],
+    ["Heat", [["Days above 30 °C", "days_tmax_gt30", "days"], ["Days above 35 °C", "days_tmax_gt35", "days"], ["Highest temperature", "temp_max", "°C", 1]]],
+    ["Heatwaves", [[`Heatwaves (${HW.min_days}+ days above 30 °C)`, "hw30_events", "events"], ["Longest run above 30 °C", "hw30_longest", "days"],
+                   ["Longest run above 35 °C", "hw35_longest", "days"]]],
+    ["Nights", [[`Warm nights (above ${HW.tropical_night_c} °C)`, "nights_tmin_gt20", "nights"], ["Longest run of warm nights", `tn${HW.tropical_night_c}_longest`, "nights"]]],
+    ["Comfort and energy", [["Strong UTCI heat stress (working hours)", E.utci32, "hours"], ["Cooling degree-hours above 24 °C", "cdh24", "°C·h"],
+                            ["Heating degree-hours below 19 °C", "hdh19", "°C·h"]]]];
+  const W0 = paneW(), l = 230, r = 140, rowH = 34, gh = 22, w = W0 - l - r;
+  const val = (m, p) => p === "hist" ? K[m].hist[yt] : K[m][`${sc}_${p}_${yt}`];
+  let y = 0, o = "";
+  for (const [g, rows] of groups) {
+    o += `<text class="grp" x="0" y="${y + 15}">${g}</text>`; y += gh;
+    for (const [lab, m, unit, d = 0] of rows) {
+      const today = val(m, "hist"), v40 = val(m, "2040"), v50 = val(m, "2050"), hot = K[m].hotref, cy = y + 12;
+      /* temperature in °C starts its scale near the data; counts start at 0 */
+      const lo = unit === "°C" ? Math.floor(Math.min(today, v40[1], v50[1], hot) - 2) : 0;
+      const hi = Math.max(today, v40[2], v50[2], hot, lo + 1) * (unit === "°C" ? 1 : 1.06) + (unit === "°C" ? 1 : 0);
+      const X = v => l + w * (v - lo) / (hi - lo);
+      o += `<text class="lab" x="12" y="${cy + 4}">${lab}<tspan class="u" dx="6">${unit}</tspan></text>`;
+      o += `<line x1="${l}" x2="${l + w}" y1="${cy}" y2="${cy}" stroke="var(--line)"/>`;
+      if (Math.max(today, v50[2], hot) < 0.5 && unit !== "°C") {
+        o += `<text class="lab sm" x="${l + 4}" y="${cy + 4}" style="fill:var(--ink-3)">none today or by 2050</text>`;
+      } else {
+        o += `<rect x="${X(v50[1])}" y="${cy - 6}" width="${Math.max(X(v50[2]) - X(v50[1]), 2)}" height="12" rx="6" fill="var(--c-2050)" opacity=".2" data-t="2050 model range: ${fmt(v50[1], d)}–${fmt(v50[2], d)} ${unit}"/>`;
+        o += `<line x1="${X(today)}" x2="${X(v50[0])}" y1="${cy}" y2="${cy}" stroke="var(--ink-3)" stroke-width="2"/>`;
+        o += `<path d="M${X(hot)},${cy - 7} l6,7 l-6,7 l-6,-7 Z" fill="#fff" stroke="var(--c-hot)" stroke-width="1.5" data-t="Hot year ${s.hot_year} as it happened: ${fmt(hot, d)} ${unit}"/>`;
+        for (const [v, c, n] of [[today, EXT() ? "var(--c-ext)" : "var(--c-today)", "Today"], [v40[0], "var(--c-2040)", "2040"], [v50[0], "var(--c-2050)", "2050"]])
+          o += `<circle cx="${X(v)}" cy="${cy}" r="6.5" fill="${c}" stroke="#fff" stroke-width="2" data-t="${n}: ${fmt(v, d)} ${unit}"/>`;
+      }
+      o += `<text class="val" x="${l + w + 12}" y="${cy + 4}">${fmt(today, d)} → ${fmt(v40[0], d)} → <tspan font-weight="600">${fmt(v50[0], d)}</tspan></text>`;
+      y += rowH;
+    }
+    y += 6;
+  }
+  const svg = `<svg class="chart" width="${W0}" viewBox="0 0 ${W0} ${y}" style="max-width:${W0}px" role="img" aria-label="Key indicators today, 2040 and 2050">${o}</svg>`;
+  const ytName = { typical: "typical years", hot: "hot (1-in-10) years", extreme: `the extreme year (${s.extreme_year} weather)` }[yt];
+  const k0 = K[E.days], d0 = k0.hist[yt], d50 = k0[`${sc}_2050_${yt}`][0];
+  const keys = `<div class="keys"><span><i style="background:${EXT() ? "var(--c-ext)" : "var(--c-today)"}"></i>Today</span><span><i style="background:var(--c-2040)"></i>2040</span><span><i style="background:var(--c-2050)"></i>2050 (band = range of ${DATA.meta.models.length} climate models)</span><span><i style="background:#fff;outline:1.5px solid var(--c-hot);transform:rotate(45deg) scale(.8)"></i>Hot year ${s.hot_year} as it happened</span><span>Each row has its own scale</span></div>`;
+  const rowsT = [["Days above 30 °C", "days_tmax_gt30", 0], ["Days above 35 °C", "days_tmax_gt35", 0], ["Warm nights (minimum above 20 °C)", "nights_tmin_gt20", 0],
     ["Highest temperature (°C)", "temp_max", 1],
     [`Worker heat-safety days: a working hour above WBGT ${WR()} °C, ${profText()} (${E.label})`, E.days, 0],
     [`Working hours above WBGT ${WR()} °C, ${profText()} (${E.label})`, E.hours, 0],
@@ -787,9 +831,29 @@ function renderData() {
     ["Longest run of days above 35 °C", "hw35_longest", 0], [`Longest run of warm nights (minimum above ${HW.tropical_night_c} °C)`, `tn${HW.tropical_night_c}_longest`, 0],
     [`Longest run of worker heat-safety days (${E.label})`, E.longest, 0],
     ["Cooling degree-hours above 24 °C", "cdh24", 0], ["Heating degree-hours below 19 °C", "hdh19", 0]];
-  return `<div><h3>Key heat indicators</h3><div class="tw"><table>${thead(cols, "Indicator")}<tbody>${rows.map(([l, m, d, p]) => `<tr><th scope="row">${l}${p ? '<span class="prov">provisional</span>' : ""}</th>${cols.map(c => cell(id, m, c.key, d)).join("")}</tr>`).join("")}</tbody></table></div>
-    <p class="note">${EXT() ? `Year = Extreme: the extreme reference year (${byId[id].extreme_year} in today's climate) and its 2040/2050 versions.` : `From all ${NY} years (${B0}–${B1}) and their 2040/2050 versions.`} Heatwave lengths are runs of consecutive days; a future run is the historical sequence with every day warmed, so it does not include any change in how long hot spells last. Future values: median of ${DATA.meta.models.length} climate models, range below. Working hours ${DATA.meta.operating_hours.start}–${DATA.meta.operating_hours.end} local time. WBGT: Liljegren model, ISO 7243 reference for the worker profile (${PROF().label.toLowerCase()}): ${WR()} °C not acclimatised (headline), ${WA()} °C acclimatised.</p></div>
-    <div><h3>Hours of the year in each temperature band <span class="sub">${S.yt === "hot" ? `2040 / 2050: ${byId[S.site].hot_year} weather adjusted to the future` : EXT() ? `${byId[S.site].extreme_year} weather in today's climate and adjusted to the future` : "typical year"}</span></h3>${stackRows(c => DATA.tmy[id][tmyKey(c.key)].temp_bands, TEMP_COLS, DATA.meta.temp_bands, " °C")}</div>`;
+  return `<div class="sc"><div class="t">Worker heat-safety days go from <b>${fmt(d0)}</b> today to <b>${fmt(d50)}</b> by 2050 in ${ytName}; the hot year ${s.hot_year} had ${fmt(k0.hotref)}.</div>
+      <div class="sub">${E.label} · ${profText()} (WBGT ${WR()} °C) · ${ytName} · ${SCEN[sc]} · Year and exposure follow the View bar</div>${svg}${keys}</div>
+    <details class="exact"><summary>Exact values with model ranges</summary><div class="tw"><table>${thead(cols, "Indicator")}<tbody>${rowsT.map(([lb, m, d]) => `<tr><th scope="row">${lb}</th>${cols.map(c => cell(id, m, c.key, d)).join("")}</tr>`).join("")}</tbody></table></div>
+    <p class="note">${EXT() ? `Year = Extreme: the extreme reference year (${s.extreme_year} in today's climate) and its 2040/2050 versions.` : `From all ${NY} years (${B0}–${B1}) and their 2040/2050 versions.`} Heatwave lengths are runs of consecutive days; a future run is the historical sequence with every day warmed (most of the projected lengthening; not changes in how persistent hot spells are). Future values: median of ${DATA.meta.models.length} climate models, range below. Working hours ${DATA.meta.operating_hours.start}–${DATA.meta.operating_hours.end} local time. WBGT: Liljegren model, ISO 7243 reference for the worker profile (${PROF().label.toLowerCase()}): ${WR()} °C not acclimatised (headline), ${WA()} °C acclimatised.</p></details>
+    <div><h3>Hours of the year in each temperature band <span class="sub">${S.yt === "hot" ? `2040 / 2050: ${s.hot_year} weather adjusted to the future` : EXT() ? `${s.extreme_year} weather in today's climate and adjusted to the future` : "typical year"}</span></h3>${stackRows(c => DATA.tmy[id][tmyKey(c.key)].temp_bands, TEMP_COLS, DATA.meta.temp_bands, " °C")}</div>`;
+}
+/* Summary: the climate here, as the share of the year in each UTCI band for the comparison's reference year */
+function climateHere() {
+  const id = S.site, T = DATA.tmy[id], E = EXPO(), YRS = storyYears(), a = cmpKey(S.cmpA, "hist"), W0 = paneW(30);
+  const ub = S.expo === "sun" ? "utci_bands_sun" : `utci_bands_${E.tag}`, v = T[a][ub], tot = v.reduce((x, y) => x + y, 0), pc = v.map(x => 100 * x / tot);
+  const part = ix => ix.reduce((x, i) => x + pc[i], 0);
+  const name = YRS.find(x => x.key === a).name;
+  let x = 0, o = `<svg class="chart" width="${W0}" viewBox="0 0 ${W0} 30" style="max-width:${W0}px" role="img" aria-label="Share of the year in each UTCI thermal stress band">`;
+  pc.forEach((p, i) => {
+    const len = W0 * p / 100;
+    if (len > 0) o += `<rect x="${x}" y="0" width="${Math.max(len - 1.5, 0.5)}" height="26" rx="3" fill="${UTCI[i][2]}" data-t="${UTCI[i][0]} (UTCI ${UTCI[i][1]})<br>${fmt(v[i])} h · ${fmt(p, 1)} % of the year"/>`;
+    if (len > 34) o += `<text x="${x + len / 2}" y="17" text-anchor="middle" style="fill:${UTCI[i][3] ? "#fff" : "#111"};font-size:11.5px">${fmt(p, 0)} %</text>`;
+    x += len;
+  });
+  o += `</svg>`;
+  const keys = `<div class="keys">${UTCI.map((u, i) => `<span><i style="background:${u[2]}"></i>${u[0]} ${fmt(pc[i], 0)} %</span>`).join("")}</div>`;
+  return `<div class="sc"><div class="t">The climate here (${esc(name.charAt(0).toLowerCase() + name.slice(1))}): <i>${fmt(part([3]), 0)} %</i> of the year has no thermal stress, <b>${fmt(part([5, 6, 7, 8]), 0)} %</b> heat stress (UTCI above 28) and ${fmt(part([0, 1]), 0)} % cold stress (below 0).</div>
+    <div class="sub">Share of all hours in each UTCI band · ${E.label} · the reference year of the comparison below ("with")</div>${o}${keys}</div>`;
 }
 function stackRows(get, colors, labels, unit) {
   return columns().map(c => { const v = get(c), t = v.reduce((a, b) => a + b, 0);
