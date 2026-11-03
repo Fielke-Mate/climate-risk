@@ -87,17 +87,44 @@ async function check(p, where) {
   await click('.tabs button[data-tab="summary"]');
   await page.selectOption('select[data-cmp="cmpB"]', "hotref");
   paneText = await page.$eval("#pane", e => e.innerText);
-  if (!/Hot year \d{4} \(actual\) against Today/.test(paneText)) fail("summary pickers", "comfort sentence does not follow the picked years");
+  if (!/Today, hot year against Today, typical year/.test(paneText)) fail("summary pickers", "comfort sentence does not follow the picked years");
+  const opts = await page.$$eval('select[data-cmp="cmpB"] option', os => os.map(o => o.textContent));
+  if (opts.length !== 6 || !opts.some(t => /^2040, hot year/.test(t)) || !opts.some(t => /^2050, hot year/.test(t))) fail("summary pickers", `year options: ${opts.join(" | ")}`);
+  if ((await page.$$("#pane .sc:first-child svg text.val")).length !== 6) fail("summary bars", "expected six year bars");
   await page.selectOption('select[data-cmp="cmpA"]', "hotref");
   paneText = await page.$eval("#pane", e => e.innerText);
   if (!/Pick two different years/.test(paneText)) fail("summary pickers", "same year twice not handled");
   const barToday = await page.$eval("#pane .sc svg .val", e => e.textContent.split(" h")[0]);
   await click('.tabs button[data-tab="data"]');
   const tableToday = await page.$$eval("#pane table tbody tr", trs => {
-    const tr = trs.find(t => /^Working hours above WBGT [0-9.]+ °C, not acclimatised/.test(t.querySelector("th").innerText));
+    const tr = trs.find(t => /^Working hours above WBGT \d+ °C/.test(t.querySelector("th").innerText) && !/acclimatised workforce/.test(t.querySelector("th").innerText));
     return tr.querySelectorAll("td")[0].innerText.trim();
   });
   if (barToday !== tableToday) fail("summary vs data", `today bar ${barToday} h, table ${tableToday} h`);
+
+  // 1d. Worker profiles: every profile x exposure renders on every tab, and a lower reference never gives fewer hours
+  const profs = await page.$$eval("#ctl-prof option", os => os.map(o => o.value));
+  if (profs.length !== 4) fail("profiles", `expected 4 worker profiles, got ${profs.length}`);
+  const tileHours = async () => Number((await page.$eval("#kstrip .kstat:nth-child(2) .val", e => e.childNodes[0].textContent)).replace(/[^0-9.]/g, ""));
+  for (const [expo, hall] of [["in", "0"], ["in", "4"], ["sun", "0"]]) {
+    await click(`#ctl-expo button[data-v="${expo}"]`);
+    if (expo === "in") await click(`#ctl-hall button[data-v="${hall}"]`);
+    const hoursBy = {};
+    for (const prof of profs) {
+      await page.selectOption("#ctl-prof", prof);
+      for (const tab of ["summary", "data", "stress", "about"]) {
+        await click(`.tabs button[data-tab="${tab}"]`);
+        await check(page, `profile ${prof}/${expo}+${hall}/tab:${tab}`);
+        states++;
+      }
+      hoursBy[prof] = await tileHours();
+    }
+    if (!(hoursBy.light <= hoursBy.moderate && hoursBy.moderate <= hoursBy.ppe && hoursBy.ppe <= hoursBy.heavy))
+      fail(`profiles ${expo}+${hall}`, `hours not ordered light <= moderate <= ppe <= heavy: ${JSON.stringify(hoursBy)}`);
+  }
+  await page.selectOption("#ctl-prof", "moderate");
+  await click('#ctl-expo button[data-v="in"]');
+  await click('#ctl-hall button[data-v="0"]');
 
   // 2. Every site, every tab (default view)
   const ids = await page.$$eval("#sites circle", cs => cs.map(c => c.dataset.id));
@@ -141,7 +168,7 @@ async function check(p, where) {
   if ((await page.$eval("#s-name", e => e.textContent)) !== "Toulouse (Blagnac)") fail("search", "selecting a result did not open Toulouse");
 
   // 5. Stale settings from older versions + bad hash
-  await page.evaluate(() => { for (const [k, v] of Object.entries({ "cr-tab": "bogus", "cr-layer": "op_wbgt_prov_degree_hours_gt_base", "cr-expo": "in0", "cr-hall": "7", "cr-period": "2099" })) localStorage.setItem(k, v); });
+  await page.evaluate(() => { for (const [k, v] of Object.entries({ "cr-tab": "bogus", "cr-layer": "op_wbgt_prov_degree_hours_gt_base", "cr-expo": "in0", "cr-hall": "7", "cr-period": "2099", "cr-prof": "bogus" })) localStorage.setItem(k, v); });
   await page.goto(PAGE + "#NOPE");
   await page.waitForTimeout(300);
   r = await check(page, "stale settings");

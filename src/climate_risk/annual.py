@@ -9,6 +9,8 @@ with the hall 2 / 4 C warmer. "*sun*" is outdoor work in direct sun. "hours_utci
 is outdoor shade (outdoor wind); "op_hours_utci_in*" are indoor UTCI.
 "*_gt_ref" counts are above the headline WBGT reference (ISO 7243 Class 2, not acclimatised,
 26 C, D58); "*_gt_ref_acc" are above the acclimatised reference (28 C), kept as a sensitivity.
+D59: the same counts are made for every worker profile (work class x clothing); the default
+profile keeps the plain names, the others add "_<profile>" after "gt_ref".
 """
 
 from __future__ import annotations
@@ -24,11 +26,42 @@ def _count(s, thr):
     return int((s > thr).sum())
 
 
+SHIFTS = {"early": ("06:00", "14:00"), "late": ("14:00", "22:00"), "night": ("22:00", "06:00")}
+
+
+def wbgt_profiles(hc: dict) -> dict[str, tuple[float, float]]:
+    """Column suffix -> (reference, acclimatised reference) in C, both lowered by the clothing
+    adjustment. The default profile has suffix "" (plain "*_gt_ref" names)."""
+    default = hc.get("default_worker_profile")
+    out = {"": (float(hc["wbgt_reference_c"]), float(hc["wbgt_reference_acclimatised_c"]))}
+    for name, p in hc.get("worker_profiles", {}).items():
+        cav = float(p.get("clothing_adjustment_c", 0.0))
+        refs = (float(p["reference_c"]) - cav, float(p["reference_acclimatised_c"]) - cav)
+        if name == default:
+            if refs != out[""]:
+                raise ValueError(f"default worker profile '{name}' {refs} does not match wbgt_reference_c {out['']}")
+        else:
+            out[f"_{name}"] = refs
+    return out
+
+
+def wbgt_exposures(hc: dict) -> list[str]:
+    return ["shade", "sun", *[f"in{int(float(o))}" for o in hc.get("indoor_offsets_sensitivity", [])]]
+
+
+def wbgt_metric_names(hc: dict) -> list[str]:
+    """Every WBGT count annual_summary makes: days, hours, acclimatised hours and hours per shift,
+    for each exposure and worker profile."""
+    return [n for suf in wbgt_profiles(hc) for x in wbgt_exposures(hc)
+            for n in (f"op_days_wbgt_{x}_gt_ref{suf}", f"op_hours_wbgt_{x}_gt_ref{suf}", f"op_hours_wbgt_{x}_gt_ref{suf}_acc",
+                      *[f"op_hours_wbgt_{x}_gt_ref{suf}_{sh}" for sh in SHIFTS])]
+
+
 def annual_summary(hourly: pd.DataFrame, lat: float, lon: float, timezone: str, cfg: dict,
                    heat: pd.DataFrame | None = None) -> pd.DataFrame:
     """One row per calendar year (local time) with temperature and heat-stress indicators."""
     hc, op_cfg = cfg["heat"], cfg["operating_hours"]
-    ref, ref_a, dh_base = hc["wbgt_reference_c"], hc["wbgt_reference_acclimatised_c"], cfg["hot_year"]["wbgt_degree_hour_base_c"]
+    dh_base = cfg["hot_year"]["wbgt_degree_hour_base_c"]
     if heat is None:
         heat = heat_frame(hourly, lat, lon, indoor_offset=hc.get("indoor_offset_c", 0.0),
                           indoor_air_speed=hc.get("indoor_air_speed_ms", 0.3))
@@ -55,11 +88,6 @@ def annual_summary(hourly: pd.DataFrame, lat: float, lon: float, timezone: str, 
     in_cols = {f"wbgt_in{int(o)}": f"in{int(o)}" for o in offsets}
     opd = op.groupby("date")[["wbgt_shade", "wbgt_sun", *in_cols]].max()
     opd["year"] = opd.index.year
-    od = pd.DataFrame({
-        "op_days_wbgt_shade_gt_ref": opd.groupby("year")["wbgt_shade"].apply(lambda s: int((s > ref).sum())),
-        "op_days_wbgt_sun_gt_ref": opd.groupby("year")["wbgt_sun"].apply(lambda s: int((s > ref).sum())),
-        **{f"op_days_wbgt_{tag}_gt_ref": opd.groupby("year")[c].apply(lambda s: int((s > ref).sum())) for c, tag in in_cols.items()},
-    })
     g, go = df.groupby("year"), op.groupby("year")
     summary = pd.DataFrame({
         "hours": g.size(),
@@ -71,15 +99,11 @@ def annual_summary(hourly: pd.DataFrame, lat: float, lon: float, timezone: str, 
         "cdh24": g["temp_air"].apply(lambda s: float(np.clip(s - 24.0, 0, None).sum())).round(0),
         "wbgt_shade_max": g["wbgt_shade"].max().round(1),
         "wbgt_sun_max": g["wbgt_sun"].max().round(1),
-        "op_hours_wbgt_shade_gt_ref": go["wbgt_shade"].apply(lambda s: _count(s, ref)),
-        "op_hours_wbgt_shade_gt_ref_acc": go["wbgt_shade"].apply(lambda s: _count(s, ref_a)),
-        "op_hours_wbgt_sun_gt_ref": go["wbgt_sun"].apply(lambda s: _count(s, ref)),
-        "op_hours_wbgt_sun_gt_ref_acc": go["wbgt_sun"].apply(lambda s: _count(s, ref_a)),
         "op_wbgt_shade_degree_hours_gt_base": go["wbgt_shade"].apply(lambda s: float(np.clip(s - dh_base, 0, None).sum())).round(1),
         "hours_utci_shade_gt28": g["utci_shade"].apply(lambda s: _count(s, hc["utci_heat_stress_c"])),
         "hours_utci_sun_gt32": g["utci_sun"].apply(lambda s: _count(s, 32)),
         "hours_utci_sun_gt38": g["utci_sun"].apply(lambda s: _count(s, 38)),
-    }).join(dy).join(od)
+    }).join(dy)
     summary["op_hours_utci_in0_gt28"] = go["utci_indoor"].apply(lambda s: _count(s, 28))
     summary["op_hours_utci_in0_gt32"] = go["utci_indoor"].apply(lambda s: _count(s, 32))
     summary["op_hours_utci_sun_gt32"] = go["utci_sun"].apply(lambda s: _count(s, 32))
@@ -87,18 +111,21 @@ def annual_summary(hourly: pd.DataFrame, lat: float, lon: float, timezone: str, 
         tag = f"in{int(o)}"
         summary[f"op_hours_utci_{tag}_gt28"] = go[f"utci_{tag}"].apply(lambda s: _count(s, 28))
         summary[f"op_hours_utci_{tag}_gt32"] = go[f"utci_{tag}"].apply(lambda s: _count(s, 32))
-    for c, tag in in_cols.items():
-        summary[f"op_hours_wbgt_{tag}_gt_ref"] = go[c].apply(lambda s: _count(s, ref))
-        summary[f"op_hours_wbgt_{tag}_gt_ref_acc"] = go[c].apply(lambda s: _count(s, ref_a))
-    # working hours above the WBGT reference by shift, for every exposure (D57: story cards use these,
-    # so the shift split agrees with the headline numbers). Night is outside the default operating hours.
-    shifts = {"early": ("06:00", "14:00"), "late": ("14:00", "22:00"), "night": ("22:00", "06:00")}
+    # WBGT counts for every exposure and worker profile (D58, D59): days with a working hour above the
+    # reference, working hours above it (and above the acclimatised reference), and hours per shift
+    # (D57: the story cards use these, so the shift split agrees with the headline numbers; night is
+    # outside the default operating hours).
     expo_cols = {"shade": "wbgt_shade", "sun": "wbgt_sun", **{tag: c for c, tag in in_cols.items()}}
-    for sh, (a, b) in shifts.items():
-        m = operating_hours_mask(df.index, timezone, a, b, op_cfg["days"])
-        gs = df[m].groupby("year")
+    shift_groups = {sh: df[operating_hours_mask(df.index, timezone, a, b, op_cfg["days"])].groupby("year")
+                    for sh, (a, b) in SHIFTS.items()}
+    gd = opd.groupby("year")
+    for suf, (ref, ref_a) in wbgt_profiles(hc).items():
         for tag, col in expo_cols.items():
-            summary[f"op_hours_wbgt_{tag}_gt_ref_{sh}"] = gs[col].apply(lambda s: _count(s, ref))
+            summary[f"op_days_wbgt_{tag}_gt_ref{suf}"] = gd[col].apply(lambda s, r=ref: int((s > r).sum()))
+            summary[f"op_hours_wbgt_{tag}_gt_ref{suf}"] = go[col].apply(lambda s, r=ref: _count(s, r))
+            summary[f"op_hours_wbgt_{tag}_gt_ref{suf}_acc"] = go[col].apply(lambda s, r=ref_a: _count(s, r))
+            for sh, gs in shift_groups.items():
+                summary[f"op_hours_wbgt_{tag}_gt_ref{suf}_{sh}"] = gs[col].apply(lambda s, r=ref: _count(s, r))
     for name, lim in hc.get("process_limits", {}).items():
         summary[f"proc_hours_{name}"] = g[lim["variable"]].apply(lambda s, a=lim["above"]: _count(s, a)) if lim["variable"] in df else 0
     summary = summary.fillna(0)
