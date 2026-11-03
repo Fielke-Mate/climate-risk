@@ -347,7 +347,7 @@ The dashboard is built **around an interactive map of the portfolio**:
 | D54 | Headline tiles 3 and 4: A "Sites at high risk" (worker heat-safety days, provisional High 15+, Very high 35+) and D "Working time over the safe limit" (working hours above WBGT 28 °C, summed over sites in view, per worker) |
 | D55 | Hot-year definition stays on humid heat (indoor WBGT degree-hours); risk rating scale not needed for now |
 | D56 | Desktop dashboard fits one screen (no page scroll); long content scrolls inside its card |
-| D57 | Site panel Summary tab = story cards (concept 5B): working hours above WBGT 28 °C by shift for today, the hot year, the future typical and hot year (bar colour = year, shift = shade; totals equal the Data summary table, night shift shown as + h because it lies outside 06–22), and the UTCI comfort shift (B minus A per band) with in-tab year pickers. The indicator table and temperature bands move to a Data summary tab |
+| D57 | Site panel Summary tab = story cards (concept 5B): working hours above WBGT 28 °C by shift for six years: typical year and hot reference year for today, 2040 and 2050, the same six years as the comfort chart (future hot = the hot reference year adjusted to that climate; bar colour = year, shift = shade; totals equal the Data summary table, night shift shown as + h because it lies outside 06–22), and the UTCI comfort shift (B minus A per band) with in-tab year pickers. The indicator table and temperature bands move to a Data summary tab |
 | D33 | Site coordinates checked against published sources (airfield reference points or addresses; see sites CSV). Precision of ~1–3 km is enough, as ERA5 grid cells are ~9–30 km |
 
 ## 13. Open questions
