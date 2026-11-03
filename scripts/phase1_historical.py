@@ -73,7 +73,7 @@ def main() -> None:
 
     cfg = settings()
     b, op = cfg["baseline"], cfg["operating_hours"]
-    thr = cfg["hot_year"]["wbgt_threshold_c"]
+    thr = cfg["heat"]["wbgt_reference_c"]
     sites = sorted(load_sites(), key=lambda s: s.lat)  # south to north
     for d in ("hourly", "tmy", "hot_year", "pvgis"):
         (WEATHER_DIR / d).mkdir(parents=True, exist_ok=True)
@@ -158,7 +158,7 @@ def main() -> None:
     cmap = LinearSegmentedColormap.from_list("blues", ["#ffffff"] + BLUES)
     for metric, title, fname in [
         ("op_wbgt_shade_degree_hours_gt_base", "WBGT degree-hours above 25 °C in working hours (06–22), shaded WBGT (Liljegren)", "heatmap_wbgt_degree_hours.png"),
-        ("op_days_wbgt_shade_gt_ref", f"Days with a working hour above WBGT {thr:g} °C (shade, moderate work)", "heatmap_wbgt_days.png"),
+        ("op_days_wbgt_shade_gt_ref", f"Days with a working hour above WBGT {thr:g} °C (shade, moderate work, not acclimatised)", "heatmap_wbgt_days.png"),
         ("days_tmax_gt30", "Days with maximum air temperature above 30 °C", "heatmap_days_tmax30.png"),
     ]:
         piv = annual.pivot(index="site_id", columns="year", values=metric).loc[order]
