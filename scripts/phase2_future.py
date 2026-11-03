@@ -30,6 +30,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 from climate_risk import deltas as dl  # noqa: E402
 from climate_risk import morph, weather  # noqa: E402
 from climate_risk.annual import annual_summary, wbgt_metric_names  # noqa: E402
+from climate_risk.ladder import ensemble as ladder_ensemble, ladder  # noqa: E402
 from climate_risk.heatwave import heatwave_metric_names  # noqa: E402
 from climate_risk.config import ROOT, WEATHER_DIR, hourly_path, load_sites, settings  # noqa: E402
 from concurrent.futures import ProcessPoolExecutor  # noqa: E402
@@ -76,7 +77,7 @@ def process_site(job):
     base_daily = morph.baseline_daily_table(hourly)
     starts = hourly.index - pd.Timedelta(hours=1)
     hist_monthly = hourly["temp_air"].groupby(starts.month).mean()
-    delta_frames, annual_rows, checks, ref_rows = [], [], [], []
+    delta_frames, annual_rows, checks, ref_rows, lad_rows, lad_ref = [], [], [], [], [], []
     if saved_deltas:
         saved = pd.read_parquet(saved_deltas)
         saved = {k: g.drop(columns=["site_id", "model", "scenario", "period"]).reset_index(drop=True)
@@ -104,6 +105,8 @@ def process_site(job):
                 summ = annual_summary(fut, site.lat, site.lon, site.timezone, cfg)
                 annual_rows += [{"site_id": site.site_id, "model": model, "scenario": scen, "period": period,
                                  "source_year": y, **r} for y, r in summ.to_dict("index").items()]
+                lad_rows.append(ladder(fut, site.timezone, cfg).rename(columns={"year": "source_year"}).assign(
+                    site_id=site.site_id, model=model, scenario=scen, period=period))   # D66
                 tmy_f = morph.morph(tmy_hist, d, base_daily)
                 tmy_f["source_year"] = tmy_hist["source_year"].to_numpy()
                 tmy_f.astype({c: "float32" for c in tmy_f.columns if tmy_f[c].dtype == "float64"}).to_parquet(
@@ -116,8 +119,10 @@ def process_site(job):
                     rs = annual_summary(xf, site.lat, site.lon, site.timezone, cfg)
                     ref_rows += [{"site_id": site.site_id, "ref": kind, "source_year": ref_years[kind][0], "model": model,
                                   "scenario": scen, "period": period, **r} for r in rs.to_dict("records")]
+                    lad_ref.append(ladder(xf, site.timezone, cfg).drop(columns="year").assign(
+                        site_id=site.site_id, ref=kind, source_year=ref_years[kind][0], model=model, scenario=scen, period=period))
     print(f"{site.site_id}: done", flush=True)
-    return delta_frames, annual_rows, checks, ref_rows
+    return delta_frames, annual_rows, checks, ref_rows, pd.concat(lad_rows, ignore_index=True), pd.concat(lad_ref, ignore_index=True)
 
 
 def main() -> None:
@@ -178,6 +183,14 @@ def main() -> None:
                      for m in METRICS]
     ens = pd.DataFrame(rows)
     ens.to_csv(OUT / "ensemble_summary.csv", index=False)
+
+    # ---- D66: dry-bulb ladder (process-limit lens), same year types and model statistics ---------
+    lad_fut = pd.concat([r[4] for r in results], ignore_index=True)
+    lad_fut.to_parquet(OUT / "dbt_ladder_future.parquet", index=False)
+    pd.concat([r[5] for r in results], ignore_index=True).to_parquet(OUT / "dbt_ladder_reference_future.parquet", index=False)
+    lad_hist = pd.read_parquet(ROOT / "outputs" / "phase1" / "dbt_ladder.parquet")
+    lad_hist = lad_hist[lad_hist.site_id.isin([s.site_id for s in sites])]
+    ladder_ensemble(lad_hist, lad_fut, cfg).to_parquet(OUT / "dbt_ladder_ensemble.parquet", index=False)
 
     # ---- figures ------------------------------------------------------------------------
     names = {s.site_id: s.name for s in sites}

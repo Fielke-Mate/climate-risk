@@ -32,6 +32,7 @@ from matplotlib.patches import Rectangle  # noqa: E402
 from climate_risk import adjust, era5, pvgis, tmy, weather  # noqa: E402
 from climate_risk.annual import annual_summary, select_extreme_year, select_hot_year  # noqa: E402
 from climate_risk.config import ROOT, WEATHER_DIR, hourly_path, load_sites, settings  # noqa: E402
+from climate_risk.ladder import ladder  # noqa: E402
 
 OUT = ROOT / "outputs" / "phase1"
 FIG = ROOT / "docs" / "phase1" / "figures"
@@ -161,8 +162,11 @@ def process_site(job):
           f"extreme year {ext} ({rule}), issues: {problems or 'none'}", flush=True)
     annual = [{"site_id": site_id, "year": y, **r} for y, r in summ.to_dict("index").items()]
     annual_ext = [{"site_id": site_id, "year": y, **r} for y, r in summ_ext.to_dict("index").items()]
+    # D66: dry-bulb ladder for the process-limit lens (baseline years as observed; adjusted 2000-2025)
+    lad = ladder(hourly, site.timezone, cfg).assign(site_id=site_id)
+    lad_ext = ladder(adjusted, site.timezone, cfg).assign(site_id=site_id)
     return (annual, annual_ext, [{"site_id": site_id, **r} for r in sel.to_dict("records")], hot_row,
-            monthly_rows, grid_row, problems, check_row)
+            monthly_rows, grid_row, problems, check_row, lad, lad_ext)
 
 
 def main() -> None:
@@ -202,6 +206,8 @@ def main() -> None:
     monthly.to_csv(OUT / "monthly_crosscheck.csv", index=False)
     grids.to_csv(OUT / "era5_grid_points.csv", index=False)
     pd.DataFrame([res[7] for res in results]).to_csv(OUT / "baseline_adjustment_check.csv", index=False)
+    pd.concat([res[8] for res in results], ignore_index=True).to_parquet(OUT / "dbt_ladder.parquet", index=False)
+    pd.concat([res[9] for res in results], ignore_index=True).to_parquet(OUT / "dbt_ladder_extended.parquet", index=False)
     (OUT / "validation.json").write_text(json.dumps(problems, indent=2))
 
     names = {s.site_id: s.name for s in sites}

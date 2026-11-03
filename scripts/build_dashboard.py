@@ -26,6 +26,7 @@ from climate_risk.annual import wbgt_metric_names, wbgt_profiles
 from climate_risk.heatwave import heatwave_metric_names
 from climate_risk.config import ROOT, WEATHER_DIR, load_sites, settings
 from climate_risk.heat import heat_frame, utci_indoor, wbgt_liljegren
+from climate_risk.ladder import rung_names, rungs
 from climate_risk.weather import operating_hours_mask
 
 DASH = ROOT / "dashboard"
@@ -174,22 +175,62 @@ def tmy_stats(df: pd.DataFrame, site) -> dict:
     }
 
 
+def q8(t) -> str:
+    """Hourly dry bulb as uint8 at 0.25 C from -15 C (base64): the process lens draws its histograms and
+    month x hour grid from these (D66)."""
+    # floor: code k holds [-15 + k/4, -15 + (k+1)/4); the browser decodes to the bin centre, so a count above a
+    # limit on the 0.25 C grid is exact (up to a value exactly on the limit)
+    return base64.b64encode(np.clip(np.floor((np.asarray(t, float) + 15) * 4), 0, 255).astype(np.uint8).tobytes()).decode()
+
+
+def eu_local(start_ms: int, n: int, base_offset_h: int) -> tuple[np.ndarray, np.ndarray]:
+    """Local month (0-11) and hour of n consecutive hours from a UTC start, with EU summer time (last Sunday of
+    March to last Sunday of October, 01:00 UTC). The dashboard does the same in the browser (euLocal)."""
+    t = pd.to_datetime(start_ms + np.arange(n) * 3_600_000, unit="ms", utc=True)
+    def last_sunday(y, m):
+        d = pd.Timestamp(year=int(y), month=m, day=1, tz="UTC") + pd.offsets.MonthEnd(0)
+        return d - pd.Timedelta(days=(d.dayofweek + 1) % 7) + pd.Timedelta(hours=1)
+    years = t.year.to_numpy()
+    dst = np.zeros(n, dtype=bool)
+    for y in np.unique(years):
+        m = years == y
+        dst[m] = (t[m] >= last_sunday(y, 3)) & (t[m] < last_sunday(y, 10))
+    loc = t + pd.to_timedelta(base_offset_h + dst.astype(int), unit="h")
+    return loc.month.to_numpy() - 1, loc.hour.to_numpy()
+
+
+def local_clock(df: pd.DataFrame, tz: str) -> list[int]:
+    """[UTC start of the first hour (ms), number of hours, standard offset (h)] for a gap-free hourly record,
+    checked against the time-zone database so the browser's rule cannot drift from pandas."""
+    starts = df.index - pd.Timedelta(hours=1)
+    assert (np.diff(starts.asi8) == 3_600_000_000).all() or (np.diff(starts.asi8) == 3_600_000).all(), "hours not consecutive"
+    start_ms = int(starts[0].value // 1_000_000)
+    base = 0 if tz == "Europe/London" else 1
+    m, h = eu_local(start_ms, len(df), base)
+    loc = starts.tz_convert(tz)
+    assert (m == loc.month.to_numpy() - 1).all() and (h == loc.hour.to_numpy()).all(), f"EU summer-time rule disagrees for {tz}"
+    return [start_ms, len(df), base]
+
+
 def site_tmy_block(job):
     """All weather-summary statistics for one site (runs in a worker process)."""
     sid, hot_year, ext_year, models, scenarios, periods = job
     site = next(s for s in load_sites() if s.site_id == sid)
-    t = {"hist": tmy_stats(pd.read_parquet(WEATHER_DIR / "tmy" / f"{sid}_tmy.parquet"), site),
-         "hotref": tmy_stats(pd.read_parquet(WEATHER_DIR / "hot_year" / f"{sid}_{hot_year}.parquet"), site),
-         "extref": tmy_stats(pd.read_parquet(WEATHER_DIR / "extreme_year" / f"{sid}_{ext_year}.parquet"), site)}
+    base = {"hist": pd.read_parquet(WEATHER_DIR / "tmy" / f"{sid}_tmy.parquet"),
+            "hotref": pd.read_parquet(WEATHER_DIR / "hot_year" / f"{sid}_{hot_year}.parquet"),
+            "extref": pd.read_parquet(WEATHER_DIR / "extreme_year" / f"{sid}_{ext_year}.parquet")}
+    t = {k: tmy_stats(df, site) for k, df in base.items()}
+    # D66: hourly dry bulb of the chart years (future: per-hour median of the models, whose morphs share the base year's hours)
+    hrly = {"clock": {k: local_clock(df, site.timezone) for k, df in base.items()}, "t": {k: q8(df["temp_air"]) for k, df in base.items()}}
     for sc in scenarios:
         for per in periods:
-            t[f"{sc}_{per}"] = combine([tmy_stats(pd.read_parquet(WEATHER_DIR / "future" / "tmy" / f"{sid}_{m}_{sc}_{per}.parquet"), site)
-                                        for m in models])
-            for kind, pre in (("hot", "hot"), ("extreme", "ext")):
-                t[f"{pre}_{sc}_{per}"] = combine([tmy_stats(pd.read_parquet(WEATHER_DIR / "future" / f"{kind}_year" / f"{sid}_{m}_{sc}_{per}.parquet"), site)
-                                                  for m in models])
+            for kind, pre, folder in (("hist", "", "tmy"), ("hotref", "hot_", "hot_year"), ("extref", "ext_", "extreme_year")):
+                frames = [pd.read_parquet(WEATHER_DIR / "future" / folder / f"{sid}_{m}_{sc}_{per}.parquet") for m in models]
+                t[f"{pre}{sc}_{per}"] = combine([tmy_stats(f, site) for f in frames])
+                assert all(f.index.equals(base[kind].index) for f in frames)
+                hrly["t"][f"{pre}{sc}_{per}"] = q8(np.median(np.stack([f["temp_air"].to_numpy(float) for f in frames]), axis=0))
     print(f"{sid}: ok", flush=True)
-    return sid, t
+    return sid, t, hrly
 
 
 def combine(stats_list: list[dict]) -> dict:
@@ -210,6 +251,43 @@ def combine(stats_list: list[dict]) -> dict:
     return out
 
 
+LADDER_RANGE = ("hours", "op_hours", "days", "op_days", "dh", "op_dh")   # metrics that also carry the model range (min, max)
+
+
+def ladder_kpi(sid: str, hot_year: int, ext_year: int, lad: dict) -> tuple[dict, dict]:
+    """D66: per metric, one array over the ladder rungs for every year key the dashboard reads:
+    hist_typical / hist_hot (11-year median / 90th percentile), hotref (the observed hot year), extref (the
+    adjusted extreme year), <sc>_<per>_typical / _hot (model median of the year statistic) and
+    hotref_<sc>_<per> / extref_<sc>_<per> (the reference years in the future climate, model median).
+    Model ranges for the hour counts go in a second dict as [min array, max array]."""
+    cfg, cols = lad["cfg"], rung_names(lad["cfg"])
+    fc = cfg["future"]
+    as_list = lambda row: [int(round(float(x))) for x in row[cols].to_numpy(float)]
+    h, x, e, rf = (lad[k][lad[k].site_id == sid] for k in ("hist", "ext", "ens", "ref"))
+    med, rng = {}, {}
+    for metric, hm in h.groupby("metric"):
+        d = med[metric] = {}
+        em, xm, rm = e[e.metric == metric], x[x.metric == metric], rf[rf.metric == metric]
+        for yt in ("typical", "hot"):
+            d[f"hist_{yt}"] = as_list(em[(em.scenario == "historical") & (em.year_type == yt)].iloc[0])
+        d["hotref"] = as_list(hm[hm.year == hot_year].iloc[0])
+        d["extref"] = as_list(xm[xm.year == ext_year].iloc[0])
+        for sc in fc["scenarios"]:
+            for per in fc["periods"]:
+                keys = {}
+                for yt in ("typical", "hot"):
+                    g = em[(em.scenario == sc) & (em.period == str(per)) & (em.year_type == yt)].set_index("stat")
+                    keys[f"{sc}_{per}_{yt}"] = (g.loc["median"], g.loc["min"], g.loc["max"])
+                for ref, key in (("hot", "hotref"), ("extreme", "extref")):
+                    g = rm[(rm.ref == ref) & (rm.scenario == sc) & (rm.period.astype(str) == str(per))][cols]
+                    keys[f"{key}_{sc}_{per}"] = (g.median(), g.min(), g.max())
+                for k, (m0, lo, hi) in keys.items():
+                    d[k] = as_list(m0)
+                    if metric in LADDER_RANGE:
+                        rng.setdefault(metric, {})[k] = [as_list(lo), as_list(hi)]
+    return med, rng
+
+
 # --------------------------------------------------------------------------- main
 def main() -> None:
     cfg = settings()
@@ -223,6 +301,10 @@ def main() -> None:
     ref_fut = pd.read_csv(ROOT / "outputs/phase2/reference_years_future.csv", dtype={"period": str})
     ens = pd.read_csv(ROOT / "outputs/phase2/ensemble_summary.csv", dtype={"period": str})
     checks = pd.read_csv(ROOT / "outputs/phase2/morph_checks.csv", dtype={"period": str})
+    lad = {"hist": pd.read_parquet(ROOT / "outputs/phase1/dbt_ladder.parquet"),                    # D66
+           "ext": pd.read_parquet(ROOT / "outputs/phase1/dbt_ladder_extended.parquet"),
+           "ens": pd.read_parquet(ROOT / "outputs/phase2/dbt_ladder_ensemble.parquet"),
+           "ref": pd.read_parquet(ROOT / "outputs/phase2/dbt_ladder_reference_future.parquet"), "cfg": cfg}
 
     if not BASEMAP.exists():
         BASEMAP.write_text(json.dumps(build_basemap()))
@@ -260,6 +342,7 @@ def main() -> None:
                         v = rf[(rf.ref == ref) & (rf.scenario == sc) & (rf.period == per)][m]
                         k[m][f"{key}_{sc}_{per}"] = [round(float(v.median()), 1), round(float(v.min()), 1), round(float(v.max()), 1)]
                     k[m][f"{sc}_{per}_extreme"] = k[m][f"extref_{sc}_{per}"]
+        k["dbt"], k["dbt_rng"] = ladder_kpi(s.site_id, hy, ey, lad)
         c = checks[checks.site_id == s.site_id]
         k["warming"] = {f"{sc}_{per}": [round(float(v.median()), 2), round(float(v.min()), 2), round(float(v.max()), 2)]
                         for (sc, per), v in c.groupby(["scenario", "period"])["annual_warming_model_tas"]}
@@ -268,7 +351,9 @@ def main() -> None:
 
     with ProcessPoolExecutor(max_workers=4) as pool:
         jobs = [(x["id"], x["hot_year"], x["extreme_year"], models, fc["scenarios"], list(fc["periods"])) for x in site_rows]
-        tmy = dict(pool.map(site_tmy_block, jobs))
+        blocks = list(pool.map(site_tmy_block, jobs))
+    tmy = {sid: t for sid, t, _ in blocks}
+    hourly_dbt = {sid: h for sid, _, h in blocks}
 
     data = {
         "meta": {
@@ -290,8 +375,10 @@ def main() -> None:
                                     "acc": v["reference_acclimatised_c"] - v["clothing_adjustment_c"]}
                                 for k, v in cfg["heat"]["worker_profiles"].items()},
             "process_limits": {k: v["label"] for k, v in cfg["heat"]["process_limits"].items()},
+            "process_lens": {**{k: v for k, v in cfg["process_lens"].items() if k != "ladder_c"},
+                             "rungs": [float(r) for r in rungs(cfg)], "hourly_q": [-15, 0.25]},
         },
-        "basemap": basemap, "sites": site_rows, "kpi": kpi, "tmy": tmy,
+        "basemap": basemap, "sites": site_rows, "kpi": kpi, "tmy": tmy, "hourly": hourly_dbt,
     }
     DASH.mkdir(exist_ok=True)
     (DASH / "data.json").write_text(json.dumps(data, separators=(",", ":")))
