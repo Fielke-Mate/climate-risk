@@ -41,7 +41,7 @@ METRICS = ["temp_mean", "temp_max", "hours_t_gt30", "days_tmax_gt30", "days_tmax
            "op_hours_wbgt_shade_gt_ref", "op_hours_wbgt_shade_gt_ref_acc", "op_hours_wbgt_sun_gt_ref",
            "op_days_wbgt_shade_gt_ref", "op_days_wbgt_sun_gt_ref", "op_wbgt_shade_degree_hours_gt_base",
            "op_days_wbgt_in2_gt_ref", "op_days_wbgt_in4_gt_ref", "op_hours_wbgt_in2_gt_ref", "op_hours_wbgt_in4_gt_ref",
-           "op_hours_wbgt_in2_gt_ref_acc", "op_hours_wbgt_in4_gt_ref_acc",
+           "op_hours_wbgt_in2_gt_ref_acc", "op_hours_wbgt_in4_gt_ref_acc", "op_hours_wbgt_sun_gt_ref_acc",
            "op_hours_utci_in0_gt28", "op_hours_utci_in0_gt32", "op_hours_utci_in2_gt28", "op_hours_utci_in2_gt32",
            "op_hours_utci_in4_gt28", "op_hours_utci_in4_gt32", "op_hours_utci_sun_gt32",
            *[f"op_hours_wbgt_{x}_gt_ref_{sh}" for x in ("shade", "sun", "in2", "in4") for sh in ("early", "late", "night")],

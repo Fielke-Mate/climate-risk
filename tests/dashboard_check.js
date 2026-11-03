@@ -94,7 +94,7 @@ async function check(p, where) {
   const barToday = await page.$eval("#pane .sc svg .val", e => e.textContent.split(" h")[0]);
   await click('.tabs button[data-tab="data"]');
   const tableToday = await page.$$eval("#pane table tbody tr", trs => {
-    const tr = trs.find(t => /^Working hours above WBGT 28/.test(t.querySelector("th").innerText));
+    const tr = trs.find(t => /^Working hours above WBGT [0-9.]+ °C, not acclimatised/.test(t.querySelector("th").innerText));
     return tr.querySelectorAll("td")[0].innerText.trim();
   });
   if (barToday !== tableToday) fail("summary vs data", `today bar ${barToday} h, table ${tableToday} h`);
