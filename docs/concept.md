@@ -356,6 +356,7 @@ The dashboard is built **around an interactive map of the portfolio**:
 
 1. **Methodology review actions** ([`methodology_review.md`](methodology_review.md)): indoor hall model / BMS calibration, EPW export, station bias correction first.
 2. **Getafe / Illescas** share one ERA5 cell (identical historical weather).
+3. **Climate science review actions** ([`climate_science_review.md`](climate_science_review.md)): less noisy deltas (30-year windows, more models), a high-end hot-day storyline, heatwave persistence metrics first. The review also qualifies section 4c's "projecting peaks" note: amplification is present at every site, and the Spanish hot-day signal is within sampling noise.
 
 ## 14. Notes for productisation
 

@@ -11,6 +11,7 @@ The first focus is **extreme heat**: risk to **worker health and productivity** 
 - Phase 3 (heat-stress metrics): [`docs/phase3/README.md`](docs/phase3/README.md)
 - Code review and functional test (Nov 2026): [`docs/code_review_2026-11.md`](docs/code_review_2026-11.md)
 - Methodology review (building services): [`docs/methodology_review.md`](docs/methodology_review.md)
+- Methodology review (climate science: future hot years and amplified extremes): [`docs/climate_science_review.md`](docs/climate_science_review.md)
 - Dashboard prototype: `dashboard/index.html` (self-contained; open in a browser or host on GitHub Pages). Rebuild with `scripts/build_dashboard.py`.
 
 ## Setup
