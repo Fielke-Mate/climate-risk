@@ -24,7 +24,7 @@ const PRESETS = {
   custom: { label: "Custom process", lim: null },
 };
 const qs = new URLSearchParams(location.search);
-const P = { on: qs.get("lens") !== "work", proc: "paint", lim: 35, run: qs.get("run") === "24" ? "24" : "op", alt: qs.get("alt") === "1", v: ["ladder", "bridge", "curve"].includes(qs.get("v")) ? qs.get("v") : "ladder" };
+const P = { on: qs.get("lens") !== "work", proc: "paint", lim: 35, run: qs.get("run") === "24" ? "24" : "op", alt: qs.get("alt") === "1", v: ["ladder", "bridge", "curve", "hist"].includes(qs.get("v")) ? qs.get("v") : "ladder" };
 const thr = () => P.lim - Number(S.hall);
 const procName = () => P.proc === "custom" ? "custom limit" : PRESETS[P.proc].label;
 const runText = () => P.run === "op" ? `runs ${DATA.meta.operating_hours.start}–${DATA.meta.operating_hours.end}` : "runs 24 h";
@@ -219,8 +219,8 @@ function downtime() {
   const c = dtCtx(), W0 = paneW(30), fAt = above(c.f.st, P.lim), today = c.at(0), p1 = above(c.f.st, P.lim + 1), p2 = above(c.f.st, P.lim + 2);
   const head = fAt < 0.5 ? `No downtime at ${limText()}, even in a ${c.per} ${c.ytn}: the hottest operating hour is <i>${fmt(c.f.st.mx, 1)} °C</i>.`
     : `At ${limText()} ${c.ytn === "extreme year" ? "an" : "a"} ${c.ytn} costs <b>${fmt(today)} hours</b> of downtime today and <b>${fmt(fAt)} h</b> by ${c.per}: about <b>${fmt(Math.round(c.cum / 10) * 10)} h</b> in total from 2026 to 2050 (typical years). ${c.eq != null ? `<b>${fmt(c.eq - P.lim, 1)} °C</b> more process tolerance or hall cooling would hold ${c.per} at today's level; ` : ""}each extra 1 °C saves about <i>${fmt(fAt - p1)} h</i> a year by ${c.per}.`;
-  const vis = P.v === "bridge" ? bridge(c, W0) : ladder(c, W0);
-  const sub = P.v === "bridge" ? `How the ${c.per} downtime builds up from today, and what each extra °C of process tolerance or hall cooling buys back · ${c.ytn}`
+  const vis = P.v === "bridge" ? bridge(c, W0) : P.v === "hist" ? hists(c, W0) : ladder(c, W0);
+  const sub = P.v === "hist" ? `Operating hours a year at each hall-air temperature (1 °C bins), the warm end of the year, one panel per period on the same scale · coloured: above the limit (downtime) · grey outline: today · ${c.ytn}` : P.v === "bridge" ? `How the ${c.per} downtime builds up from today, and what each extra °C of process tolerance or hall cooling buys back · ${c.ytn}`
     : `Downtime hours a year for limits around yours (1 °C steps) · dashed: today's downtime at your limit · ${c.ytn}`;
   return `<div class="sc"><div class="t">${head}</div>${dtStrip(c)}<div class="sub">${sub} · ${hallText()} · ${runText()}</div>${vis}</div>`;
 }
@@ -277,6 +277,32 @@ function bridge(c, W0) {
   });
   o += `<line class="axis" x1="${m.l}" x2="${W0 - m.r}" y1="${Y(0)}" y2="${Y(0)}"/></svg>`;
   return o + `<div class="keys"><span><i style="background:rgba(74,77,87,.55);outline:1px dashed #4A4D57"></i>added by climate change</span><span><i style="background:${OK}"></i>bought back by extra process tolerance or hall cooling, per °C</span></div>`;
+}
+
+/* Card 2 visual, option C: small-multiple histograms of operating-hour hall air, the tail above the limit coloured */
+function hists(c, W0) {
+  /* zoom (default): from 10 °C below the limit, so the tail is drawn large; ?zoom=0 shows the whole year */
+  const zoom = qs.get("zoom") !== "0", hall = Number(S.hall), lo = zoom ? -10 : Math.floor(Math.min(...c.ser.map(s => s.st.sorted[0] + hall)) - P.lim), hi = Math.ceil(Math.max(...c.ser.map(s => s.st.mx)) - P.lim) + 1;
+  const edges = []; for (let k = lo; k <= hi; k++) edges.push(P.lim + k);
+  const counts = c.ser.map(s => edges.slice(0, -1).map((e, i) => above(s.st, e) - above(s.st, edges[i + 1])));
+  const mxC = Math.max(1, ...counts.flat()), lw = zoom ? 104 : 64, rw = 132, rh = 64, gap = 12, top = 18, nb = edges.length - 1;
+  const bw = (W0 - lw - rw) / nb, X = t => lw + (t - edges[0]) * bw, H = top + 3 * rh + 2 * gap + 22;
+  let o = `<svg class="chart" width="${W0}" viewBox="0 0 ${W0} ${H}" style="max-width:${W0}px" role="img" aria-label="Distribution of operating-hour temperatures with the process limit">`;
+  c.ser.forEach((s, r) => {
+    const y0 = top + r * (rh + gap), base = y0 + rh, Yh = v => base - rh * v / mxC, tot = s.st.sorted.length, a = above(s.st, P.lim);
+    o += `<line x1="${lw}" x2="${W0 - rw}" y1="${base}" y2="${base}" stroke="var(--line-2)"/>`;
+    if (zoom) { const below = above(s.st, -99) - above(s.st, edges[0]); o += `<text class="lab sm" x="0" y="${y0 + rh / 2 + 28}" style="fill:var(--ink-3)">+${fmt(below)} h < ${fmt(edges[0], 0)} °C</text>`; }
+    o += `<text class="grp" x="0" y="${y0 + rh / 2}">${s.name}</text><text class="lab sm" x="0" y="${y0 + rh / 2 + 14}">${c.ytn.replace(" year", "")}</text>`;
+    counts[r].forEach((v, i) => { if (!v) return; const t = edges[i], up = t >= P.lim;
+      o += `<rect x="${X(t) + 0.5}" y="${Yh(v)}" width="${Math.max(bw - 1, 0.5)}" height="${base - Yh(v)}" rx="1" fill="${up ? s.color : "var(--c-today)"}" fill-opacity="${up ? 1 : 0.28}" data-t="${s.name}: ${fmt(t, 1)}–${fmt(t + 1, 1)} °C<br>${fmt(v)} operating hours a year"/>`; });
+    if (r > 0) o += `<path d="${counts[0].map((v, i) => `${i ? "L" : "M"}${X(edges[i]).toFixed(1)},${Yh(v).toFixed(1)}H${X(edges[i + 1]).toFixed(1)}`).join("")}" fill="none" stroke="var(--c-hot)" stroke-width="1" stroke-opacity=".7"/>`;
+    o += `<text class="val" x="${W0 - rw + 12}" y="${y0 + rh / 2}" style="fill:${s.color};font-weight:600;font-size:13px">${fmt(a)} h above</text><text class="lab sm" x="${W0 - rw + 12}" y="${y0 + rh / 2 + 15}">${fmt(100 * a / tot, 1)} % of operating hours</text>`;
+  });
+  const ly = top + 3 * rh + 2 * gap;
+  o += `<line class="lim" x1="${X(P.lim)}" x2="${X(P.lim)}" y1="${top - 12}" y2="${ly + 2}"/><text x="${X(P.lim) + 4}" y="${top - 6}" style="fill:var(--ink)">limit ${limText()}</text>`;
+  for (let t = Math.ceil(edges[0] / (zoom ? 2 : 5)) * (zoom ? 2 : 5); t <= edges[nb]; t += zoom ? 2 : 5) o += `<text x="${X(t)}" y="${ly + 16}" text-anchor="middle">${t} °C</text>`;
+  o += `</svg>`;
+  return o + `<div class="keys"><span><i style="background:var(--c-today);opacity:.28"></i>hours below the limit</span>${c.ser.map(s => `<span><i style="background:${s.color}"></i>${s.name} downtime</span>`).join("")}<span><i style="background:none;border-top:1px solid var(--c-hot);height:0;border-radius:0;vertical-align:3px"></i>today, for comparison</span></div>`;
 }
 
 /* Previous card 2: exceedance curve (kept for comparison, ?v=curve) */
