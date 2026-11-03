@@ -7,7 +7,11 @@ For each site x model x scenario x period:
 Then ensemble summaries (typical = median year, hot = 90th percentile year; median and
 range across models), consistency checks, figures.
 
-Usage: python scripts/phase2_future.py [--sites SVQ,TLS]
+Usage: python scripts/phase2_future.py [--sites SVQ,TLS] [--reuse-deltas]
+
+--reuse-deltas takes the climate change deltas from a previous run (outputs/phase2/deltas.parquet)
+instead of the NEX-GDDP download. Use it when only the morphing or the indicators changed (e.g. a
+new WBGT reference); the deltas depend only on the NEX data and the future config.
 """
 
 from __future__ import annotations
@@ -58,7 +62,7 @@ def style(ax):
 
 def process_site(job):
     """Deltas, morphed years, annual indicators and morphed TMYs for one site (runs in a worker)."""
-    site_id, fc = job
+    site_id, fc, saved_deltas = job
     cfg = settings()
     b = cfg["baseline"]
     site = next(s for s in load_sites() if s.site_id == site_id)
@@ -72,11 +76,18 @@ def process_site(job):
     starts = hourly.index - pd.Timedelta(hours=1)
     hist_monthly = hourly["temp_air"].groupby(starts.month).mean()
     delta_frames, annual_rows, checks = [], [], []
+    if saved_deltas:
+        saved = pd.read_parquet(saved_deltas)
+        saved = {k: g.drop(columns=["site_id", "model", "scenario", "period"]).reset_index(drop=True)
+                 for k, g in saved[saved.site_id == site_id].groupby(["model", "scenario", "period"])}
     for model in fc["models"]:
         for scen in fc["scenarios"]:
             for period, window in fc["periods"].items():
-                d = dl.site_deltas(site.site_id, model, scen, tuple(fc["baseline_years"]), tuple(window),
-                                   fc["temperature_quantiles"])
+                if saved_deltas:
+                    d = saved[(model, scen, period)]
+                else:
+                    d = dl.site_deltas(site.site_id, model, scen, tuple(fc["baseline_years"]), tuple(window),
+                                       fc["temperature_quantiles"])
                 delta_frames.append(d.assign(site_id=site.site_id, model=model, scenario=scen, period=period))
                 fut = morph.morph(hourly, d, base_daily)
                 probs = weather.validate(fut)
@@ -110,6 +121,8 @@ def main() -> None:
     ap.add_argument("--models", default="", help="comma list; default all configured models")
     ap.add_argument("--out", default="", help="override output folder (for trial runs)")
     ap.add_argument("--workers", type=int, default=4)
+    ap.add_argument("--reuse-deltas", action="store_true",
+                    help="use outputs/phase2/deltas.parquet from a previous run instead of the NEX download")
     args = ap.parse_args()
 
     cfg = settings()
@@ -125,7 +138,10 @@ def main() -> None:
     for d in (OUT, FIG, FUT / "tmy", FUT / "hot_year"):
         d.mkdir(parents=True, exist_ok=True)
 
-    jobs = [(site.site_id, fc) for site in sites]
+    saved_deltas = ""
+    if args.reuse_deltas:
+        saved_deltas = str(ROOT / "outputs" / "phase2" / "deltas.parquet")
+    jobs = [(site.site_id, fc, saved_deltas) for site in sites]
     with ProcessPoolExecutor(max_workers=min(args.workers, len(jobs))) as pool:
         results = list(pool.map(process_site, jobs))
     delta_frames = [f for r in results for f in r[0]]
