@@ -212,6 +212,8 @@ svg.chart .lab.sm { font-size: 11px; }
 svg.chart .lab .u { fill: var(--ink-3); font-size: 11px; }
 .exact summary { cursor: pointer; font-size: var(--fs-125); color: var(--purple-600); font-weight: 500; margin-bottom: 6px; }
 svg.chart .lab.note2 { fill: var(--ink-3); font-size: 11px; }
+.sc .fn { font-size: var(--fs-115); color: var(--ink-3); border-top: 1px solid var(--line); padding-top: 6px; margin-top: 2px; }
+.sc .fn b { color: var(--ink-2); font-weight: 600; }
 .sc .why { font-size: var(--fs-12); color: var(--ink-2); background: var(--bg); border-radius: var(--r-xs); padding: 6px 9px; }
 .cmp { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: var(--fs-12); color: var(--ink-2); }
 .cmp select { height: 28px; }
@@ -679,14 +681,14 @@ function storyYears() {
   const sc = S.scen, ey = byId[S.site].extreme_year, hy = byId[S.site].hot_year;
   return [
     { key: "hist", kpi: "hist", grp: "Today", sub: "typical", name: "Today, typical year", color: "var(--c-today)" },
-    { key: "hotref", kpi: "hotref", grp: "Today", sub: `hot year (${hy})`, name: "Today, hot year", color: "var(--c-hot)" },
-    { key: "extref", kpi: "extref", grp: "Today", sub: `extreme (${ey})`, name: "Today, extreme year", color: "var(--c-ext)" },
+    { key: "hotref", kpi: "hotref", grp: "Today", sub: "hot year", name: "Today, hot year", color: "var(--c-hot)" },
+    { key: "extref", kpi: "extref", grp: "Today", sub: "extreme", name: "Today, extreme year", color: "var(--c-ext)" },
     { key: `${sc}_2040`, kpi: `${sc}_2040_typical`, grp: "2040", sub: "typical", name: "2040, typical year", color: "var(--c-2040)" },
-    { key: `hot_${sc}_2040`, kpi: `hotref_${sc}_2040`, grp: "2040", sub: `hot year (${hy})`, name: "2040, hot year", color: "var(--c-2040-hot)" },
-    { key: `ext_${sc}_2040`, kpi: `extref_${sc}_2040`, grp: "2040", sub: `extreme (${ey})`, name: "2040, extreme year", color: "var(--c-2040-ext)" },
+    { key: `hot_${sc}_2040`, kpi: `hotref_${sc}_2040`, grp: "2040", sub: "hot year", name: "2040, hot year", color: "var(--c-2040-hot)" },
+    { key: `ext_${sc}_2040`, kpi: `extref_${sc}_2040`, grp: "2040", sub: "extreme", name: "2040, extreme year", color: "var(--c-2040-ext)" },
     { key: `${sc}_2050`, kpi: `${sc}_2050_typical`, grp: "2050", sub: "typical", name: "2050, typical year", color: "var(--c-2050)" },
-    { key: `hot_${sc}_2050`, kpi: `hotref_${sc}_2050`, grp: "2050", sub: `hot year (${hy})`, name: "2050, hot year", color: "var(--c-2050-hot)" },
-    { key: `ext_${sc}_2050`, kpi: `extref_${sc}_2050`, grp: "2050", sub: `extreme (${ey})`, name: "2050, extreme year", color: "var(--c-2050-ext)" }];
+    { key: `hot_${sc}_2050`, kpi: `hotref_${sc}_2050`, grp: "2050", sub: "hot year", name: "2050, hot year", color: "var(--c-2050-hot)" },
+    { key: `ext_${sc}_2050`, kpi: `extref_${sc}_2050`, grp: "2050", sub: "extreme", name: "2050, extreme year", color: "var(--c-2050-ext)" }];
 }
 const futPer = () => S.period === "hist" ? "2050" : S.period;
 /* keep a picked year when the scenario changes; empty = follow the View bar */
@@ -742,8 +744,8 @@ function renderStory() {
       ? "on <i>dry</i> heat (most hours above 30 °C, longest hot spells), because humid heat is rare here"
       : "on humid heat over the whole year (indoor WBGT degree-hours)"}. Working hours above WBGT ${WR()} °C depend on humidity, the exposure and the worker profile, so the hot year (${hy}) can still have more of them.</div>`;
   return `<div class="story"><div class="sc"><div class="t">${headline}</div>
-    <div class="sub">Working hours above WBGT ${WR()} °C by shift; a heat-safety day is a day with at least one of these hours · ISO 7243: ${profText()} · ${E.label}</div>${o}${keys1}${why}</div>${climateHere()}${comfortShift()}</div>
-    <p class="note">${SCEN[sc]} · median of ${DATA.meta.models.length} climate models · typical = median of ${B0}–${B1}; hot year = ${hy} as it happened; extreme year = ${ey} in today's climate (About the data explains these) · working hours ${DATA.meta.operating_hours.start}–${DATA.meta.operating_hours.end} local · full table in Indicators.</p>`;
+    <div class="sub">Working hours above WBGT ${WR()} °C by shift; a heat-safety day is a day with at least one of these hours · ISO 7243: ${profText()} · ${E.label}</div>${o}${keys1}${why}<div class="fn"><b>Typical</b>: the median year of ${B0}–${B1}. <b>Hot year</b>: ${hy}, the site's hottest year of ${B0}–${B1}, as it happened. <b>Extreme</b>: ${ey} weather in today's climate, the hottest year since ${E0}. The 2040 and 2050 rows are the same years adjusted to those climates.</div></div>${climateHere()}${comfortShift()}</div>
+    <p class="note">${SCEN[sc]} · median of ${DATA.meta.models.length} climate models · working hours ${DATA.meta.operating_hours.start}–${DATA.meta.operating_hours.end} local · full table in Indicators.</p>`;
 }
 /* comfort shift (Heat stress tab): one column per UTCI band, year B minus year A, compact */
 function comfortShift() {
