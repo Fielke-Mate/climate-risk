@@ -68,7 +68,7 @@ heat:
       clothing_adjustment_c: 0.0
     ppe:
       label: "Moderate work, disposable coveralls and hood"
-      short: "Moderate, coveralls + hood"
+      short: "Coveralls + hood"
       examples: "Painting, sealant and composite cleanroom work in limited-use coveralls (Class 2; CAV +1 coveralls, +1 hood)"
       reference_c: 26.0
       reference_acclimatised_c: 28.0

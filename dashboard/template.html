@@ -326,7 +326,7 @@ svg.chart .gridl { stroke: var(--line); }
       <div class="vgrp"><span>Year</span><div class="toggle" id="ctl-yt"><button data-v="typical">Typical</button><button data-v="hot" title="About a 1-in-10 year">Hot</button></div></div>
       <div class="vgrp"><span>Exposure</span><div class="toggle" id="ctl-expo"><button data-v="in">Indoor</button><button data-v="sun">Outdoor sun</button></div></div>
       <div class="vgrp" id="hallgrp"><span title="How much warmer the hall runs than outside">Hall gain</span><div class="toggle" id="ctl-hall"><button data-v="0">+0 °C</button><button data-v="2">+2 °C</button><button data-v="4">+4 °C</button></div></div>
-      <div class="vgrp"><span title="Work intensity and clothing: sets the WBGT reference">Worker</span><select class="ksel" id="ctl-prof" aria-label="Worker profile"></select></div>
+      <div class="vgrp"><span title="Work intensity and clothing: sets the WBGT limit (not acclimatised)">Worker</span><select class="ksel" id="ctl-prof" aria-label="Worker profile"></select></div>
       <span class="cnt" id="cnt"></span>
     </section>
 
@@ -872,7 +872,7 @@ function init() {
   S.sel = new Set(SITES.map(s => s.id));
   S.open = { EU: true };
   bindToggle("ctl-scen", "scen"); bindToggle("ctl-period", "period"); bindToggle("ctl-yt", "yt"); bindToggle("ctl-expo", "expo"); bindToggle("ctl-hall", "hall");
-  $("#ctl-prof").innerHTML = Object.entries(PROFILES).map(([k, q]) => `<option value="${k}" ${k === S.prof ? "selected" : ""}>${esc(q.short)} · WBGT ${fmt(q.ref, 0)} °C</option>`).join("");
+  $("#ctl-prof").innerHTML = Object.entries(PROFILES).map(([k, q]) => `<option value="${k}" title="${esc(q.label)}: ${esc(q.examples)}" ${k === S.prof ? "selected" : ""}>${esc(q.short)} · ${fmt(q.ref, 0)} °C</option>`).join("");
   $("#ctl-prof").addEventListener("change", e => { S.prof = e.target.value; store.set("cr-prof", S.prof); renderAll(); });
   $("#ctl-layer").value = S.layer;
   $("#ctl-layer").addEventListener("change", e => { S.layer = e.target.value; store.set("cr-layer", S.layer); renderStrip(); updateMap(); });
