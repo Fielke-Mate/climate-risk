@@ -551,7 +551,10 @@ function columns() {
     { key: "2050", label: "2050", sub: `${SCEN[S.scen]}, ${S.yt}`, color: "var(--c-2050)" },
   ];
 }
-const tmyKey = c => c === "hist" ? "hist" : c === "hotref" ? "hotref" : `${S.scen}_${c}`;
+/* chart data: today = typical year; hotref = actual hot year; 2040/2050 = typical year or, with
+   Year = Hot, the site's hot reference year adjusted to that future climate */
+const tmyKey = c => c === "hist" ? "hist" : c === "hotref" ? "hotref" : `${S.yt === "hot" ? "hot_" : ""}${S.scen}_${c}`;
+const futSub = () => S.yt === "hot" ? `${byId[S.site].hot_year} weather, ${SCEN[S.scen]}` : `${SCEN[S.scen]}, typical`;
 function renderHeader() {
   const s = byId[S.site], k = DATA.kpi[S.site];
   $("#s-name").textContent = s.name;
@@ -578,11 +581,11 @@ function renderSummary() {
     ["Cooling degree-hours above 24 °C", "cdh24", 0], ["Heating degree-hours below 19 °C", "hdh19", 0]];
   return `<div><h3>Key heat indicators</h3><div class="tw"><table>${thead(cols, "Indicator")}<tbody>${rows.map(([l, m, d, p]) => `<tr><th scope="row">${l}${p ? '<span class="prov">provisional</span>' : ""}</th>${cols.map(c => cell(id, m, c.key, d)).join("")}</tr>`).join("")}</tbody></table></div>
     <p class="note">From all 11 years (2015–2025) and their 2040/2050 versions. Future values: median of ${DATA.meta.models.length} climate models, range below. Working hours ${DATA.meta.operating_hours.start}–${DATA.meta.operating_hours.end} local time. WBGT: Liljegren model, ISO 7243 reference 28 °C for moderate work (acclimatised).</p></div>
-    <div><h3>Hours of the year in each temperature band <span class="sub">typical year</span></h3>${stackRows(c => DATA.tmy[id][tmyKey(c.key)].temp_bands, TEMP_COLS, DATA.meta.temp_bands, " °C")}</div>`;
+    <div><h3>Hours of the year in each temperature band <span class="sub">${S.yt === "hot" ? `2040 / 2050: ${byId[S.site].hot_year} weather adjusted to the future` : "typical year"}</span></h3>${stackRows(c => DATA.tmy[id][tmyKey(c.key)].temp_bands, TEMP_COLS, DATA.meta.temp_bands, " °C")}</div>`;
 }
 function stackRows(get, colors, labels, unit) {
   return columns().map(c => { const v = get(c), t = v.reduce((a, b) => a + b, 0);
-    const sub = c.key === "hotref" ? "actual year" : c.key === "hist" ? "typical year" : `${SCEN[S.scen]}, typical`;
+    const sub = c.key === "hotref" ? "actual year" : c.key === "hist" ? "typical year" : futSub();
     return `<div class="stack-row"><div class="lab">${c.label}<small>${sub}</small></div><div class="stack">${v.map((x, i) => x > 0 ? `<span data-t="${labels[i]}${unit}: ${fmt(x)} h (${fmt(100 * x / t, 1)} %)" style="flex:${x} 1 0;background:${colors[i]}"></span>` : "").join("")}</div></div>`; }).join("")
     + `<div class="keys">${labels.map((l, i) => `<span><i style="background:${colors[i]}"></i>${l}${unit}</span>`).join("")}</div>`;
 }
@@ -611,18 +614,22 @@ function heatmap(grid, unit) {
 }
 function renderTemp() {
   const id = S.site, T = DATA.tmy[id], sc = S.scen, hy = byId[id].hot_year;
+  const hot = S.yt === "hot", base = hot ? "hotref" : "hist";
+  const baseName = hot ? `Hot year ${hy} (actual)` : "Today (typical)";
+  const fName = per => hot ? `${hy} weather in ${per}, ${SCEN[sc]}` : `${per} ${SCEN[sc]}`;
   const pct = a => { const t = a.reduce((x, y) => x + y, 0); return a.map(v => 100 * v / t); };
   const bins = Array.from({ length: 56 }, (_, i) => i - 10);
   const hist = lineChart({ xLabels: bins.map(b => `${b} °C`), unit: "% of hours", xTicks: [0, 10, 20, 30, 40, 50],
-    bars: { name: "Today (typical)", values: pct(T.hist.temp_hist), color: "var(--c-today)" },
-    series: [{ name: `2040 ${SCEN[sc]}`, values: pct(T[`${sc}_2040`].temp_hist), color: "var(--c-2040)" }, { name: `2050 ${SCEN[sc]}`, values: pct(T[`${sc}_2050`].temp_hist), color: "var(--c-2050)" }] });
-  const diff = T[`${sc}_2050`].month_hour_t.map((r, mi) => r.map((v, hi) => v - T.hist.month_hour_t[mi][hi]));
+    bars: { name: baseName, values: pct(T[base].temp_hist), color: hot ? "var(--c-hot)" : "var(--c-today)" },
+    series: [{ name: fName(2040), values: pct(T[tmyKey("2040")].temp_hist), color: "var(--c-2040)" }, { name: fName(2050), values: pct(T[tmyKey("2050")].temp_hist), color: "var(--c-2050)" }] });
+  const diff = T[tmyKey("2050")].month_hour_t.map((r, mi) => r.map((v, hi) => v - T[base].month_hour_t[mi][hi]));
   const mon = lineChart({ xLabels: MONTHS, unit: "°C", series: [
     { name: "Today (typical)", values: T.hist.monthly_tmax, color: "var(--c-today)" }, { name: `Hot year ${hy}`, values: T.hotref.monthly_tmax, color: "var(--c-hot)", dash: true },
-    { name: `2040 ${SCEN[sc]}`, values: T[`${sc}_2040`].monthly_tmax, color: "var(--c-2040)" }, { name: `2050 ${SCEN[sc]}`, values: T[`${sc}_2050`].monthly_tmax, color: "var(--c-2050)" }] });
-  return `<div><h3>Share of hours at each temperature <span class="sub">typical year</span></h3>${hist}${skey([["var(--c-today)", "Today (bars)"], ["var(--c-2040)", `2040 ${SCEN[sc]}`], ["var(--c-2050)", `2050 ${SCEN[sc]}`]])}</div>
-    <div><h3>When the warming happens <span class="sub">2050 ${SCEN[sc]} minus today, by month and hour of day</span></h3>${heatmap(diff, "°C")}<p class="note">Local time, median of ${DATA.meta.models.length} models applied to the typical year. Afternoon warming adds directly to the work-time heat load.</p></div>
-    <div><h3>Average daily maximum temperature by month</h3>${mon}${skey([["var(--c-today)", "Today (typical)"], ["var(--c-hot)", `Hot year ${hy} (actual)`, 1], ["var(--c-2040)", `2040 ${SCEN[sc]}`], ["var(--c-2050)", `2050 ${SCEN[sc]}`]])}</div>`;
+    { name: fName(2040), values: T[tmyKey("2040")].monthly_tmax, color: "var(--c-2040)" }, { name: fName(2050), values: T[tmyKey("2050")].monthly_tmax, color: "var(--c-2050)" }] });
+  const yearSub = hot ? `hot year: ${hy} weather as it happened and adjusted to the future` : "typical year";
+  return `<div><h3>Share of hours at each temperature <span class="sub">${yearSub}</span></h3>${hist}${skey([[hot ? "var(--c-hot)" : "var(--c-today)", `${baseName} (bars)`], ["var(--c-2040)", fName(2040)], ["var(--c-2050)", fName(2050)]])}</div>
+    <div><h3>When the warming happens <span class="sub">${hot ? `${hy} weather in 2050 (${SCEN[sc]}) minus ${hy} as it happened` : `2050 ${SCEN[sc]} minus today`}, by month and hour of day</span></h3>${heatmap(diff, "°C")}<p class="note">Local time, median of ${DATA.meta.models.length} models applied to the ${hot ? `actual ${hy} weather` : "typical year"}. Afternoon warming adds directly to the work-time heat load.</p></div>
+    <div><h3>Average daily maximum temperature by month <span class="sub">${yearSub}</span></h3>${mon}${skey([["var(--c-today)", "Today (typical)"], ["var(--c-hot)", `Hot year ${hy} (actual)`, 1], ["var(--c-2040)", fName(2040)], ["var(--c-2050)", fName(2050)]])}</div>`;
 }
 function renderStress() {
   const id = S.site, T = DATA.tmy[id], cols = columns(), hy = byId[id].hot_year;
@@ -643,7 +650,7 @@ function renderStress() {
   const procRows = Object.entries(DATA.meta.process_limits).map(([k, label]) => `<tr><th scope="row">${label}</th>${cols.map(c => cell(id, "proc_hours_" + k, c.key, 0)).join("")}</tr>`).join("");
   return `<div><h3>Work heat stress by shift: ISO 7243 WBGT, moderate work <span class="sub">${EXPO().label}</span></h3>
       <div class="tw"><table>${thead(cols, "Hours a year")}<tbody>${rows}</tbody></table></div>
-      <p class="note">${expoNote} Typical year for today and the future; the hot year is the actual ${hy} weather.</p></div>
+      <p class="note">${expoNote} ${S.yt === "hot" ? `2040 and 2050 are the actual ${hy} weather adjusted to those climates (Year: Hot).` : "Today and the future use the typical year; the hot year is the actual " + hy + " weather."}</p></div>
     <div><h3>UTCI thermal stress scale</h3><div class="utci-scale">${UTCI.map(u => `<div class="${u[3] ? "dk" : ""}" style="background:${u[2]}">${u[0]}<br>${u[1]}</div>`).join("")}</div></div>
     <div><h3>Condition of person: share of hours in each UTCI band <span class="sub">${EXPO().label}</span></h3>
       ${stackRows(c => T[tmyKey(c.key)][ub], UTCI.map(u => u[2]), UTCI.map(u => u[0]), "")}</div>
@@ -660,7 +667,7 @@ function renderAbout() {
     <li><b>Typical year:</b> an ISO 15927-4 typical meteorological year built from the same record, used for the hourly charts.</li>
     <li><b>Hot year:</b> the site's hottest actual year (${s.hot_year}), ranked by working-hour WBGT degree-hours above 25 °C, shown unadjusted.</li>
     <li><b>2040 and 2050:</b> every historical year adjusted with changes from ${DATA.meta.models.length} NEX-GDDP-CMIP6 models (${DATA.meta.models.join(", ")}). Hot days receive the hot-day warming. 2040 = 2031–2050 and 2050 = 2041–2060, both against 2015–2025.</li>
-    <li><b>Typical vs hot:</b> the median year and the 90th-percentile year (about 1 in 10) of the 11 years.</li>
+    <li><b>Typical vs hot:</b> headline numbers use the median year and the 90th-percentile year (about 1 in 10) of the 11 years. In the charts, "Hot" shows the site's hot reference year (${s.hot_year}) as it happened and adjusted to 2040 and 2050; "Typical" shows the typical year.</li>
     <li><b>WBGT:</b> Liljegren et al. (2008) model, run with sun for outdoor work and without solar radiation for shade and indoor work. Reference 28 °C for moderate work (ISO 7243, acclimatised), 26 °C if not acclimatised.</li>
     <li><b>UTCI:</b> used for naturally ventilated, unconditioned halls and outdoor work. Indoors it uses the hall air temperature (with the chosen heat gain), radiant temperature equal to air and still air; in sun, ASHRAE 55 SolarCal adds the radiant load on a standing person. PMV / adaptive comfort suit mechanically conditioned rooms only.</li>
     <li><b>Exposure:</b> "Indoor" represents a warehouse or hangar with exhaust ventilation and no active cooling: no solar radiation, the hall at outdoor temperature plus the chosen heat gain (+0, +2 or +4 °C, same moisture), radiant temperature equal to air temperature and an occupied-zone air speed of ${DATA.meta.indoor_air_speed} m/s. "Outdoor, in sun" includes solar radiation and the outdoor wind for work outside.</li>

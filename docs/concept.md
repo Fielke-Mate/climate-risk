@@ -343,6 +343,7 @@ The dashboard is built **around an interactive map of the portfolio**:
 | D50 | Map colours: fixed risk bands, blue (low) to magenta (high), matching the temperature bars |
 | D51 | Indoor comfort in naturally ventilated / unconditioned halls uses UTCI with indoor inputs (hall temperature incl. heat gain, still air 0.5 m/s at 10 m, radiant = air); PMV / adaptive only for conditioned rooms |
 | D52 | Indoor air speed 0.3 m/s (exhaust-ventilated warehouse, no active cooling; sensitivity 0.2/0.5) for indoor WBGT and indoor UTCI |
+| D53 | Charts follow the Year toggle: with Hot, 2040/2050 show each site's hot reference year adjusted to that climate ("2025 weather in 2050"); headline numbers keep the multi-year 90th percentile |
 | D33 | Site coordinates checked against published sources (airfield reference points or addresses; see sites CSV). Precision of ~1–3 km is enough, as ERA5 grid cells are ~9–30 km |
 
 ## 13. Open questions

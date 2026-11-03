@@ -64,6 +64,9 @@ def process_site(job):
     hourly = pd.read_parquet(WEATHER_DIR / "hourly" / f"{site.site_id}_era5_{b['start_year']}_{b['end_year']}.parquet")
     hourly = hourly.astype({c: "float64" for c in hourly.columns if hourly[c].dtype == "float32"})
     tmy_hist = pd.read_parquet(WEATHER_DIR / "tmy" / f"{site.site_id}_tmy.parquet")
+    hot_year = int(pd.read_csv(ROOT / "outputs" / "phase1" / "hot_reference_years.csv").set_index("site_id").loc[site.site_id, "hot_year"])
+    hot_hist = pd.read_parquet(WEATHER_DIR / "hot_year" / f"{site.site_id}_{hot_year}.parquet")
+    hot_hist = hot_hist.astype({c: "float64" for c in hot_hist.columns if hot_hist[c].dtype == "float32"})
     base_daily = morph.baseline_daily_table(hourly)
     starts = hourly.index - pd.Timedelta(hours=1)
     hist_monthly = hourly["temp_air"].groupby(starts.month).mean()
@@ -92,6 +95,10 @@ def process_site(job):
                 tmy_f["source_year"] = tmy_hist["source_year"].to_numpy()
                 tmy_f.astype({c: "float32" for c in tmy_f.columns if tmy_f[c].dtype == "float64"}).to_parquet(
                     FUT / "tmy" / f"{site.site_id}_{model}_{scen}_{period}.parquet")
+                # the site's hot reference year (actual weather) adjusted to the same future climate
+                hot_f = morph.morph(hot_hist, d, base_daily)
+                hot_f.astype({c: "float32" for c in hot_f.columns if hot_f[c].dtype == "float64"}).to_parquet(
+                    FUT / "hot_year" / f"{site.site_id}_{model}_{scen}_{period}.parquet")
     print(f"{site.site_id}: done", flush=True)
     return delta_frames, annual_rows, checks
 
@@ -114,7 +121,7 @@ def main() -> None:
     global OUT, FIG
     if args.out:
         OUT = FIG = ROOT / args.out
-    for d in (OUT, FIG, FUT / "tmy"):
+    for d in (OUT, FIG, FUT / "tmy", FUT / "hot_year"):
         d.mkdir(parents=True, exist_ok=True)
 
     jobs = [(site.site_id, fc) for site in sites]

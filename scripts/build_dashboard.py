@@ -181,6 +181,8 @@ def site_tmy_block(job):
         for per in periods:
             t[f"{sc}_{per}"] = combine([tmy_stats(pd.read_parquet(WEATHER_DIR / "future" / "tmy" / f"{sid}_{m}_{sc}_{per}.parquet"), site)
                                         for m in models])
+            t[f"hot_{sc}_{per}"] = combine([tmy_stats(pd.read_parquet(WEATHER_DIR / "future" / "hot_year" / f"{sid}_{m}_{sc}_{per}.parquet"), site)
+                                            for m in models])
     print(f"{sid}: ok", flush=True)
     return sid, t
 

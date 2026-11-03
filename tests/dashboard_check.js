@@ -73,6 +73,16 @@ async function check(p, where) {
             }
           }
 
+  // 1b. Year = Hot: charts show the hot reference year adjusted to 2040 / 2050
+  await click('#ctl-yt button[data-v="hot"]');
+  await click('#ctl-period button[data-v="2050"]');
+  await click('.tabs button[data-tab="temp"]');
+  let paneText = await page.$eval("#pane", e => e.innerText);
+  if (!/weather in 2050/.test(paneText)) fail("hot charts", "temperature tab does not show the hot year adjusted to 2050");
+  await click('#ctl-yt button[data-v="typical"]');
+  paneText = await page.$eval("#pane", e => e.innerText);
+  if (/weather in 2050/.test(paneText)) fail("typical charts", "typical view still shows the hot-year series");
+
   // 2. Every site, every tab (default view)
   const ids = await page.$$eval("#sites circle", cs => cs.map(c => c.dataset.id));
   for (const id of ids) {
