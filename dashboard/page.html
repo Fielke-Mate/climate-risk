@@ -231,7 +231,9 @@ svg.chart .axis { stroke: var(--line-2); }
 svg.chart .gridl { stroke: var(--line); }
 .series-key { display: flex; gap: 14px; flex-wrap: wrap; font-size: var(--fs-12); color: var(--ink-2); margin-top: 4px; }
 .series-key i { display: inline-block; width: 16px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
-.hmleg { display: flex; align-items: center; gap: 8px; font-size: var(--fs-11); color: var(--ink-3); margin-top: 4px; }
+.hmleg { display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap; font-size: var(--fs-11); color: var(--ink-3); margin-top: 4px; }
+.fphead { margin: 0 0 8px; font-size: var(--fs-13); color: var(--ink); }
+.fphead b { color: #D91877; font-weight: 600; }
 .hmleg .ramp { display: flex; width: 140px; height: 8px; border-radius: 4px; overflow: hidden; }
 .hmleg .ramp i { flex: 1; }
 
@@ -631,13 +633,29 @@ function lineChart({ series, xLabels, unit, w = 640, h = 220, xTicks, bars }) {
   return o + `</svg>`;
 }
 const skey = items => `<div class="series-key">${items.map(([c, l, d]) => `<span><i style="background:${d ? `repeating-linear-gradient(90deg,${c} 0 5px,transparent 5px 8px)` : c}"></i>${l}</span>`).join("")}</div>`;
-function heatmap(grid, unit) {
-  const w = 640, h = 250, m = { l: 34, r: 10, t: 6, b: 24 }, cw = (w - m.l - m.r) / 24, ch = (h - m.t - m.b) / 12, mx = Math.max(...grid.flat(), .1);
-  let o = `<svg class="chart" viewBox="0 0 ${w} ${h}" role="img">`;
-  grid.forEach((row, mi) => row.forEach((v, hi) => o += `<rect x="${m.l + hi * cw}" y="${m.t + mi * ch}" width="${cw - 1.5}" height="${ch - 1.5}" rx="2" fill="${v <= 0 ? "var(--bg-2)" : RAMP[Math.min(6, Math.floor(v / mx * 7))]}" data-t="${MONTHS[mi]}, ${String(hi).padStart(2, "0")}:00<br>${sgn(v, 2)} ${unit}"/>`));
-  MONTHS.forEach((mn, i) => o += `<text x="${m.l - 6}" y="${m.t + i * ch + ch / 2 + 4}" text-anchor="end">${mn}</text>`);
-  [0, 6, 12, 18, 23].forEach(x => o += `<text x="${m.l + x * cw + cw / 2}" y="${h - 8}" text-anchor="middle">${String(x).padStart(2, "0")}h</text>`);
-  return o + `</svg><div class="hmleg"><span class="ramp">${RAMP.map(c => `<i style="background:${c}"></i>`).join("")}</span><span class="mono">0 · +${fmt(mx / 2, 1)} · +${fmt(mx, 1)} ${unit}</span></div>`;
+/* warming fingerprint: month x hour change, diverging map colours (blue cooler, magenta warmer),
+   with monthly averages to the right and hourly averages underneath */
+const DIV = ["#0B41CD", "#7C97E8", "#C7D3F6", "#F2F0F5", "#FF9EC4", "#FF3D8B", "#A3005A"];
+const DIV_BREAKS = [-1.5, -0.75, -0.25, 0.25, 0.75, 1.5];
+function fingerprint(d) {
+  const bin = v => { let i = 0; while (i < DIV_BREAKS.length && v >= DIV_BREAKS[i]) i++; return i; };
+  const w = 640, cw = 19.5, ch = 19, l = 34, t = 4, gw = cw * 24, gh = ch * 12, rx = l + gw + 12, bw = w - rx - 44;
+  const mMean = d.map(r => r.reduce((a, b) => a + b, 0) / 24), hMean = Array.from({ length: 24 }, (_, h) => d.reduce((a, r) => a + r[h], 0) / 12);
+  const mx = Math.max(...mMean.map(Math.abs), ...hMean.map(Math.abs), 0.1);
+  let best = { v: -1e9 }; d.forEach((r, m) => r.forEach((v, h) => { if (v > best.v) best = { v, m, h }; }));
+  const col = v => v >= 0 ? "#FF3D8B" : "#0B41CD";
+  let o = `<svg class="chart" viewBox="0 0 ${w} ${t + gh + 64}" role="img" aria-label="Temperature change by month and hour of day">`;
+  d.forEach((r, m) => r.forEach((v, h) => o += `<rect x="${l + h * cw}" y="${t + m * ch}" width="${cw - 1.5}" height="${ch - 1.5}" rx="2" fill="${DIV[bin(v)]}" data-t="${MONTHS[m]}, ${String(h).padStart(2, "0")}:00<br>${sgn(v, 2)} °C"/>`));
+  MONTHS.forEach((mn, m) => o += `<text x="${l - 6}" y="${t + m * ch + 13}" text-anchor="end">${mn}</text>`);
+  [0, 6, 12, 18, 23].forEach(h => o += `<text x="${l + h * cw + cw / 2}" y="${t + gh + 12}" text-anchor="middle">${String(h).padStart(2, "0")}h</text>`);
+  mMean.forEach((v, m) => { const len = Math.abs(v) / mx * bw; o += `<rect x="${rx}" y="${t + m * ch + 4}" width="${Math.max(len, 1)}" height="${ch - 9}" rx="2" fill="${col(v)}" data-t="${MONTHS[m]} average: ${sgn(v, 2)} °C"/><text x="${rx + len + 4}" y="${t + m * ch + 13}">${sgn(v, 1)}</text>`; });
+  o += `<text x="${rx}" y="${t + gh + 12}">month avg</text>`;
+  const by = t + gh + 20, bh = 32;
+  hMean.forEach((v, h) => { const len = Math.abs(v) / mx * bh; o += `<rect x="${l + h * cw}" y="${by + bh - len}" width="${cw - 1.5}" height="${Math.max(len, 1)}" rx="2" fill="${col(v)}" data-t="${String(h).padStart(2, "0")}:00 average: ${sgn(v, 2)} °C"/>`; });
+  o += `<text x="${l - 6}" y="${by + 12}" text-anchor="end">hour</text><text x="${l - 6}" y="${by + 24}" text-anchor="end">avg</text></svg>`;
+  const keys = `<div class="hmleg">${DIV.map((c, i) => `<span style="display:inline-flex;align-items:center;gap:4px"><i style="width:10px;height:10px;border-radius:2px;background:${c};display:inline-block"></i>${i === 0 ? "< −1.5" : i === 6 ? "> +1.5" : `${DIV_BREAKS[i - 1]} to ${DIV_BREAKS[i]}`}</span>`).join("")}<span>°C</span></div>`;
+  const avg = mMean.reduce((a, b) => a + b, 0) / 12;
+  return { svg: o + keys, avg, best };
 }
 function renderTemp() {
   const id = S.site, T = DATA.tmy[id], sc = S.scen, hy = byId[id].hot_year;
@@ -658,13 +676,16 @@ function renderTemp() {
   const hoursRow = t => [[baseName, base], [ref.name, ref.key], [fName(2040), tmyKey("2040")], [fName(2050), tmyKey("2050")]]
     .map(([n, k]) => `${n} <b>${fmt(above(k, t))}</b>`).join(" · ");
   const diff = T[tmyKey("2050")].month_hour_t.map((r, mi) => r.map((v, hi) => v - T[base].month_hour_t[mi][hi]));
+  const fp = fingerprint(diff);
   const mon = lineChart({ xLabels: MONTHS, unit: "°C", series: [
     { name: "Today (typical)", values: T.hist.monthly_tmax, color: "var(--c-today)" }, { name: `Hot year ${hy}`, values: T.hotref.monthly_tmax, color: "var(--c-hot)", dash: true },
     { name: fName(2040), values: T[tmyKey("2040")].monthly_tmax, color: "var(--c-2040)" }, { name: fName(2050), values: T[tmyKey("2050")].monthly_tmax, color: "var(--c-2050)" }] });
   const yearSub = hot ? `hot year: ${hy} weather as it happened and adjusted to the future` : "typical year";
   return `<div><h3>Share of hours at each temperature <span class="sub">${yearSub}</span></h3>${hist}${skey([[hot ? "var(--c-hot)" : "var(--c-today)", `${baseName} (bars)`], [ref.color, ref.name, 1], ["var(--c-2040)", fName(2040)], ["var(--c-2050)", fName(2050)]])}
       <p class="note">Hours above 30 °C: ${hoursRow(30)}<br>Hours above 35 °C: ${hoursRow(35)}</p></div>
-    <div><h3>When the warming happens <span class="sub">${hot ? `${hy} weather in 2050 (${SCEN[sc]}) minus ${hy} as it happened` : `2050 ${SCEN[sc]} minus today`}, by month and hour of day</span></h3>${heatmap(diff, "°C")}<p class="note">Local time, median of ${DATA.meta.models.length} models applied to the ${hot ? `actual ${hy} weather` : "typical year"}. Afternoon warming adds directly to the work-time heat load.</p></div>
+    <div><h3>Warming fingerprint <span class="sub">${hot ? `${hy} weather in 2050 (${SCEN[sc]}) minus ${hy} as it happened` : `2050 ${SCEN[sc]} minus today`}, by month and hour of day</span></h3>
+      <p class="fphead">On average <b>${sgn(fp.avg, 1)} °C</b>; the largest change is in <b>${MONTHS[fp.best.m]} around ${String(fp.best.h).padStart(2, "0")}:00 (${sgn(fp.best.v, 1)} °C)</b>.</p>
+      ${fp.svg}<p class="note">Local time, median of ${DATA.meta.models.length} models applied to the ${hot ? `actual ${hy} weather` : "typical year"}. Blue is cooler, magenta warmer, as on the map. Afternoon warming adds directly to the work-time heat load.</p></div>
     <div><h3>Average daily maximum temperature by month <span class="sub">${yearSub}</span></h3>${mon}${skey([["var(--c-today)", "Today (typical)"], ["var(--c-hot)", `Hot year ${hy} (actual)`, 1], ["var(--c-2040)", fName(2040)], ["var(--c-2050)", fName(2050)]])}</div>`;
 }
 function renderStress() {

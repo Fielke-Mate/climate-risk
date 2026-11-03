@@ -58,6 +58,8 @@ svg .val { font-family: var(--mono); fill: var(--ink); font-size: 11px; }
 .story { display: grid; gap: 10px; }
 .sc { border: 1px solid var(--line); border-radius: var(--r-sm); padding: 10px 12px; display: grid; gap: 6px; }
 .sc .t { font-size: 13px; font-weight: 600; line-height: 1.35; }
+.sc .t b { color: var(--warm); }
+.sc .t i { font-style: normal; color: var(--cool); }
 .foot { font-size: 11.5px; color: var(--ink-3); border-top: 1px dashed var(--line-2); padding-top: 8px; }
 .tw { overflow-x: auto; }
 </style>
@@ -244,6 +246,59 @@ function c5() {
      <div class="foot">Sentences are generated from the data, so they update with site, scenario, exposure and years.</div>`);
 }
 
+
+/* ---------- 5B. Refined story cards ---------- */
+const SHIFT_COL = { early: "#7C97E8", late: "#FF3D8B", night: "#2A1052" };
+function c5b() {
+  const sc = S.scen, K = D.kpi[S.site], kk = shiftKey();
+  const wd = { in0: "op_days_wbgt_shade_gt_ref", in2: "op_days_wbgt_in2_gt_ref", in4: "op_days_wbgt_in4_gt_ref", sun: "op_days_wbgt_sun_gt_ref" }[S.expo];
+  const k = K[wd], hotNow = k.hotref, t50 = k[`${sc}_2050_typical`][0], h50 = k[`${sc}_2050_hot`][0];
+  /* story 1: working hours above the limit, by shift, for four years */
+  const yrs = [["Today, typical", "hist"], [`Hot year ${hy()}`, "hotref"], ["2050, typical", `${sc}_2050`], [`${hy()} weather in 2050`, `hot_${sc}_2050`]];
+  const rows = yrs.map(([n, key]) => { const sh = T(key).shifts; return [n, ["early", "late", "night"].map(s => val(sh[s][kk]))]; });
+  const mx = Math.max(...rows.map(r => sum(r[1])), 1), w = 600, l = 150, W = w - l - 90, rh = 30;
+  let o = `<svg viewBox="0 0 ${w} ${rows.length * rh + 4}" role="img" aria-label="Working hours above the limit by shift">`;
+  rows.forEach(([n, parts], i) => {
+    const y = i * rh + 4; let x = l;
+    o += `<text class="lab" x="0" y="${y + 15}">${n}</text>`;
+    parts.forEach((v, j) => { const len = W * v / mx, sh = ["early", "late", "night"][j];
+      if (len > 0) o += `<rect x="${x}" y="${y + 3}" width="${Math.max(len - 1.5, 0.5)}" height="18" rx="3" fill="${SHIFT_COL[sh]}"><title>${sh}: ${fmt(v)} h</title></rect>`;
+      x += len; });
+    o += `<text class="val" x="${x + 6}" y="${y + 16}">${fmt(sum(parts))} h</text>`;
+  });
+  o += `</svg>`;
+  const late50 = rows[2][1][1], tot50 = sum(rows[2][1]), latePct = tot50 ? Math.round(100 * late50 / tot50) : 0;
+  const keys1 = `<div class="keys"><span><i style="background:${SHIFT_COL.early}"></i>Early 06–14</span><span><i style="background:${SHIFT_COL.late}"></i>Late 14–22</span><span><i style="background:${SHIFT_COL.night}"></i>Night 22–06</span></div>`;
+  const cmp = t50 > hotNow ? `more than the hot year ${hy()} (${fmt(hotNow)})` : t50 === hotNow ? `as many as the hot year ${hy()}` : `fewer than the hot year ${hy()} (${fmt(hotNow)})`;
+  const story1 = `<div class="sc"><div class="t">By 2050 a typical year brings <b>${fmt(t50)} worker heat-safety days</b>, ${cmp}; a hot year brings ${fmt(h50)}.
+      ${tot50 ? `<b>${latePct} %</b> of the working hours above the limit fall on the late shift.` : "No working hours exceed the limit in a typical 2050 year."}</div>
+    <div class="sub">Working hours above WBGT 28 °C (moderate work), by shift</div>${o}${keys1}</div>`;
+  /* story 2: comfort shift, rotated: one column per UTCI band */
+  const A = T(S.a)[ubKey()].map(val), B = T(S.b)[ubKey()].map(val), d = B.map((v, i) => v - A[i]);
+  const dm = Math.max(...d.map(Math.abs), 1), cw = 60, H = 70, top = 22, bl = top + H, kb = top + 2 * H + 24;
+  let o2 = `<svg viewBox="0 0 ${cw * 9 + 10} ${kb + 40}" role="img" aria-label="Change in hours per UTCI band">`;
+  o2 += `<line x1="0" x2="${cw * 9}" y1="${bl}" y2="${bl}" stroke="var(--line-2)"/>`;
+  d.forEach((v, i) => {
+    const len = Math.abs(v) / dm * H, x = i * cw + 12, y = v >= 0 ? bl - len : bl;
+    o2 += `<rect x="${x}" y="${y}" width="${cw - 24}" height="${Math.max(len, 1)}" rx="3" fill="${v >= 0 ? "var(--warm)" : "var(--cool)"}"><title>${UTCI[i][0]}: ${sgn(v)} h</title></rect>`;
+    o2 += `<text class="val" x="${x + (cw - 24) / 2}" y="${v >= 0 ? y - 5 : y + len + 13}" text-anchor="middle">${v === 0 ? "0" : sgn(v)}</text>`;
+    o2 += `<rect x="${x + (cw - 24) / 2 - 5}" y="${kb}" width="10" height="10" rx="2" fill="${UTCI[i][1]}"/>`;
+    const words = UTCI[i][0].replace("No thermal stress", "None").split(" ");
+    o2 += `<text class="lab" x="${x + (cw - 24) / 2}" y="${kb + 22}" text-anchor="middle" style="font-size:10.5px">${words[0]}</text>`;
+    if (words[1]) o2 += `<text class="lab" x="${x + (cw - 24) / 2}" y="${kb + 34}" text-anchor="middle" style="font-size:10.5px">${words.slice(1).join(" ")}</text>`;
+  });
+  o2 += `<text x="0" y="12">▲ more hours</text><text x="0" y="${top + 2 * H + 10}">▼ fewer hours</text></svg>`;
+  const heat = sum(d.slice(5)), comf = d[3];
+  const story2 = `<div class="sc"><div class="t">Thermal comfort shifts towards heat: <b>${sgn(heat)} hours</b> of heat stress and <i>${sgn(comf)} hours</i> fully comfortable (${yName(S.b)} vs ${yName(S.a)}).</div>
+    <div class="sub">Change in hours per UTCI band · pick the two years in the bar above</div>${o2}</div>`;
+  return `<article class="card" style="grid-column:1 / -1;border-color:var(--purple)"><header><span class="no">CONCEPT 5B · REFINED</span><h2>Story cards, refined</h2>
+      <p class="why">Story cards with the shift breakdown built into the heat-safety chart, and the comfort shift turned 90° to fit the card.</p></header>
+    <div class="tabs"><span class="on">Summary</span><span>Data summary</span><span>Temperature</span><span>Heat stress</span><span>About</span></div>
+    <div class="body" style="max-width:720px"><div class="story">${story1}${story2}</div>
+      <div class="sub">${expoLabel()} · ${sc === "ssp245" ? "SSP2-4.5" : "SSP5-8.5"} · median of 6 climate models for future years</div>
+      <div class="foot">Shown at the width of the dashboard's site panel. Sentences are generated from the data.</div></div></article>`;
+}
+
 /* ---------- controls ---------- */
 function render() {
   const opts = yearOptions();
@@ -251,7 +306,7 @@ function render() {
     if (!opts.some(o => o[0] === S[key])) S[key] = key === "a" ? "hist" : `${S.scen}_2050`;
     $(id).innerHTML = opts.map(([v, n]) => `<option value="${v}" ${v === S[key] ? "selected" : ""}>${n}</option>`).join("");
   }
-  $("#grid").innerHTML = c1() + c2() + c3() + c4() + c5();
+  $("#grid").innerHTML = c5b() + c1() + c2() + c3() + c4() + c5();
 }
 $("#site").innerHTML = D.sites.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
 $("#site").value = S.site;
