@@ -100,6 +100,23 @@ heat:
     paint_application_max_rh: {variable: relative_humidity, above: 85.0, label: "Paint / coating application: humidity above 85 %"}
     composite_room_cooling: {variable: temp_air, above: 32.0, label: "Composite layup room: outdoor air above 32 °C (cooling design placeholder)"}
 
+# D66: process-limit lens. Hours of process downtime = operating hours with hall air (outdoor dry bulb +
+# hall gain) above a user-set limit. The pipeline counts hours / days above every rung of a dry-bulb ladder,
+# so the dashboard can apply any limit (and the hall gain, a shift along the ladder) without the hourly data.
+process_lens:
+  ladder_c: [16.0, 46.0, 0.5]       # first rung, last rung, step (C, outdoor dry bulb)
+  limit_range_c: [20.0, 45.0]       # what the dashboard lets the user choose
+  # Presets are PLACEHOLDERS until real process specifications are supplied (as D21)
+  presets:
+    paint: {label: "Paint / coating application", short: "Paint / coating", limit_c: 35.0}
+    sealant: {label: "Sealant / adhesive application", short: "Sealant / adhesive", limit_c: 30.0}
+    composite: {label: "Composite layup room (cooling design)", short: "Composite layup", limit_c: 32.0}
+    chiller: {label: "Chiller plant rated ambient", short: "Chiller ambient", limit_c: 38.0}
+  default_preset: paint
+  # risk bands for downtime hours a year (placeholders; belong per process)
+  high_hours: 100
+  very_high_hours: 250
+
 heatwave:
   # D60: heatwave length. An event is at least min_days consecutive days with daily max air
   # temperature above a threshold (30 C: common in DE/AT practice and relevant everywhere; 35 C:
