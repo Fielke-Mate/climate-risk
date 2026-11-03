@@ -1,18 +1,22 @@
 # Phase 1: Historical weather files
 
-**Status:** complete (Nov 2026). Re-run with `scripts/fetch_era5.py` then `scripts/phase1_historical.py`.
+**Status:** complete (Nov 2026); extended record and extreme reference year added (D61–D63). Re-run with `scripts/fetch_era5.py`, `scripts/fetch_nex.py` (for the adjustment) then `scripts/phase1_historical.py` (`--reuse-adjustment` skips the NEX step).
 
 ## What was produced
 
 | Output | Location | In git |
 |---|---|---|
-| ERA5 hourly record 2015–2025, standard format, per site | `data/weather/hourly/` | No (83 MB; reproducible) |
+| ERA5 hourly record 2015–2025, standard format, per site (the headline baseline) | `data/weather/hourly/` | No (reproducible) |
+| ERA5 hourly record 2000–2025, as observed and adjusted to the 2020 climate (D61) | `data/weather/hourly/{site}_era5_2000_2025[_adj2020].parquet` | No (reproducible) |
 | Typical meteorological year (ISO 15927-4), per site | `data/weather/tmy/{site}_tmy.parquet` | Yes |
 | Hot reference year (unadjusted), per site | `data/weather/hot_year/{site}_{year}.parquet` | Yes |
+| Extreme reference year (adjusted to the 2020 climate, D62), per site | `data/weather/extreme_year/{site}_{year}.parquet` | Yes |
 | PVGIS TMY (cross-check), per site | `data/weather/pvgis/` | Yes |
-| Annual indicators per site and year | `outputs/phase1/annual_summary.csv` | Yes |
+| Annual indicators per site and year, 2015–2025 (incl. heatwave length, D60) | `outputs/phase1/annual_summary.csv` | Yes |
+| Annual indicators, 2000–2025 adjusted to the 2020 climate | `outputs/phase1/annual_summary_extended.csv` | Yes |
+| Adjustment rates per site, month and model; check against the observed trend | `outputs/phase1/baseline_adjustment.csv`, `baseline_adjustment_check.csv` | Yes |
 | TMY month selection (source year per month) | `outputs/phase1/tmy_month_selection.csv` | Yes |
-| Hot reference years | `outputs/phase1/hot_reference_years.csv` | Yes |
+| Hot and extreme reference years | `outputs/phase1/hot_reference_years.csv` | Yes |
 | Monthly cross-check (ERA5 mean / TMY / PVGIS) | `outputs/phase1/monthly_crosscheck.csv` | Yes |
 | ERA5 grid point used per site | `outputs/phase1/era5_grid_points.csv` | Yes |
 | Figures | `docs/phase1/figures/` | Yes |
@@ -33,6 +37,8 @@ All 15 sites passed the automated checks: complete hourly record, no gaps or dup
    - Joins between months are blended over ±8 h. 29 Feb is dropped, giving 8,760 hours on a nominal year (2001).
 4. **Hot reference year (decision D42):** each year is ranked by **WBGT degree-hours above 25 °C in working hours** (06:00–22:00 local), using a **provisional shaded WBGT**: the sum of (WBGT − 25) over the hours above 25. Ties are broken by hours above 30 °C, then annual maximum temperature.
 5. **Cross-check:** the PVGIS 5.3 TMY (ERA5 meteorology + SARAH-3 satellite radiation, 2005–2023) is compared with our TMY.
+6. **Extended record (D61):** ERA5 is downloaded for 2000–2025. Every year is moved to the **2020 climate** with the climate models' own warming (`src/climate_risk/adjust.py`): for each site and month, the 6-model median change in mean daily maximum and minimum temperature and in specific humidity between 2000–2010 (NEX-GDDP-CMIP6 historical run) and 2015–2025, per year, smoothed over neighbouring months. Each day is shifted by its distance in years from mid-2020 through the same hour-by-hour step as future morphing (maximum and minimum shifted, hours in between stretched; vapour pressure scaled). Radiation and wind are unchanged.
+7. **Extreme reference year (D62):** the hottest year of the adjusted 2000–2025 record, ranked like the hot year (D42). Where humid heat is negligible (the site's best year has under 50 WBGT degree-hours), it is ranked on dry heat instead (hours above 30 °C, then the highest temperature).
 
 ## Results per site (south → north)
 
@@ -76,3 +82,33 @@ All 15 sites passed the automated checks: complete hourly record, no gaps or dup
 ## Decision: hot-year ranking metric (D42)
 
 **Option B adopted:** WBGT degree-hours above 25 °C in working hours. Hours above 28 °C are still reported. The ranking will be recalculated with the Phase 3 WBGT method (Liljegren, sun and shade).
+
+## Extended record and extreme reference year (D61–D63)
+
+**Why not use all 26 years for the headline numbers?** The adjustment uses the models' warming, and the models warm France and Germany 0.2–0.4 °C/decade less than ERA5 observed (`baseline_adjustment_check.csv`). So after adjustment the 2000–2009 summers are still 0.3–0.6 °C cooler there than 2015–2025. Sevilla is the opposite case: its ERA5 cell shows summer *cooling* since 2000, so the model warming over-adjusts it by about 1 °C. The Mediterranean coast also gained humid heat in recent years that a temperature shift can't reproduce: Marignane has had 50–90 working hours a year above WBGT 26 °C since 2018, against mostly 0–30 before, even adjusted. A 26-year typical year would have understated today's heat (Marignane 51 → 12 hours, Toulouse 59 → 36). So the typical and 1-in-10 statistics, the TMY (D63) and the hot reference year stay on 2015–2025 as observed. The adjusted record supplies the extreme reference year. With the slow model warming, that year is, if anything, slightly conservative.
+
+**Reference years** (hot = hottest of 2015–2025 as observed; extreme = hottest of 2000–2025 adjusted to the 2020 climate):
+
+| Site | Hot year | Extreme year | Indoor WBGT hours above 26 °C (working hours): hot / extreme | Hours above 30 °C | Longest run of days above 30 °C | Highest temperature (°C) |
+|---|---|---|---|---|---|---|
+| Sevilla (San Pablo) | 2025 | 2006 | 321 / 398 | 996 / 1104 | 50 / 49 | 41.6 / 42.7 |
+| Illescas | 2022 | 2003 | 11 / 23 | 864 / 961 | 46 / 42 | 41.2 / 41.9 |
+| Getafe | 2022 | 2003 | 11 / 23 | 864 / 970 | 46 / 42 | 41.2 / 42.0 |
+| Marignane | 2025 | 2003 | 92 / 116 | 444 / 678 | 19 / 30 | 38.3 / 38.6 |
+| Toulouse (Blagnac) | 2025 | 2003 | 107 / 168 | 322 / 568 | 14 / 16 | 42.2 / 41.5 |
+| Nantes (Bouguenais) | 2019 | 2003 | 28 / 84 | 94 / 172 | 4 / 12 | 37.8 / 39.0 |
+| Saint-Nazaire (Montoir-de-Bretagne) | 2024 | 2003 | 14 / 62 | 13 / 73 | 2 / 4 | 32.7 / 34.5 |
+| Donauworth | 2015 | 2003 (dry heat) | 0 / 0 | 133 / 170 | 4 / 12 | 35.7 / 37.7 |
+| Meaulte | 2025 | 2003 | 9 / 29 | 43 / 92 | 3 / 10 | 35.2 / 36.2 |
+| Filton | 2022 | 2022 (dry heat) | 0 / 0 | 46 / 46 | 4 / 4 | 34.9 / 34.8 |
+| Bremen | 2015 | 2018 (dry heat) | 7 / 0 | 28 / 79 | 1 / 5 | 35.6 / 35.4 |
+| Broughton | 2022 | 2022 (dry heat) | 0 / 0 | 15 / 15 | 2 / 2 | 33.9 / 33.8 |
+| Nordenham | 2015 | 2018 (dry heat) | 2 / 0 | 7 / 21 | 1 / 2 | 31.7 / 32.0 |
+| Hamburg-Finkenwerder | 2015 | 2018 (dry heat) | 4 / 0 | 20 / 72 | 1 / 5 | 35.4 / 35.1 |
+| Stade | 2015 | 2018 (dry heat) | 5 / 0 | 21 / 67 | 1 / 5 | 35.1 / 34.9 |
+
+**Reading:**
+- **2003 is the extreme year at eight sites** (all of France, the Madrid sites, Donauwörth). In today's climate it brings **more heat and longer spells** than any recent year: Nantes 172 hours above 30 °C and a 12-day spell (2019: 94 hours, 4 days), Donauwörth 12 days (2015: 4), Marignane 30 days (2025: 19), Toulouse 168 indoor WBGT hours above 26 °C (2025: 107).
+- **Sevilla: 2006**, humid heat (398 WBGT hours, against 321 in 2025).
+- **North Germany: 2018**, chosen on dry heat: 3–4 times the hours above 30 °C of 2015 and the longest spells. It has slightly *fewer* indoor WBGT hours than 2015 (0 vs 1–7), which had a few humid days, so on WBGT views "Extreme" can read a little lower than "Hot" there.
+- **UK: 2022** is both the hot and the extreme year; no earlier year, even adjusted, beats it.

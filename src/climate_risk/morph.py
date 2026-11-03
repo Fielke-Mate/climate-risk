@@ -39,6 +39,26 @@ def _dew_from_vapour_pressure(e_hpa):
     return 243.12 * gamma / (17.62 - gamma)
 
 
+def shift_temperature_humidity(df: pd.DataFrame, daily: pd.DataFrame, pos: np.ndarray, d_max: np.ndarray,
+                               d_min: np.ndarray, humidity_ratio: np.ndarray) -> None:
+    """In place: shift each day's max by d_max and min by d_min (hourly arrays), stretching the hours
+    in between linearly, then scale vapour pressure by humidity_ratio (capped at saturation) and
+    recompute dew point and RH. daily: per-day 'max' / 'min' of temp_air; pos: each hour's day row.
+    Shared by future morphing and the baseline adjustment (D61)."""
+    t = df["temp_air"].to_numpy()
+    tmax_d = daily["max"].to_numpy()[pos]
+    tmin_d = daily["min"].to_numpy()[pos]
+    rng = tmax_d - tmin_d
+    frac = np.where(rng > 0.1, (t - tmin_d) / np.where(rng > 0.1, rng, 1.0), 0.5)
+    t_new = t + d_min + (d_max - d_min) * np.clip(frac, 0.0, 1.0)
+    df["temp_air"] = t_new
+
+    e = saturation_vapour_pressure(np.minimum(df["temp_dew"].to_numpy(), t))
+    e_new = np.minimum(e * humidity_ratio, saturation_vapour_pressure(t_new))
+    df["temp_dew"] = _dew_from_vapour_pressure(e_new)
+    df["relative_humidity"] = relative_humidity_from_dewpoint(t_new, df["temp_dew"].to_numpy())
+
+
 def morph(hourly: pd.DataFrame, deltas: pd.DataFrame, baseline_daily: pd.DataFrame) -> pd.DataFrame:
     """Return the morphed copy of `hourly` (standard format, hour-ending UTC index).
 
@@ -84,23 +104,11 @@ def morph(hourly: pd.DataFrame, deltas: pd.DataFrame, baseline_daily: pd.DataFra
 
     # ---- expand to hours ---------------------------------------------------
     pos = daily.index.get_indexer(day_key)
-    tmax_d = daily["max"].to_numpy()[pos]
-    tmin_d = daily["min"].to_numpy()[pos]
-    d_max = d_tmax[pos]
-    d_min = d_tmin[pos]
 
     def monthly(var: str) -> np.ndarray:
         return monthly_daily(var)[pos]
 
-    rng = tmax_d - tmin_d
-    frac = np.where(rng > 0.1, (t - tmin_d) / np.where(rng > 0.1, rng, 1.0), 0.5)
-    t_new = t + d_min + (d_max - d_min) * np.clip(frac, 0.0, 1.0)
-    df["temp_air"] = t_new
-
-    e = saturation_vapour_pressure(np.minimum(df["temp_dew"].to_numpy(), t))
-    e_new = np.minimum(e * monthly("huss"), saturation_vapour_pressure(t_new))
-    df["temp_dew"] = _dew_from_vapour_pressure(e_new)
-    df["relative_humidity"] = relative_humidity_from_dewpoint(t_new, df["temp_dew"].to_numpy())
+    shift_temperature_humidity(df, daily, pos, d_tmax[pos], d_tmin[pos], monthly("huss"))
 
     r_sw = monthly("rsds")
     for col in ("ghi", "dni", "dhi"):

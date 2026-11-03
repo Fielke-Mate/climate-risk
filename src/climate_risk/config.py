@@ -42,3 +42,14 @@ def load_sites(path: Path = SITES_FILE) -> list[Site]:
         Site(r.site_id, r.name, r.country, float(r.lat), float(r.lon))
         for r in df.itertuples(index=False)
     ]
+
+
+def hourly_path(site_id: str, kind: str = "baseline") -> Path:
+    """The site's hourly ERA5 record. kind: "baseline" (2015-2025 as observed: headline statistics, TMY,
+    future morphing), "extended" (2000-2025 as observed) or "adjusted" (2000-2025, every year moved to the
+    reference climate, D61)."""
+    b = settings()["baseline"]
+    if kind == "baseline":
+        return WEATHER_DIR / "hourly" / f"{site_id}_era5_{b['start_year']}_{b['end_year']}.parquet"
+    tag = {"extended": "", "adjusted": f"_adj{b['reference_year']}"}[kind]
+    return WEATHER_DIR / "hourly" / f"{site_id}_era5_{b['extended_start_year']}_{b['end_year']}{tag}.parquet"

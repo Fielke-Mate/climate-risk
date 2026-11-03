@@ -48,7 +48,7 @@ async function check(p, where) {
   // 1. Every view combination x every tab (one site)
   for (const scen of ["ssp245", "ssp585"])
     for (const period of ["hist", "2040", "2050"])
-      for (const yt of ["typical", "hot"])
+      for (const yt of ["typical", "hot", "extreme"])
         for (const expo of ["in", "sun"])
           for (const hall of expo === "in" ? ["0", "2", "4"] : ["0"]) {
             await click(`#ctl-scen button[data-v="${scen}"]`);
@@ -79,6 +79,10 @@ async function check(p, where) {
   await click('.tabs button[data-tab="temp"]');
   let paneText = await page.$eval("#pane", e => e.innerText);
   if (!/weather in 2050/.test(paneText)) fail("hot charts", "temperature tab does not show the hot year adjusted to 2050");
+  // Year = Extreme (D62): the extreme reference year in today's climate and adjusted to 2050
+  await click('#ctl-yt button[data-v="extreme"]');
+  paneText = await page.$eval("#pane", e => e.innerText);
+  if (!/Extreme year \d{4} \(today's climate\)/.test(paneText) || !/weather in 2050/.test(paneText)) fail("extreme charts", "temperature tab does not show the extreme year");
   await click('#ctl-yt button[data-v="typical"]');
   paneText = await page.$eval("#pane", e => e.innerText);
   if (/weather in 2050/.test(paneText)) fail("typical charts", "typical view still shows the hot-year series");
@@ -89,8 +93,8 @@ async function check(p, where) {
   paneText = await page.$eval("#pane", e => e.innerText);
   if (!/Today, hot year against Today, typical year/.test(paneText)) fail("summary pickers", "comfort sentence does not follow the picked years");
   const opts = await page.$$eval('select[data-cmp="cmpB"] option', os => os.map(o => o.textContent));
-  if (opts.length !== 6 || !opts.some(t => /^2040, hot year/.test(t)) || !opts.some(t => /^2050, hot year/.test(t))) fail("summary pickers", `year options: ${opts.join(" | ")}`);
-  if ((await page.$$("#pane .sc:first-child svg text.val")).length !== 6) fail("summary bars", "expected six year bars");
+  if (opts.length !== 9 || !opts.some(t => /^2040, hot year/.test(t)) || !opts.some(t => /^2050, extreme year/.test(t))) fail("summary pickers", `year options: ${opts.join(" | ")}`);
+  if ((await page.$$("#pane .sc:first-child svg text.val")).length !== 9) fail("summary bars", "expected nine year bars");
   await page.selectOption('select[data-cmp="cmpA"]', "hotref");
   paneText = await page.$eval("#pane", e => e.innerText);
   if (!/Pick two different years/.test(paneText)) fail("summary pickers", "same year twice not handled");

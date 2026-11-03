@@ -2,7 +2,8 @@
 
 For each site x model x scenario x period:
   * climate change deltas from NEX-GDDP-CMIP6 (quantile deltas for Tmax/Tmin, ratios otherwise)
-  * morph all 11 ERA5 baseline years and the TMY to the future climate
+  * morph all 11 ERA5 baseline years (2015-2025), the TMY and the hot and extreme reference years (D62)
+    to the future climate
   * annual indicators per morphed year (same as Phase 1)
 Then ensemble summaries (typical = median year, hot = 90th percentile year; median and
 range across models), consistency checks, figures.
@@ -30,7 +31,7 @@ from climate_risk import deltas as dl  # noqa: E402
 from climate_risk import morph, weather  # noqa: E402
 from climate_risk.annual import annual_summary, wbgt_metric_names  # noqa: E402
 from climate_risk.heatwave import heatwave_metric_names  # noqa: E402
-from climate_risk.config import ROOT, WEATHER_DIR, load_sites, settings  # noqa: E402
+from climate_risk.config import ROOT, WEATHER_DIR, hourly_path, load_sites, settings  # noqa: E402
 from concurrent.futures import ProcessPoolExecutor  # noqa: E402
 
 OUT = ROOT / "outputs" / "phase2"
@@ -61,18 +62,21 @@ def process_site(job):
     """Deltas, morphed years, annual indicators and morphed TMYs for one site (runs in a worker)."""
     site_id, fc, saved_deltas = job
     cfg = settings()
-    b = cfg["baseline"]
     site = next(s for s in load_sites() if s.site_id == site_id)
-    hourly = pd.read_parquet(WEATHER_DIR / "hourly" / f"{site.site_id}_era5_{b['start_year']}_{b['end_year']}.parquet")
+    hourly = pd.read_parquet(hourly_path(site.site_id))  # the 2015-2025 baseline as observed
     hourly = hourly.astype({c: "float64" for c in hourly.columns if hourly[c].dtype == "float32"})
     tmy_hist = pd.read_parquet(WEATHER_DIR / "tmy" / f"{site.site_id}_tmy.parquet")
-    hot_year = int(pd.read_csv(ROOT / "outputs" / "phase1" / "hot_reference_years.csv").set_index("site_id").loc[site.site_id, "hot_year"])
-    hot_hist = pd.read_parquet(WEATHER_DIR / "hot_year" / f"{site.site_id}_{hot_year}.parquet")
-    hot_hist = hot_hist.astype({c: "float64" for c in hot_hist.columns if hot_hist[c].dtype == "float32"})
+    refs = pd.read_csv(ROOT / "outputs" / "phase1" / "hot_reference_years.csv").set_index("site_id").loc[site.site_id]
+    ref_years = {"hot": (int(refs["hot_year"]), WEATHER_DIR / "hot_year"),              # hottest of 2015-2025, as observed
+                 "extreme": (int(refs["extreme_year"]), WEATHER_DIR / "extreme_year")}  # D62: hottest of 2000-2025 in today's climate
+    ref_hist = {}
+    for kind, (yr, folder) in ref_years.items():
+        x = pd.read_parquet(folder / f"{site.site_id}_{yr}.parquet")
+        ref_hist[kind] = x.astype({c: "float64" for c in x.columns if x[c].dtype == "float32"})
     base_daily = morph.baseline_daily_table(hourly)
     starts = hourly.index - pd.Timedelta(hours=1)
     hist_monthly = hourly["temp_air"].groupby(starts.month).mean()
-    delta_frames, annual_rows, checks = [], [], []
+    delta_frames, annual_rows, checks, ref_rows = [], [], [], []
     if saved_deltas:
         saved = pd.read_parquet(saved_deltas)
         saved = {k: g.drop(columns=["site_id", "model", "scenario", "period"]).reset_index(drop=True)
@@ -104,12 +108,16 @@ def process_site(job):
                 tmy_f["source_year"] = tmy_hist["source_year"].to_numpy()
                 tmy_f.astype({c: "float32" for c in tmy_f.columns if tmy_f[c].dtype == "float64"}).to_parquet(
                     FUT / "tmy" / f"{site.site_id}_{model}_{scen}_{period}.parquet")
-                # the site's hot reference year (actual weather) adjusted to the same future climate
-                hot_f = morph.morph(hot_hist, d, base_daily)
-                hot_f.astype({c: "float32" for c in hot_f.columns if hot_f[c].dtype == "float64"}).to_parquet(
-                    FUT / "hot_year" / f"{site.site_id}_{model}_{scen}_{period}.parquet")
+                # the hot and extreme reference years adjusted to the same future climate
+                for kind, x in ref_hist.items():
+                    xf = morph.morph(x, d, base_daily)
+                    xf.astype({c: "float32" for c in xf.columns if xf[c].dtype == "float64"}).to_parquet(
+                        FUT / f"{kind}_year" / f"{site.site_id}_{model}_{scen}_{period}.parquet")
+                    rs = annual_summary(xf, site.lat, site.lon, site.timezone, cfg)
+                    ref_rows += [{"site_id": site.site_id, "ref": kind, "source_year": ref_years[kind][0], "model": model,
+                                  "scenario": scen, "period": period, **r} for r in rs.to_dict("records")]
     print(f"{site.site_id}: done", flush=True)
-    return delta_frames, annual_rows, checks
+    return delta_frames, annual_rows, checks, ref_rows
 
 
 def main() -> None:
@@ -132,7 +140,7 @@ def main() -> None:
     global OUT, FIG
     if args.out:
         OUT = FIG = ROOT / args.out
-    for d in (OUT, FIG, FUT / "tmy", FUT / "hot_year"):
+    for d in (OUT, FIG, FUT / "tmy", FUT / "hot_year", FUT / "extreme_year"):
         d.mkdir(parents=True, exist_ok=True)
 
     saved_deltas = ""
@@ -144,6 +152,7 @@ def main() -> None:
     delta_frames = [f for r in results for f in r[0]]
     annual_rows = [x for r in results for x in r[1]]
     checks = [x for r in results for x in r[2]]
+    pd.DataFrame([x for r in results for x in r[3]]).to_csv(OUT / "reference_years_future.csv", index=False)
 
     deltas_all = pd.concat(delta_frames, ignore_index=True)
     deltas_all.to_parquet(OUT / "deltas.parquet", index=False)

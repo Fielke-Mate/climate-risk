@@ -157,3 +157,12 @@ def select_hot_year(summary: pd.DataFrame) -> int:
     """
     ranked = summary.sort_values(["op_wbgt_shade_degree_hours_gt_base", "hours_t_gt30", "temp_max"], ascending=False)
     return int(ranked.index[0])
+
+
+def select_extreme_year(summary: pd.DataFrame, min_wbgt_degree_hours: float) -> tuple[int, str]:
+    """D62: the extreme reference year from the adjusted 2000-2025 record, and the rule used. Ranked like
+    the hot year (D42) unless humid heat is negligible at the site; then on dry heat."""
+    if summary["op_wbgt_shade_degree_hours_gt_base"].max() >= min_wbgt_degree_hours:
+        return select_hot_year(summary), "humid heat (WBGT degree-hours)"
+    ranked = summary.sort_values(["hours_t_gt30", "temp_max"], ascending=False)
+    return int(ranked.index[0]), "dry heat (hours above 30 °C)"

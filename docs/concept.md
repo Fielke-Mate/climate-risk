@@ -35,16 +35,17 @@ We follow the IPCC AR6 risk framing: **Risk = f(Hazard, Exposure, Vulnerability)
 
 ### Time periods & scenarios
 
-Each site's **baseline is the actual hourly record for 2015–2025** (11 years). Every year in it is analysed hour by hour, and each one is adjusted to 2040 and 2050:
+Each site's **baseline is the actual hourly record for 2015–2025** (11 years). Every year in it is analysed hour by hour, and each one is adjusted to 2040 and 2050. A longer record, **2000–2025 with every year adjusted to the 2020 climate** (D61), supplies the extreme reference year:
 
 | Period | Data analysed | Reported |
 |---|---|---|
 | **Historical** | 11 actual years, 2015–2025 | Typical (median year) and **hot (90th percentile year)** |
-| **Historical hot reference year** | One actual, **unadjusted** year per site: the site's hottest year, ranked by WBGT degree-hours above 25 °C in working hours (D42) | Its values, labelled with the year (may differ between sites) |
-| **2040** | Each of the 11 years adjusted to 2031–2050 climate, per model & scenario | Typical and 90th percentile, with model range |
-| **2050** | Each of the 11 years adjusted to 2041–2060 climate, per model & scenario | Typical and 90th percentile, with model range |
+| **Hot reference year** | One actual, **unadjusted** recent year per site (2015–2025): the site's hottest, ranked by WBGT degree-hours above 25 °C in working hours (D42) | Its values, labelled with the year (may differ between sites) |
+| **Extreme reference year** (D62) | The hottest of the 26 years 2000–2025 once **adjusted to the 2020 climate** (e.g. 2003 in today's climate); ranked like the hot year, or on dry heat where humid heat is negligible | Its values, labelled with the year |
+| **2040** | Each of the 11 years (and both reference years) adjusted to 2031–2050 climate, per model & scenario | Typical and 90th percentile, hot and extreme reference years, with model range |
+| **2050** | Each of the 11 years (and both reference years) adjusted to 2041–2060 climate, per model & scenario | Typical and 90th percentile, hot and extreme reference years, with model range |
 
-A **typical meteorological year (TMY)** is also built from 2015–2025 (and adjusted to 2040/2050). It is used only where one representative year is needed for hourly charts in the weather summary pages.
+A **typical meteorological year (TMY)** is also built from 2015–2025 (D63; adjusted to 2040/2050). It is used only where one representative year is needed for hourly charts in the weather summary pages.
 
 - **Scenarios (decided):** SSP2-4.5 (middle) and SSP5-8.5 (high). ESRS E1 expects a high-emissions scenario for physical risk.
 - **Range:** each future year is produced once per climate model (an ensemble of roughly 5–10 CMIP6 models). Results are reported as the **median with a range** (e.g. min–max or 10th–90th percentile across models).
@@ -56,7 +57,7 @@ The weather file is the central object. Every hazard metric is computed from an 
 ```
  1. Sites            2. Historical file         3. Climate change deltas     4. Morphing             5. Analysis              6. Outputs
  ────────            ──────────────────         ────────────────────────     ──────────              ─────────                ─────────
- sites.csv      →    2015–2025 hourly +     →   CMIP6 monthly changes    →   Shift/stretch TMY   →   Thresholds, WBGT,    →   Tables, charts,
+ sites.csv      →    2000–2025 hourly +     →   CMIP6 monthly changes    →   Shift/stretch TMY   →   Thresholds, WBGT,    →   Tables, charts,
  (name, lat/lon,     TMY per site:              per site, per model,         hours by monthly        days/hours over          risk ratings,
  workforce,          • fetched (Open-Meteo)     per scenario, for            deltas → one future     limits, per file         dashboard
  processes)          • or loaded (EPW / CSV)    2040 & 2050                  year per model
@@ -64,7 +65,7 @@ The weather file is the central object. Every hazard metric is computed from an 
 
 ### 4a. Historical weather files
 
-**Baseline period:** 2015–2025 (11 years). **Full year:** all 8,760 hours are kept and analysed, both for heat metrics and for the site weather summary (section 5e).
+**Baseline period:** 2015–2025 (11 years) for all headline statistics; 2000–2025 adjusted to the 2020 climate for the extreme reference year (D61). **Full year:** all 8,760 hours are kept and analysed, both for heat metrics and for the site weather summary (section 5e).
 
 **Humidity check (based on PVGIS documentation; to be confirmed with a live request):**
 - PVGIS **TMY** output includes relative humidity (plus temperature, global/direct/diffuse radiation, infrared, wind speed/direction and pressure). ✔
@@ -72,7 +73,7 @@ The weather file is the central object. Every hazard metric is computed from an 
 
 The XMY needs a multi-year hourly record **with humidity**, so PVGIS alone isn't enough.
 
-**Approach (decided):** download the hourly ERA5 record for 2015–2025 for each site and build the TMY from the same record, so everything is consistent.
+**Approach (decided):** download the hourly ERA5 record for each site (2000–2025 since D61) and build the TMY from 2015–2025, the same record as the headline statistics.
 - **ERA5 hourly source:** originally Open-Meteo (no key, non-commercial only). **Connection test (Nov 2026):** the free Open-Meteo API returned *"Daily API request limit exceeded"*. The cloud environment shares its outbound IP address, so the free per-IP quota is already used up by others, and Open-Meteo is unreliable here.
   **Decided: Copernicus Climate Data Store (CDS)**, dataset `reanalysis-era5-single-levels-timeseries` (ERA5 hourly point time series). It is licensed for commercial use, so the productisation step in section 14 is no longer needed. The API key is read from the `CDSAPI_KEY` environment secret and never stored in the repository.
   **Connection test (Nov 2026):** a 2-day request for Sevilla returned in ~25 s with every variable we need: 2 m temperature and dew point, surface pressure, 10 m wind (u/v), downward solar (global) and thermal radiation, and direct solar radiation at the surface. Sanity check: 13 July 2022 at Sevilla reached a max of 42.0 °C and a min of 25.5 °C, consistent with that heatwave.
@@ -93,7 +94,7 @@ The XMY needs a multi-year hourly record **with humidity**, so PVGIS alone isn't
 - **Delta source (decided): NASA NEX-GDDP-CMIP6 v2.0** (0.25°, daily, bias-corrected). Variables: tas, tasmax, tasmin, huss, rsds, rlds, sfcWind.
   - **Access:** the files store whole global days, so remote point reads would mean ~245 MB per variable-year. Instead we use NASA NCCS THREDDS server-side subsetting: two small boxes (west/east of 0°) per variable-year, cached as per-site tables.
 - **Models (D43):** six models spanning climate sensitivity: ACCESS-CM2, EC-Earth3, CMCC-ESM2, MRI-ESM2-0, MPI-ESM1-2-HR and NorESM2-MM (approx. ECS 4.7 → 2.5 °C).
-- **Windows:** baseline 2015–2025 (each scenario run, matching ERA5); 2040 = 2031–2050; 2050 = 2041–2060.
+- **Windows:** baseline 2015–2025 (each scenario run, matching ERA5; centred on 2020, the climate the extended record is adjusted to); 2040 = 2031–2050; 2050 = 2041–2060.
 - **Result per site:** 11 historical years + 11 morphed years × 6 models × 2 scenarios × 2 periods, plus morphed TMYs for the weather summary pages.
 
 ### 4c. Capturing extremes: multi-year analysis (replaces the XMY idea)
@@ -101,12 +102,13 @@ The XMY needs a multi-year hourly record **with humidity**, so PVGIS alone isn't
 A single typical year smooths out heatwaves. Instead of building one artificial "extreme" year, we **analyse every year in the record**:
 
 1. **Historical:** compute the hourly metrics (WBGT, UTCI, thresholds) for each of the 11 actual years 2015–2025. Report the **median year** ("typical") and the **90th percentile year** ("hot").
-2. **Future:** adjust each of the 11 years to 2040 and 2050 (per model and scenario), then analyse and report them the same way.
-3. **Hot reference year (per site):** each site's hottest actual year (ranked by WBGT degree-hours above 25 °C in working hours, D42), **unadjusted**, as a real-world reference that clients will remember.
+2. **Future:** adjust each of the 11 years, and both reference years, to 2040 and 2050 (per model and scenario), then analyse and report them the same way.
+3. **Hot reference year (per site):** each site's hottest actual year of 2015–2025 (ranked by WBGT degree-hours above 25 °C in working hours, D42), **unadjusted**, as a real-world reference that clients will remember.
+4. **Extreme reference year (per site, D62):** the hottest of the 26 years 2000–2025 once adjusted to today's climate (D61), ranked the same way, or on dry heat (hours above 30 °C) where the site's humid heat is negligible. It brings in events such as 2003 as they would play out now: a plausible worst case built from real weather. Result: 2003 at eight sites, 2006 at Sevilla, 2018 in north Germany, 2022 (also the hot year) in the UK.
 
 **Why this works:** heatwaves that actually happened (2019, 2022, 2023…) are kept exactly as observed. No selection rule is needed, and results come straight from hour-by-hour counts.
 
-**Caveat:** with 11 years, the 90th percentile sits roughly between the hottest and second-hottest year. That's fine as a "hot year" indicator, but it is not a statistically robust 1-in-10-year estimate. This is noted in the methodology.
+**Caveat:** with 11 years, the 90th percentile sits roughly between the hottest and second-hottest year. That's fine as a "hot year" indicator, but it is not a statistically robust 1-in-10-year estimate. The extreme reference year adds a rarer case from a longer record but has no return period either.
 
 **Projecting peaks (decided):** hot days can warm faster than average days, so the adjustment shifts each part of the temperature distribution by its own projected change (quantile-based morphing), not just the mean. *Phase 2 result:* in this ensemble the hottest summer days warm ~1 °C more than the median day in northern Germany, ~0.4–0.7 °C more in western France, Toulouse and the UK, and about the same in Spain. The earlier expectation of stronger amplification "especially in Iberia" is not borne out here.
 
@@ -320,7 +322,7 @@ The dashboard is built **around an interactive map of the portfolio**:
 | D26 | ERA5 via Open-Meteo for the proof of concept; switch to Copernicus CDS before any commercial use |
 | D27 | UTCI uses the Power BI metrics and colour-bar scale |
 | D28 | Weather summary page priorities agreed (see weather_summary_dashboard.md) |
-| D29 | Baseline extended to 2015–2025 (11 years) |
+| D29 | Baseline extended to 2015–2025 (11 years) (superseded by D61) |
 | D30 | Hot reference year chosen per site (hottest by WBGT > 28 °C hours) |
 | D31 | UTCI scale extended with very strong (38–46) and extreme (> 46) heat bands |
 | D32 | Natural ventilation and evaporative cooling removed from scope |
@@ -350,13 +352,17 @@ The dashboard is built **around an interactive map of the portfolio**:
 | D57 | Site panel Summary tab = story cards (concept 5B): working hours above the WBGT reference by shift for six years: typical year and hot reference year for today, 2040 and 2050, the same six years as the comfort chart (future hot = the hot reference year adjusted to that climate; bar colour = year, shift = shade; totals equal the Data summary table, night shift shown as + h because it lies outside 06–22), and the UTCI comfort shift (B minus A per band) with in-tab year pickers. The indicator table and temperature bands move to a Data summary tab |
 | D58 | Worker heat stress headline uses the ISO 7243 Class 2 **not-acclimatised** reference, WBGT 26 °C (replaces 28 °C acclimatised from D22, which becomes the sensitivity). Applies to heat-safety days, working hours over the limit, shift splits and map colours. Reason: temperate sites, first heatwave of the season, new/agency/returning staff. Under the ISO 7243:2017 equation mid-Class 2 gives ~25 °C, so 26 °C is not conservative |
 | D59 | Worker profile control (work class x clothing) sets the WBGT reference, not acclimatised headline / acclimatised sensitivity: light work, work clothes 29 / 30 °C (ISO 7243 Class 1); **moderate work, work clothes 26 / 28 °C (default, D58)**; moderate work in disposable coveralls and hood 24 / 26 °C (ISO 7243:2017 clothing adjustment +1 coveralls, +1 hood); heavy work, work clothes 22 / 25 °C (Class 3, no sensible air movement). Every WBGT count is made for every profile. UTCI is unchanged by the profile (built-in clothing model, fixed walking pace), so it understates heat stress in protective clothing. Summary tab calls the hot reference year simply "hot year" |
+| D60 | Heatwave length metrics for every year (historical and future): events of 3+ consecutive days with Tmax above 30 / 35 °C, days in them and the longest run; longest run of warm nights (Tmin > 20 °C); heat-safety spells (longest run of consecutive working days with an hour above the WBGT reference, and spells of 3+ days) for every exposure and worker profile. Future runs keep the historical order of days (morphing) |
+| D61 | ERA5 record extended to **2000–2025**, with every year adjusted to the **2020 climate** using the climate models' own warming: the 6-model median change in monthly mean Tmax / Tmin and specific humidity between 2000–2010 (historical run) and 2015–2025, per year, smoothed over neighbouring months, the same at every percentile (site-fitted trends were too noisy: Sevilla's ERA5 cell shows summer cooling). **Used for the extreme reference year only (hybrid, decided with the consultant):** the models warm France and Germany 0.2–0.4 °C/decade less than ERA5 observed and miss the recent rise in humid heat on the Mediterranean coast, so typical / hot statistics from all 26 years would understate today's heat (e.g. Marignane typical-year WBGT hours 51 → 12). Headline statistics stay on 2015–2025 (D29) |
+| D62 | Two reference years per site: the **hot year** (hottest actual year of 2015–2025, unadjusted, D42 ranking) and the **extreme year** (hottest year of the adjusted 2000–2025 record; D42 ranking, or dry heat, hours above 30 °C, where the site's best year has under 50 WBGT degree-hours). Both are adjusted to 2040 / 2050. Dashboard Year toggle: Typical / Hot / Extreme; the story cards show nine years (amends D57) |
+| D63 | The TMY stays on 2015–2025, the same record as the headline statistics (an adjusted-record TMY would inherit the under-adjustment noted in D61) |
 | D33 | Site coordinates checked against published sources (airfield reference points or addresses; see sites CSV). Precision of ~1–3 km is enough, as ERA5 grid cells are ~9–30 km |
 
 ## 13. Open questions
 
 1. **Methodology review actions** ([`methodology_review.md`](methodology_review.md)): indoor hall model / BMS calibration, EPW export, station bias correction first.
 2. **Getafe / Illescas** share one ERA5 cell (identical historical weather).
-3. **Climate science review actions** ([`climate_science_review.md`](climate_science_review.md)): less noisy deltas (30-year windows, more models), a high-end hot-day storyline, heatwave persistence metrics first. The review also qualifies section 4c's "projecting peaks" note: amplification is present at every site, and the Spanish hot-day signal is within sampling noise.
+3. **Climate science review actions** ([`climate_science_review.md`](climate_science_review.md)): less noisy deltas (more models, pooled months; the model window stays 2015–2025), a high-end hot-day storyline. Heatwave length (D60), the extended record and the extreme reference year (D61–D63) are done. The review also qualifies section 4c's "projecting peaks" note: amplification is present at every site, and the Spanish hot-day signal is within sampling noise.
 
 ## 14. Notes for productisation
 

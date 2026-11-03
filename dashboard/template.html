@@ -18,7 +18,7 @@
   --ease:cubic-bezier(.16,.84,.44,1);
   --fs-10:10px; --fs-105:10.5px; --fs-11:11px; --fs-115:11.5px; --fs-12:12px; --fs-125:12.5px; --fs-13:13px; --fs-14:14px; --fs-15:15px; --fs-16:16px;
   /* series */
-  --c-today:#9C96A8; --c-hot:#2A1052; --c-2040:#0B41CD; --c-2050:#FF3D8B;
+  --c-today:#9C96A8; --c-hot:#2A1052; --c-ext:#B54708; --c-2040:#0B41CD; --c-2050:#FF3D8B;
   /* map + land */
   --sea:#FBFAFD; --land:#ECEAF1; --land-edge:#D6D2DF;
 }
@@ -314,7 +314,7 @@ svg.chart .gridl { stroke: var(--line); }
     </div>
     <footer class="sidefoot">
       <p><b>Illustrative portfolio</b> built from public site locations of European aerospace manufacturing. A method demonstration, not an assessment by or of any company.</p>
-      <p>Data: ERA5 (Copernicus C3S, 2015–2025) · NASA NEX-GDDP-CMIP6 v2.0 · PVGIS (EU JRC) · Natural Earth. Generated <span id="gen"></span>.</p>
+      <p>Data: ERA5 (Copernicus C3S, 2000–2025) · NASA NEX-GDDP-CMIP6 v2.0 · PVGIS (EU JRC) · Natural Earth. Generated <span id="gen"></span>.</p>
     </footer>
   </aside>
 
@@ -323,7 +323,7 @@ svg.chart .gridl { stroke: var(--line); }
       <span class="vl">View</span>
       <div class="vgrp"><span>Scenario</span><div class="toggle" id="ctl-scen"><button data-v="ssp245" title="Middle emissions scenario">SSP2-4.5</button><button data-v="ssp585" title="High emissions scenario">SSP5-8.5</button></div></div>
       <div class="vgrp"><span>Period</span><div class="toggle" id="ctl-period"><button data-v="hist">Today</button><button data-v="2040">2040</button><button data-v="2050">2050</button></div></div>
-      <div class="vgrp"><span>Year</span><div class="toggle" id="ctl-yt"><button data-v="typical">Typical</button><button data-v="hot" title="About a 1-in-10 year">Hot</button></div></div>
+      <div class="vgrp"><span>Year</span><div class="toggle" id="ctl-yt"><button data-v="typical">Typical</button><button data-v="hot" title="About a 1-in-10 year">Hot</button><button data-v="extreme" title="Each site's hottest year since 2000, in today's climate">Extreme</button></div></div>
       <div class="vgrp"><span>Exposure</span><div class="toggle" id="ctl-expo"><button data-v="in">Indoor</button><button data-v="sun">Outdoor sun</button></div></div>
       <div class="vgrp" id="hallgrp"><span title="How much warmer the hall runs than outside">Hall gain</span><div class="toggle" id="ctl-hall"><button data-v="0">+0 °C</button><button data-v="2">+2 °C</button><button data-v="4">+4 °C</button></div></div>
       <div class="vgrp"><span title="Work intensity and clothing: sets the WBGT limit (not acclimatised)">Worker</span><select class="ksel" id="ctl-prof" aria-label="Worker profile"></select></div>
@@ -391,6 +391,7 @@ const EXPO = () => {
   const x = S.expo === "sun" ? "sun" : S.hall === "0" ? "shade" : "in" + S.hall, tag = S.expo === "sun" ? "sun" : "in" + S.hall, P = PSUF();
   return { tag, shift: tag, shiftKey: `${tag}_gt_ref${P}`, days: `op_days_wbgt_${x}_gt_ref${P}`, hours: `op_hours_wbgt_${x}_gt_ref${P}`,
     acc: `op_hours_wbgt_${x}_gt_ref${P}_acc`, byShift: sh => `op_hours_wbgt_${x}_gt_ref${P}_${sh}`, utci32: `op_hours_utci_${tag}_gt32`,
+    longest: `op_longest_wbgt_${x}_gt_ref${P}`,
     label: S.expo === "sun" ? "outdoor, in sun" : S.hall === "0" ? "indoor, hall = outside" : `indoor, hall +${S.hall} °C` };
 };
 /* "moderate work in disposable coveralls and hood, not acclimatised" */
@@ -399,6 +400,8 @@ const SITES = DATA.sites;
 const byId = Object.fromEntries(SITES.map(s => [s.id, s]));
 const COUNTRY = { FR: "France", DE: "Germany", ES: "Spain", GB: "United Kingdom" };
 const SCEN = { ssp245: "SSP2-4.5", ssp585: "SSP5-8.5" };
+const [B0, B1] = DATA.meta.baseline, NY = B1 - B0 + 1, E0 = DATA.meta.extended[0], HW = DATA.meta.heatwave;
+const YT_TEXT = { typical: "typical year", hot: "hot year (1 in 10)", extreme: `extreme year (each site's hottest since ${E0}, in today's climate)` };
 const RAMP = ["#FDE4EF", "#FBC2DA", "#FF94BF", "#FF5FA0", "#FF3D8B", "#D91877", "#A3005A"];   /* warming heatmap only */
 const RISK = ["#0B41CD", "#7C97E8", "#C7D3F6", "#FF9EC4", "#FF3D8B", "#A3005A"];                /* blue (low) -> magenta (high), as in the temperature bars */
 const TEMP_COLS = ["#0B41CD", "#9DB3F0", "#0FB86E", "#F6CFE0", "#FF8FBC", "#FF3D8B", "#A3005A"];
@@ -514,7 +517,7 @@ function bindFilters() {
 /* ---------- KPI strip ---------- */
 function renderStrip() {
   const v = inView(), n = v.length;
-  const per = S.period === "hist" ? "today" : `${S.period}, ${SCEN[S.scen]}`;
+  const per = `${S.period === "hist" ? "today" : `${S.period}, ${SCEN[S.scen]}`}, ${S.yt} year`;
   /* A: sites at high risk on worker heat-safety days (provisional bands: High 15+, Very high 35+) */
   const HIGH = 15, VHIGH = 35, E = EXPO();
   const wd = (s, per) => kpiVal(s.id, "worker_days", per)[0];
@@ -571,8 +574,8 @@ function drawMap() {
 }
 function updateMap() {
   const info = LAYER[S.layer];
-  const per = S.period === "hist" ? "Today (2015–2025)" : `${S.period} · ${SCEN[S.scen]}`;
-  $("#map-sub").textContent = `${per} · ${S.yt === "typical" ? "typical year" : "hot year (1 in 10)"}${S.layer === "worker_days" ? ` · ${EXPO().label} · ${PROF().short.toLowerCase()} (WBGT ${WR()} °C)` : ""} · click a site for its card`;
+  const per = S.period === "hist" ? `Today (${B0}–${B1})` : `${S.period} · ${SCEN[S.scen]}`;
+  $("#map-sub").textContent = `${per} · ${YT_TEXT[S.yt]}${S.layer === "worker_days" ? ` · ${EXPO().label} · ${PROF().short.toLowerCase()} (WBGT ${WR()} °C)` : ""} · click a site for its card`;
   for (const c of $$("#sites circle")) { const id = c.dataset.id; c.classList.toggle("off", !S.sel.has(id)); c.style.fill = colorFor(layerVal(id), info); }
   const s = byId[S.site], ring = $("#ring");
   ring.style.display = s && S.sel.has(s.id) ? "" : "none";
@@ -596,24 +599,27 @@ function updateMap() {
 }
 
 /* ---------- site card ---------- */
+const EXT = () => S.yt === "extreme";
 function columns() {
-  const s = byId[S.site];
+  const s = byId[S.site], ys = EXT() ? `${s.extreme_year} weather` : S.yt;
   return [
-    { key: "hist", label: "Today", sub: `${S.yt} year`, color: "var(--c-today)" },
+    { key: "hist", label: "Today", sub: EXT() ? `extreme year ${s.extreme_year}, today's climate` : `${S.yt} year`, color: EXT() ? "var(--c-ext)" : "var(--c-today)" },
     { key: "hotref", label: `Hot year ${s.hot_year}`, sub: "actual, unadjusted", color: "var(--c-hot)" },
-    { key: "2040", label: "2040", sub: `${SCEN[S.scen]}, ${S.yt}`, color: "var(--c-2040)" },
-    { key: "2050", label: "2050", sub: `${SCEN[S.scen]}, ${S.yt}`, color: "var(--c-2050)" },
+    { key: "2040", label: "2040", sub: `${SCEN[S.scen]}, ${ys}`, color: "var(--c-2040)" },
+    { key: "2050", label: "2050", sub: `${SCEN[S.scen]}, ${ys}`, color: "var(--c-2050)" },
   ];
 }
-/* chart data: today = typical year; hotref = actual hot year; 2040/2050 = typical year or, with
-   Year = Hot, the site's hot reference year adjusted to that future climate */
-const tmyKey = c => c === "hist" ? "hist" : c === "hotref" ? "hotref" : `${S.yt === "hot" ? "hot_" : ""}${S.scen}_${c}`;
-const futSub = () => S.yt === "hot" ? `${byId[S.site].hot_year} weather, ${SCEN[S.scen]}` : `${SCEN[S.scen]}, typical`;
+/* chart data: today = typical year (Year = Extreme: the extreme reference year in today's climate);
+   hotref = actual hot year; 2040/2050 = typical year or, with Year = Hot / Extreme, the site's hot /
+   extreme reference year adjusted to that future climate */
+const tmyKey = c => c === "hist" ? (EXT() ? "extref" : "hist") : c === "hotref" ? "hotref" : c === "extref" ? "extref"
+  : `${S.yt === "hot" ? "hot_" : EXT() ? "ext_" : ""}${S.scen}_${c}`;
+const futSub = () => S.yt === "hot" ? `${byId[S.site].hot_year} weather, ${SCEN[S.scen]}` : EXT() ? `${byId[S.site].extreme_year} weather, ${SCEN[S.scen]}` : `${SCEN[S.scen]}, typical`;
 function renderHeader() {
   const s = byId[S.site], k = DATA.kpi[S.site];
   $("#s-name").textContent = s.name;
   $("#s-chips").innerHTML = `<span class="chip">${COUNTRY[s.country]} · ${s.lat.toFixed(3)}, ${s.lon.toFixed(3)}</span>
-    <span class="chip">Hot reference year <b>${s.hot_year}</b></span>
+    <span class="chip">Hot year <b>${s.hot_year}</b> · extreme year <b>${s.extreme_year}</b></span>
     <span class="chip">${SCEN[S.scen]} warming <b>${sgn(k.warming[`${S.scen}_2040`][0], 1)} °C</b> by 2040 · <b>${sgn(k.warming[`${S.scen}_2050`][0], 1)} °C</b> by 2050</span>`;
 }
 function cell(id, m, col, d) {
@@ -626,17 +632,20 @@ function cell(id, m, col, d) {
 function thead(cols, first) { return `<thead><tr><th>${first}</th>${cols.map(c => `<th><span class="k" style="background:${c.color}"></span>${c.label}<small>${c.sub}</small></th>`).join("")}</tr></thead>`; }
 
 /* ---------- Summary tab: story cards ---------- */
-/* the six years both story cards use: typical year and hot reference year, today / 2040 / 2050.
-   key = TMY chart series (comfort card); kpi = multi-year headline value (bar card) */
+/* the nine years both story cards use: typical year, hot reference year and extreme reference year
+   (D62), today / 2040 / 2050. key = TMY chart series (comfort card); kpi = headline value (bar card) */
 function storyYears() {
   const sc = S.scen;
   return [
     { key: "hist", kpi: "hist", short: "Today · typical", name: "Today, typical year", color: "var(--c-today)" },
     { key: "hotref", kpi: "hotref", short: "Today · hot year", name: "Today, hot year", color: "var(--c-hot)" },
+    { key: "extref", kpi: "extref", short: "Today · extreme", name: "Today, extreme year", color: "var(--c-ext)" },
     { key: `${sc}_2040`, kpi: `${sc}_2040_typical`, short: "2040 · typical", name: "2040, typical year", color: "var(--c-2040)" },
     { key: `hot_${sc}_2040`, kpi: `hotref_${sc}_2040`, short: "2040 · hot year", name: "2040, hot year", color: "#062A86" },
+    { key: `ext_${sc}_2040`, kpi: `extref_${sc}_2040`, short: "2040 · extreme", name: "2040, extreme year", color: "#021552" },
     { key: `${sc}_2050`, kpi: `${sc}_2050_typical`, short: "2050 · typical", name: "2050, typical year", color: "var(--c-2050)" },
-    { key: `hot_${sc}_2050`, kpi: `hotref_${sc}_2050`, short: "2050 · hot year", name: "2050, hot year", color: "#A3005A" }];
+    { key: `hot_${sc}_2050`, kpi: `hotref_${sc}_2050`, short: "2050 · hot year", name: "2050, hot year", color: "#A3005A" },
+    { key: `ext_${sc}_2050`, kpi: `extref_${sc}_2050`, short: "2050 · extreme", name: "2050, extreme year", color: "#5C0033" }];
 }
 const futPer = () => S.period === "hist" ? "2050" : S.period;
 /* keep a picked year when the scenario changes; empty = follow the View bar */
@@ -649,15 +658,15 @@ function renderStory() {
   const sum = a => a.reduce((x, y) => x + y, 0), YRS = storyYears(), W0 = 560;
   /* story 1: working hours above the headline WBGT reference split by shift. Totals are the multi-year values of the Data summary tab;
      the early/late split follows the per-shift values of the same year. Night (22–06) lies outside the working hours. */
-  const pick = (m, k) => k === "hist" ? K[m].hist.typical : k === "hotref" ? K[m].hotref : K[m][k][0];
+  const pick = (m, k) => k === "hist" ? K[m].hist.typical : k === "hotref" || k === "extref" ? K[m][k] : K[m][k][0];
   const rows = YRS.map(y => {
     const tot = pick(E.hours, y.kpi), e = pick(sh("early"), y.kpi), l = pick(sh("late"), y.kpi), f = e + l > 0 ? e / (e + l) : 0;
     return { ...y, early: tot * f, late: tot * (1 - f), night: pick(sh("night"), y.kpi), tot };
   });
   const SHADE = { early: 0.45, late: 1, night: 0.7 }, SHN = { early: "Early shift 06–14", late: "Late shift 14–22", night: "Night shift 22–06" };
   const lw = 150, W = W0 - lw - 96, rh = 22, gap = 8, bh = 12;
-  const mx = Math.max(...rows.map(r => r.tot + r.night), 1), yOf = i => i * rh + Math.floor(i / 2) * gap;
-  let o = `<svg class="chart" viewBox="0 0 ${W0} ${yOf(5) + rh}" role="img" aria-label="Working hours above the WBGT limit by shift">`;
+  const mx = Math.max(...rows.map(r => r.tot + r.night), 1), yOf = i => i * rh + Math.floor(i / 3) * gap;
+  let o = `<svg class="chart" viewBox="0 0 ${W0} ${yOf(rows.length - 1) + rh}" role="img" aria-label="Working hours above the WBGT limit by shift">`;
   rows.forEach((r, i) => {
     const y = yOf(i); let x = lw;
     o += `<text class="lab" x="0" y="${y + 14}">${r.short}</text>`;
@@ -672,15 +681,17 @@ function renderStory() {
   const swatch = (op, extra = "") => `<i style="background:var(--c-2050);opacity:${op};${extra}"></i>`;
   const keys1 = `<div class="keys"><span>${swatch(0.45)}Early 06–14</span><span>${swatch(1)}Late 14–22</span><span>${swatch(0.7, "outline:1px solid var(--c-2050)")}Night 22–06 (outside working hours, not in the total)</span><span>Bar colour = year, as in the other charts</span></div>`;
   const wd = K[E.days], tNow = wd.hist.typical, hNow = wd.hotref, tF = wd[`${sc}_${per}_typical`][0], hF = wd[`hotref_${sc}_${per}`][0];
+  const xNow = wd.extref, xF = wd[`extref_${sc}_${per}`][0], ey = byId[id].extreme_year, sp = K[E.longest], spF = sp[`extref_${sc}_${per}`][0];
   const rF = rows.find(r => r.kpi === `${sc}_${per}_typical`), latePct = rF.tot ? Math.round(100 * rF.late / rF.tot) : 0;
-  const none = Math.max(tF, hF, hNow, ...rows.map(r => r.tot)) < 0.5;
+  const none = Math.max(tF, hF, hNow, xF, xNow, ...rows.map(r => r.tot)) < 0.5;
   const story1 = `<div class="sc"><div class="t">${none
       ? `<i>No working hour goes above WBGT ${WR()} °C</i> today or by 2050, even in a hot year (${E.label}, ${profText()}).${S.expo === "in" && S.hall !== "4" ? " A larger hall heat gain (View bar) shows how sensitive this is." : ""}`
-      : `By ${per} a typical year brings <b>${fmt(tF)} worker heat-safety days</b> (today ${fmt(tNow)}); a hot year would bring <b>${fmt(hF)}</b> (today ${fmt(hNow)}).
+      : `By ${per} a typical year brings <b>${fmt(tF)} worker heat-safety days</b> (today ${fmt(tNow)}); a hot year would bring <b>${fmt(hF)}</b> (today ${fmt(hNow)}),
+      and an extreme year like ${ey} <b>${fmt(xF)}</b> (today ${fmt(xNow)})${spF >= 2 ? `, with up to <b>${fmt(spF)} working days in a row</b> over the limit` : ""}.
       ${rF.tot >= 0.5 ? `<b>${latePct} %</b> of the working hours above the limit fall on the late shift.` : `No working hours exceed the limit in a typical ${per} year.`}`}</div>
     <div class="sub">Working hours above WBGT ${WR()} °C (ISO 7243: ${profText()}) · ${E.label}</div>${o}${keys1}</div>`;
   /* story 2: comfort shift, one column per UTCI band, year B minus year A */
-  const a = cmpKey(S.cmpA, "hist"), b = cmpKey(S.cmpB, `${S.yt === "hot" ? "hot_" : ""}${sc}_${per}`);
+  const a = cmpKey(S.cmpA, "hist"), b = cmpKey(S.cmpB, `${S.yt === "hot" ? "hot_" : EXT() ? "ext_" : ""}${sc}_${per}`);
   const ub = S.expo === "sun" ? "utci_bands_sun" : `utci_bands_${E.tag}`;
   const A = T[a][ub], B = T[b][ub], d = B.map((v, i) => v - A[i]);
   const dm = Math.max(...d.map(Math.abs), 1), cw = W0 / 9, bw = 30, H = 46, top = 20, bl = top + H, kb = top + 2 * H + 22;
@@ -700,7 +711,7 @@ function renderStory() {
     <div class="cmp">Compare ${sel("cmpB", b)} with ${sel("cmpA", a)}</div>
     <div class="sub">Change in hours a year per UTCI thermal stress band, all hours · ${E.label}</div>${o2}</div>`;
   return `<div class="story">${story1}${story2}</div>
-    <p class="note">${SCEN[sc]}; future values are the median of ${DATA.meta.models.length} climate models. Typical year: the median of the 11 years 2015–2025 (bars) or the typical meteorological year (comfort chart). Hot year: the site's hottest year of 2015–2025 (${hy}, ranked on humid heat), as it happened and adjusted to the 2040 and 2050 climate. Working hours ${DATA.meta.operating_hours.start}–${DATA.meta.operating_hours.end} local time. Sentences are generated from the data; the full table is in Data summary.</p>`;
+    <p class="note">${SCEN[sc]}; future values are the median of ${DATA.meta.models.length} climate models. Typical year: the median of the ${NY} years ${B0}–${B1} (bars) or the typical meteorological year (comfort chart). Hot year: the site's hottest year of ${B0}–${B1} (${hy}, ranked on humid heat), as it happened and adjusted to the 2040 and 2050 climate. Extreme year: the hottest year of ${E0}–${B1} once adjusted to today's climate (${ey}), and its 2040 and 2050 versions. Working hours ${DATA.meta.operating_hours.start}–${DATA.meta.operating_hours.end} local time. Sentences are generated from the data; the full table is in Data summary.</p>`;
 }
 
 /* ---------- Data summary tab ---------- */
@@ -712,14 +723,17 @@ function renderData() {
     [`Working hours above WBGT ${WR()} °C, ${profText()} (${E.label})`, E.hours, 0],
     ...(E.acc ? [[`Working hours above WBGT ${WA()} °C, acclimatised workforce (${E.label})`, E.acc, 0]] : []),
     [`Working hours of strong UTCI heat stress, above 32 (${E.label})`, E.utci32, 0],
+    [`Heatwaves: spells of ${HW.min_days}+ days above 30 °C`, "hw30_events", 0], ["Longest run of days above 30 °C", "hw30_longest", 0],
+    ["Longest run of days above 35 °C", "hw35_longest", 0], [`Longest run of warm nights (minimum above ${HW.tropical_night_c} °C)`, `tn${HW.tropical_night_c}_longest`, 0],
+    [`Longest run of worker heat-safety days (${E.label})`, E.longest, 0],
     ["Cooling degree-hours above 24 °C", "cdh24", 0], ["Heating degree-hours below 19 °C", "hdh19", 0]];
   return `<div><h3>Key heat indicators</h3><div class="tw"><table>${thead(cols, "Indicator")}<tbody>${rows.map(([l, m, d, p]) => `<tr><th scope="row">${l}${p ? '<span class="prov">provisional</span>' : ""}</th>${cols.map(c => cell(id, m, c.key, d)).join("")}</tr>`).join("")}</tbody></table></div>
-    <p class="note">From all 11 years (2015–2025) and their 2040/2050 versions. Future values: median of ${DATA.meta.models.length} climate models, range below. Working hours ${DATA.meta.operating_hours.start}–${DATA.meta.operating_hours.end} local time. WBGT: Liljegren model, ISO 7243 reference for the worker profile (${PROF().label.toLowerCase()}): ${WR()} °C not acclimatised (headline), ${WA()} °C acclimatised.</p></div>
-    <div><h3>Hours of the year in each temperature band <span class="sub">${S.yt === "hot" ? `2040 / 2050: ${byId[S.site].hot_year} weather adjusted to the future` : "typical year"}</span></h3>${stackRows(c => DATA.tmy[id][tmyKey(c.key)].temp_bands, TEMP_COLS, DATA.meta.temp_bands, " °C")}</div>`;
+    <p class="note">${EXT() ? `Year = Extreme: the extreme reference year (${byId[id].extreme_year} in today's climate) and its 2040/2050 versions.` : `From all ${NY} years (${B0}–${B1}) and their 2040/2050 versions.`} Heatwave lengths are runs of consecutive days; a future run is the historical sequence with every day warmed, so it does not include any change in how long hot spells last. Future values: median of ${DATA.meta.models.length} climate models, range below. Working hours ${DATA.meta.operating_hours.start}–${DATA.meta.operating_hours.end} local time. WBGT: Liljegren model, ISO 7243 reference for the worker profile (${PROF().label.toLowerCase()}): ${WR()} °C not acclimatised (headline), ${WA()} °C acclimatised.</p></div>
+    <div><h3>Hours of the year in each temperature band <span class="sub">${S.yt === "hot" ? `2040 / 2050: ${byId[S.site].hot_year} weather adjusted to the future` : EXT() ? `${byId[S.site].extreme_year} weather in today's climate and adjusted to the future` : "typical year"}</span></h3>${stackRows(c => DATA.tmy[id][tmyKey(c.key)].temp_bands, TEMP_COLS, DATA.meta.temp_bands, " °C")}</div>`;
 }
 function stackRows(get, colors, labels, unit) {
   return columns().map(c => { const v = get(c), t = v.reduce((a, b) => a + b, 0);
-    const sub = c.key === "hotref" ? "actual year" : c.key === "hist" ? "typical year" : futSub();
+    const sub = c.key === "hotref" ? "actual year" : c.key === "hist" ? (EXT() ? `extreme year ${byId[S.site].extreme_year}` : "typical year") : futSub();
     return `<div class="stack-row"><div class="lab">${c.label}<small>${sub}</small></div><div class="stack">${v.map((x, i) => x > 0 ? `<span data-t="${labels[i]}${unit}: ${fmt(x)} h (${fmt(100 * x / t, 1)} %)" style="flex:${x} 1 0;background:${colors[i]}"></span>` : "").join("")}</div></div>`; }).join("")
     + `<div class="keys">${labels.map((l, i) => `<span><i style="background:${colors[i]}"></i>${l}${unit}</span>`).join("")}</div>`;
 }
@@ -763,16 +777,19 @@ function fingerprint(d) {
   return { svg: o + keys, avg, best };
 }
 function renderTemp() {
-  const id = S.site, T = DATA.tmy[id], sc = S.scen, hy = byId[id].hot_year;
-  const hot = S.yt === "hot", base = hot ? "hotref" : "hist";
-  const baseName = hot ? `Hot year ${hy} (actual)` : "Today (typical)";
-  const fName = per => hot ? `${hy} weather in ${per}, ${SCEN[sc]}` : `${per} ${SCEN[sc]}`;
+  const id = S.site, T = DATA.tmy[id], sc = S.scen, hy = byId[id].hot_year, ey = byId[id].extreme_year;
+  /* Year = Hot / Extreme: the reference year as the base, and its future versions */
+  const hot = S.yt !== "typical", rk = EXT() ? "extref" : "hotref", ry = EXT() ? ey : hy;
+  const rName = EXT() ? `Extreme year ${ey} (today's climate)` : `Hot year ${hy} (actual)`, rCol = EXT() ? "var(--c-ext)" : "var(--c-hot)";
+  const base = hot ? rk : "hist";
+  const baseName = hot ? rName : "Today (typical)";
+  const fName = per => hot ? `${ry} weather in ${per}, ${SCEN[sc]}` : `${per} ${SCEN[sc]}`;
   const pct = a => { const t = a.reduce((x, y) => x + y, 0); return a.map(v => 100 * v / t); };
   const bins = Array.from({ length: 56 }, (_, i) => i - 10);
   /* reference year drawn as a dashed line: the hot year in the typical view, today's typical year in the hot view */
-  const ref = hot ? { name: "Today (typical)", key: "hist", color: "var(--c-today)" } : { name: `Hot year ${hy} (actual)`, key: "hotref", color: "var(--c-hot)" };
+  const ref = hot ? { name: "Today (typical)", key: "hist", color: "var(--c-today)" } : { name: rName, key: rk, color: rCol };
   const hist = lineChart({ xLabels: bins.map(b => `${b} °C`), unit: "% of hours", xTicks: [0, 10, 20, 30, 40, 50],
-    bars: { name: baseName, values: pct(T[base].temp_hist), color: hot ? "var(--c-hot)" : "var(--c-today)" },
+    bars: { name: baseName, values: pct(T[base].temp_hist), color: hot ? rCol : "var(--c-today)" },
     series: [{ name: ref.name, values: pct(T[ref.key].temp_hist), color: ref.color, dash: true, w: 2 },
              { name: fName(2040), values: pct(T[tmyKey("2040")].temp_hist), color: "var(--c-2040)", w: 2.75 },
              { name: fName(2050), values: pct(T[tmyKey("2050")].temp_hist), color: "var(--c-2050)", w: 2.75 }] });
@@ -783,15 +800,15 @@ function renderTemp() {
   const diff = T[tmyKey("2050")].month_hour_t.map((r, mi) => r.map((v, hi) => v - T[base].month_hour_t[mi][hi]));
   const fp = fingerprint(diff);
   const mon = lineChart({ xLabels: MONTHS, unit: "°C", series: [
-    { name: "Today (typical)", values: T.hist.monthly_tmax, color: "var(--c-today)" }, { name: `Hot year ${hy}`, values: T.hotref.monthly_tmax, color: "var(--c-hot)", dash: true },
+    { name: "Today (typical)", values: T.hist.monthly_tmax, color: "var(--c-today)" }, { name: rName, values: T[rk].monthly_tmax, color: rCol, dash: true },
     { name: fName(2040), values: T[tmyKey("2040")].monthly_tmax, color: "var(--c-2040)" }, { name: fName(2050), values: T[tmyKey("2050")].monthly_tmax, color: "var(--c-2050)" }] });
-  const yearSub = hot ? `hot year: ${hy} weather as it happened and adjusted to the future` : "typical year";
-  return `<div><h3>Share of hours at each temperature <span class="sub">${yearSub}</span></h3>${hist}${skey([[hot ? "var(--c-hot)" : "var(--c-today)", `${baseName} (bars)`], [ref.color, ref.name, 1], ["var(--c-2040)", fName(2040)], ["var(--c-2050)", fName(2050)]])}
+  const yearSub = EXT() ? `extreme year: ${ey} weather in today's climate and adjusted to the future` : hot ? `hot year: ${hy} weather as it happened and adjusted to the future` : "typical year";
+  return `<div><h3>Share of hours at each temperature <span class="sub">${yearSub}</span></h3>${hist}${skey([[hot ? rCol : "var(--c-today)", `${baseName} (bars)`], [ref.color, ref.name, 1], ["var(--c-2040)", fName(2040)], ["var(--c-2050)", fName(2050)]])}
       <p class="note">Hours above 30 °C: ${hoursRow(30)}<br>Hours above 35 °C: ${hoursRow(35)}</p></div>
-    <div><h3>Warming fingerprint <span class="sub">${hot ? `${hy} weather in 2050 (${SCEN[sc]}) minus ${hy} as it happened` : `2050 ${SCEN[sc]} minus today`}, by month and hour of day</span></h3>
+    <div><h3>Warming fingerprint <span class="sub">${hot ? `${ry} weather in 2050 (${SCEN[sc]}) minus ${EXT() ? `${ey} in today's climate` : `${hy} as it happened`}` : `2050 ${SCEN[sc]} minus today`}, by month and hour of day</span></h3>
       <p class="fphead">On average <b>${sgn(fp.avg, 1)} °C</b>; the largest change is in <b>${MONTHS[fp.best.m]} around ${String(fp.best.h).padStart(2, "0")}:00 (${sgn(fp.best.v, 1)} °C)</b>.</p>
-      ${fp.svg}<p class="note">Local time, median of ${DATA.meta.models.length} models applied to the ${hot ? `actual ${hy} weather` : "typical year"}. Blue is cooler, magenta warmer, as on the map. Afternoon warming adds directly to the work-time heat load.</p></div>
-    <div><h3>Average daily maximum temperature by month <span class="sub">${yearSub}</span></h3>${mon}${skey([["var(--c-today)", "Today (typical)"], ["var(--c-hot)", `Hot year ${hy} (actual)`, 1], ["var(--c-2040)", fName(2040)], ["var(--c-2050)", fName(2050)]])}</div>`;
+      ${fp.svg}<p class="note">Local time, median of ${DATA.meta.models.length} models applied to the ${EXT() ? `${ey} weather in today's climate` : hot ? `actual ${hy} weather` : "typical year"}. Blue is cooler, magenta warmer, as on the map. Afternoon warming adds directly to the work-time heat load.</p></div>
+    <div><h3>Average daily maximum temperature by month <span class="sub">${yearSub}</span></h3>${mon}${skey([["var(--c-today)", "Today (typical)"], [rCol, rName, 1], ["var(--c-2040)", fName(2040)], ["var(--c-2050)", fName(2050)]])}</div>`;
 }
 function renderStress() {
   const id = S.site, T = DATA.tmy[id], cols = columns(), hy = byId[id].hot_year;
@@ -812,7 +829,7 @@ function renderStress() {
   const procRows = Object.entries(DATA.meta.process_limits).map(([k, label]) => `<tr><th scope="row">${label}</th>${cols.map(c => cell(id, "proc_hours_" + k, c.key, 0)).join("")}</tr>`).join("");
   return `<div><h3>Work heat stress by shift: ISO 7243 WBGT <span class="sub">${PROF().label} · ${EXPO().label}</span></h3>
       <div class="tw"><table>${thead(cols, "Hours a year")}<tbody>${rows}</tbody></table></div>
-      <p class="note">${expoNote} ${S.yt === "hot" ? `2040 and 2050 are the actual ${hy} weather adjusted to those climates (Year: Hot).` : "Today and the future use the typical year; the hot year is the actual " + hy + " weather."}</p></div>
+      <p class="note">${expoNote} ${S.yt === "hot" ? `2040 and 2050 are the actual ${hy} weather adjusted to those climates (Year: Hot).` : EXT() ? `Today is the extreme year ${byId[id].extreme_year} in today's climate; 2040 and 2050 are that year adjusted to those climates (Year: Extreme).` : "Today and the future use the typical year; the hot year is the actual " + hy + " weather."}</p></div>
     <div><h3>UTCI thermal stress scale</h3><div class="utci-scale">${UTCI.map(u => `<div class="${u[3] ? "dk" : ""}" style="background:${u[2]}">${u[0]}<br>${u[1]}</div>`).join("")}</div></div>
     <div><h3>Condition of person: share of hours in each UTCI band <span class="sub">${EXPO().label}</span></h3>
       ${stackRows(c => T[tmyKey(c.key)][ub], UTCI.map(u => u[2]), UTCI.map(u => u[0]), "")}</div>
@@ -825,11 +842,13 @@ function renderStress() {
 function renderAbout() {
   const s = byId[S.site];
   return `<div class="about"><h3>How these numbers are made</h3><ul>
-    <li><b>Today:</b> hourly ERA5 reanalysis for 2015–2025 at the nearest 0.25° grid point (${s.grid[0]}, ${s.grid[1]}; ${fmt(s.grid[2], 1)} km from the site).</li>
+    <li><b>Today:</b> hourly ERA5 reanalysis for ${B0}–${B1} at the nearest 0.25° grid point (${s.grid[0]}, ${s.grid[1]}; ${fmt(s.grid[2], 1)} km from the site).</li>
     <li><b>Typical year:</b> an ISO 15927-4 typical meteorological year built from the same record, used for the hourly charts.</li>
-    <li><b>Hot year:</b> the site's hottest actual year (${s.hot_year}), ranked by working-hour WBGT degree-hours above 25 °C, shown unadjusted.</li>
-    <li><b>2040 and 2050:</b> every historical year adjusted with changes from ${DATA.meta.models.length} NEX-GDDP-CMIP6 models (${DATA.meta.models.join(", ")}). Hot days receive the hot-day warming. 2040 = 2031–2050 and 2050 = 2041–2060, both against 2015–2025.</li>
-    <li><b>Typical vs hot:</b> headline numbers use the median year and the 90th-percentile year (about 1 in 10) of the 11 years. In the charts, "Hot" shows the site's hot reference year (${s.hot_year}) as it happened and adjusted to 2040 and 2050; "Typical" shows the typical year.</li>
+    <li><b>Hot year:</b> the site's hottest actual year of ${B0}–${B1} (${s.hot_year}), ranked by working-hour WBGT degree-hours above 25 °C, shown unadjusted: a year people remember.</li>
+    <li><b>Extreme year:</b> the hottest year of ${E0}–${B1} once adjusted to today's climate (${s.extreme_year}${s.extreme_year === s.hot_year ? ", the same year as the hot year" : ""}), ranked on ${s.extreme_rule}: a plausible worst case from real weather. To adjust it, every year of ERA5 ${E0}–${B1} is moved to the ${DATA.meta.reference_year} climate with the warming the same climate models simulate between 2000–2010 and 2015–2025 (daily maximum and minimum temperature and humidity, month by month). The models warm western Europe more slowly than observed, so the early years stay slightly cool: the extreme year is, if anything, conservative.</li>
+    <li><b>2040 and 2050:</b> every historical year adjusted with changes from ${DATA.meta.models.length} NEX-GDDP-CMIP6 models (${DATA.meta.models.join(", ")}). Hot days receive the hot-day warming. 2040 = 2031–2050 and 2050 = 2041–2060, both against 2015–2025 (the ${DATA.meta.reference_year} climate).</li>
+    <li><b>Typical, hot and extreme:</b> headline numbers use the median year and the 90th-percentile year (about 1 in 10) of the ${NY} years ${B0}–${B1}; "Extreme" uses the extreme reference year. In the charts, "Hot" shows the site's hot reference year (${s.hot_year}) as it happened and adjusted to 2040 and 2050, "Extreme" the extreme year (${s.extreme_year}) in today's climate and adjusted, and "Typical" the typical year.</li>
+    <li><b>Heatwave length:</b> runs of consecutive days above 30 °C or 35 °C (a heatwave is ${HW.min_days} days or more), of warm nights, and of working days with an hour above the WBGT reference. Future years keep the historical order of days with every day warmed, so lengthening from warmer days is included; any change in how persistent hot spells become is not.</li>
     <li><b>WBGT:</b> Liljegren et al. (2008) model, run with sun for outdoor work and without solar radiation for shade and indoor work. Default reference, moderate work (ISO 7243 Class 2): ${fmt(PROFILES[DEF_PROF].ref, 0)} °C for a workforce that is not acclimatised, used for the headline numbers, because most staff are not yet adapted at the first heatwave of the season and new, agency and returning staff never are; ${fmt(PROFILES[DEF_PROF].acc, 0)} °C for a fully acclimatised workforce, shown as a sensitivity.</li>
     <li><b>Worker profile</b> (View bar) sets the WBGT reference from the work intensity (ISO 7243 / ISO 8996 work class) and clothing.
       Protective clothing adds its ISO 7243 clothing adjustment to WBGT, which is the same as lowering the reference:
@@ -866,7 +885,7 @@ function bindToggle(id, key) {
 }
 function init() {
   /* restore remembered view settings, ignoring anything an older version of the page stored */
-  const VALID = { scen: DATA.meta.scenarios, period: ["hist", ...DATA.meta.periods], yt: ["typical", "hot"], layer: Object.keys(LAYER),
+  const VALID = { scen: DATA.meta.scenarios, period: ["hist", ...DATA.meta.periods], yt: ["typical", "hot", "extreme"], layer: Object.keys(LAYER),
     tab: ["summary", "data", "temp", "stress", "about"], prof: Object.keys(PROFILES), expo: ["in", "sun"], hall: ["0", "2", "4"] };
   for (const [k, ok] of Object.entries(VALID)) { const v = store.get("cr-" + k); if (v && ok.includes(v)) S[k] = v; }
   S.sel = new Set(SITES.map(s => s.id));

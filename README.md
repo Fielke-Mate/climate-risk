@@ -26,12 +26,14 @@ ERA5 downloads need a free Copernicus CDS account. Put the API key in the `CDSAP
 ## Workflow
 
 ```bash
-.venv/bin/python scripts/fetch_era5.py
-.venv/bin/python scripts/phase1_historical.py
-.venv/bin/python scripts/fetch_nex.py        # Phase 2 data, resumable (~2.5 h)
-.venv/bin/python scripts/phase2_future.py
+.venv/bin/python scripts/fetch_era5.py       # ERA5 2000-2025
+.venv/bin/python scripts/fetch_nex.py        # climate model data, resumable (~3 h); Phase 1 needs it for the 2000-2025 adjustment
+.venv/bin/python scripts/phase1_historical.py   # --reuse-adjustment skips the model data
+.venv/bin/python scripts/phase2_future.py       # --reuse-deltas skips the model data
 .venv/bin/python -m pytest
 node tests/dashboard_check.js   # browser test of dashboard/index.html (needs Playwright)
 ```
 
-Settings (baseline years, operating hours, thresholds) live in `config/settings.yaml`. Sites live in `data/sites/pilot_aerospace_europe.csv`.
+Settings (baseline years, operating hours, thresholds, heatwave definitions) live in `config/settings.yaml`.
+
+Behind a proxy that re-signs TLS (as in the cloud environment), point Python at its CA bundle for the NEX download, e.g. `REQUESTS_CA_BUNDLE=/root/.ccr/ca-bundle.crt`. Sites live in `data/sites/pilot_aerospace_europe.csv`.

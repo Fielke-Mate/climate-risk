@@ -23,6 +23,7 @@ from pythermalcomfort.models import utci as utci_model
 from concurrent.futures import ProcessPoolExecutor
 
 from climate_risk.annual import wbgt_metric_names, wbgt_profiles
+from climate_risk.heatwave import heatwave_metric_names
 from climate_risk.config import ROOT, WEATHER_DIR, load_sites, settings
 from climate_risk.heat import heat_frame, utci_indoor, wbgt_liljegren
 from climate_risk.weather import operating_hours_mask
@@ -46,7 +47,7 @@ KPI_METRICS = ["days_tmax_gt30", "days_tmax_gt35", "hours_t_gt30", "nights_tmin_
                "hours_utci_shade_gt28", "hours_utci_sun_gt32",
                "hours_utci_sun_gt38", "proc_hours_paint_application_max_temp", "proc_hours_paint_application_max_rh",
                "proc_hours_composite_room_cooling", "cdh24", "hdh19",
-               *wbgt_metric_names(settings()["heat"])]
+               *wbgt_metric_names(settings()["heat"]), *heatwave_metric_names(settings())]
 INDOOR_OFFSETS = [0.0, 2.0, 4.0]
 
 
@@ -175,16 +176,18 @@ def tmy_stats(df: pd.DataFrame, site) -> dict:
 
 def site_tmy_block(job):
     """All weather-summary statistics for one site (runs in a worker process)."""
-    sid, hot_year, models, scenarios, periods = job
+    sid, hot_year, ext_year, models, scenarios, periods = job
     site = next(s for s in load_sites() if s.site_id == sid)
     t = {"hist": tmy_stats(pd.read_parquet(WEATHER_DIR / "tmy" / f"{sid}_tmy.parquet"), site),
-         "hotref": tmy_stats(pd.read_parquet(WEATHER_DIR / "hot_year" / f"{sid}_{hot_year}.parquet"), site)}
+         "hotref": tmy_stats(pd.read_parquet(WEATHER_DIR / "hot_year" / f"{sid}_{hot_year}.parquet"), site),
+         "extref": tmy_stats(pd.read_parquet(WEATHER_DIR / "extreme_year" / f"{sid}_{ext_year}.parquet"), site)}
     for sc in scenarios:
         for per in periods:
             t[f"{sc}_{per}"] = combine([tmy_stats(pd.read_parquet(WEATHER_DIR / "future" / "tmy" / f"{sid}_{m}_{sc}_{per}.parquet"), site)
                                         for m in models])
-            t[f"hot_{sc}_{per}"] = combine([tmy_stats(pd.read_parquet(WEATHER_DIR / "future" / "hot_year" / f"{sid}_{m}_{sc}_{per}.parquet"), site)
-                                            for m in models])
+            for kind, pre in (("hot", "hot"), ("extreme", "ext")):
+                t[f"{pre}_{sc}_{per}"] = combine([tmy_stats(pd.read_parquet(WEATHER_DIR / "future" / f"{kind}_year" / f"{sid}_{m}_{sc}_{per}.parquet"), site)
+                                                  for m in models])
     print(f"{sid}: ok", flush=True)
     return sid, t
 
@@ -215,10 +218,11 @@ def main() -> None:
     sites = sorted(load_sites(), key=lambda s: -s.lat)
     grid = pd.read_csv(ROOT / "outputs/phase1/era5_grid_points.csv").set_index("site_id")
     hot = pd.read_csv(ROOT / "outputs/phase1/hot_reference_years.csv").set_index("site_id")
-    hist_annual = pd.read_csv(ROOT / "outputs/phase1/annual_summary.csv")
+    hist_annual = pd.read_csv(ROOT / "outputs/phase1/annual_summary.csv")             # 2015-2025 as observed
+    ext_annual = pd.read_csv(ROOT / "outputs/phase1/annual_summary_extended.csv")     # 2000-2025 in the 2020 climate (D61)
+    ref_fut = pd.read_csv(ROOT / "outputs/phase2/reference_years_future.csv", dtype={"period": str})
     ens = pd.read_csv(ROOT / "outputs/phase2/ensemble_summary.csv", dtype={"period": str})
     checks = pd.read_csv(ROOT / "outputs/phase2/morph_checks.csv", dtype={"period": str})
-    fut_annual = pd.read_csv(ROOT / "outputs/phase2/annual_summary_future.csv", dtype={"period": str})
 
     if not BASEMAP.exists():
         BASEMAP.write_text(json.dumps(build_basemap()))
@@ -227,29 +231,35 @@ def main() -> None:
     site_rows, kpi, tmy = [], {}, {}
     for s in sites:
         x, y = to_px(s.lon, s.lat)
-        hy = int(hot.loc[s.site_id, "hot_year"])
+        hy, ey = int(hot.loc[s.site_id, "hot_year"]), int(hot.loc[s.site_id, "extreme_year"])
         g = grid.loc[s.site_id]
         site_rows.append({"id": s.site_id, "name": s.name, "country": s.country, "lat": s.lat, "lon": s.lon,
-                          "x": round(float(x), 1), "y": round(float(y), 1), "hot_year": hy,
+                          "x": round(float(x), 1), "y": round(float(y), 1), "hot_year": hy, "extreme_year": ey,
+                          "extreme_rule": str(hot.loc[s.site_id, "extreme_rule"]),
                           "grid": [float(g.grid_lat), float(g.grid_lon), float(g.distance_km)], "tz": s.timezone})
         # headline indicators (multi-year analysis)
         k = {}
         e = ens[ens.site_id == s.site_id]
-        hr = hist_annual[(hist_annual.site_id == s.site_id) & (hist_annual.year == hy)].iloc[0]
-        # the hot reference year adjusted to each future climate ("2025 weather in 2050"), across models
-        hf = fut_annual[(fut_annual.site_id == s.site_id) & (fut_annual.source_year == hy)]
+        hr = hist_annual[(hist_annual.site_id == s.site_id) & (hist_annual.year == hy)].iloc[0]  # actual hot year
+        xr = ext_annual[(ext_annual.site_id == s.site_id) & (ext_annual.year == ey)].iloc[0]     # adjusted extreme year
+        # the reference years adjusted to each future climate ("2025 weather in 2050"), across models
+        rf = ref_fut[ref_fut.site_id == s.site_id]
         for m in KPI_METRICS:
             em = e[e.metric == m]
             k[m] = {"hist": {yt: round(float(em[(em.scenario == "historical") & (em.year_type == yt)]["median"].iloc[0]), 1)
                              for yt in ("typical", "hot")},
-                    "hotref": round(float(hr[m]), 1)}
+                    "hotref": round(float(hr[m]), 1), "extref": round(float(xr[m]), 1)}
+            # Year = Extreme (D62) reads the extreme reference year wherever the other year types read multi-year values
+            k[m]["hist"]["extreme"] = k[m]["extref"]
             for sc in fc["scenarios"]:
                 for per in fc["periods"]:
                     for yt in ("typical", "hot"):
                         r = em[(em.scenario == sc) & (em.period == per) & (em.year_type == yt)].iloc[0]
                         k[m][f"{sc}_{per}_{yt}"] = [round(float(r["median"]), 1), round(float(r["min"]), 1), round(float(r["max"]), 1)]
-                    v = hf[(hf.scenario == sc) & (hf.period == per)][m]
-                    k[m][f"hotref_{sc}_{per}"] = [round(float(v.median()), 1), round(float(v.min()), 1), round(float(v.max()), 1)]
+                    for ref, key in (("hot", "hotref"), ("extreme", "extref")):
+                        v = rf[(rf.ref == ref) & (rf.scenario == sc) & (rf.period == per)][m]
+                        k[m][f"{key}_{sc}_{per}"] = [round(float(v.median()), 1), round(float(v.min()), 1), round(float(v.max()), 1)]
+                    k[m][f"{sc}_{per}_extreme"] = k[m][f"extref_{sc}_{per}"]
         c = checks[checks.site_id == s.site_id]
         k["warming"] = {f"{sc}_{per}": [round(float(v.median()), 2), round(float(v.min()), 2), round(float(v.max()), 2)]
                         for (sc, per), v in c.groupby(["scenario", "period"])["annual_warming_model_tas"]}
@@ -257,13 +267,16 @@ def main() -> None:
 
 
     with ProcessPoolExecutor(max_workers=4) as pool:
-        jobs = [(x["id"], x["hot_year"], models, fc["scenarios"], list(fc["periods"])) for x in site_rows]
+        jobs = [(x["id"], x["hot_year"], x["extreme_year"], models, fc["scenarios"], list(fc["periods"])) for x in site_rows]
         tmy = dict(pool.map(site_tmy_block, jobs))
 
     data = {
         "meta": {
             "generated": dt.date.today().isoformat(),
             "baseline": [cfg["baseline"]["start_year"], cfg["baseline"]["end_year"]],
+            "extended": [cfg["baseline"]["extended_start_year"], cfg["baseline"]["end_year"]],
+            "reference_year": cfg["baseline"]["reference_year"],
+            "heatwave": cfg["heatwave"],
             "models": models, "scenarios": fc["scenarios"], "periods": list(fc["periods"]),
             "temp_bands": [b[2] for b in TEMP_BANDS],
             "operating_hours": cfg["operating_hours"],

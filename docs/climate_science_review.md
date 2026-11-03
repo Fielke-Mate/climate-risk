@@ -15,11 +15,11 @@
 | **1. Threshold effect:** a small shift in the mean causes a much larger rise in hours above a fixed limit | Robust. It comes straight from the shape of the distribution | **Fully captured.** Every hour of 11 real years is shifted and counted against the threshold | ✅ The main driver of our results: indoor WBGT hours above 26 °C at Getafe go from 2 to ~62 a year by 2050 (SSP5-8.5), with no change in distribution shape |
 | **2. Summer warms faster than the year** | Robust over southern and central Europe (soil drying, less cloud) | **Captured.** Deltas are by calendar month | ✅ Summer median-day Tmax warms 1.3–1.7× the local annual mean in Spain, southern France and the UK, ~1.1× in north Germany (2050, SSP5-8.5) |
 | **3. Hot days warm faster than average summer days** | Seen in observations for western and north-western Europe. **Climate models underestimate it** (Vautard 2023, Patterson 2023, Kornhuber 2024) | **Partly captured.** Quantile morphing passes on the models' hot-day signal. But (a) the signal in our deltas is about as large as the sampling noise (2b), and (b) models are probably too conservative here | ⚠️ Main gap. Likely **underestimates** hot-day warming in France, Germany and the UK |
-| **4. Longer, more frequent and more persistent heatwaves** | Projected with high confidence | **Not captured.** Morphing keeps the historical day-to-day sequence, so a 5-day heatwave stays 5 days | ❌ Underestimates multi-day events and consecutive-day stress |
-| **5. Unprecedented ("record-shattering") events** | Their likelihood grows quickly with the rate of warming (Fischer et al. 2021) | **Not captured.** The hottest possible future day is the hottest 2015–2025 day plus its delta. The baseline doesn't include 2003 | ❌ No "plausible worst case" |
+| **4. Longer, more frequent and more persistent heatwaves** | Projected with high confidence | **Mostly captured** (tested in 3.3, after this review was first written). Morphing keeps the order of days, but warmer days cross a fixed threshold more often, so runs get longer. Inside the models it reproduces ~90 % of the projected rise in heatwave days and in each year's longest run | ⚠️ The rarest long spells (1-in-10 longest run) come out 1–3 days short, mostly in the north |
+| **5. Unprecedented ("record-shattering") events** | Their likelihood grows quickly with the rate of warming (Fischer et al. 2021) | **Partly addressed since (D61–D62):** an extreme reference year from 2000–2025 adjusted to today's climate (2003 at eight sites) gives a plausible worst case from real weather. Nothing beyond the observed record | ⚠️ No return periods yet |
 | **6. Humid heat on the hottest days** | Depends on the region: drier hot days inland, more humid ones on the coast | **Partly captured.** One monthly specific-humidity ratio is applied to every hour | ⚠️ Second order for WBGT. Worth a check |
 
-**Overall:** the method captures the most important form of amplification for this tool, the non-linear growth of hours above a fixed limit, and it does that well. The quantile-morphing chain is sound and above common practice. The gaps are **(3) hot-day amplification beyond what models simulate, (4) persistence and (5) unprecedented events.** All three bias the results **low**. A +1 °C hot-day stress test (2c) changes indoor WBGT hours by **+11 % to +67 %**, about as much as the whole 6-model range. Results should be presented as **central estimates with a stated high-end storyline**, not as an upper bound.
+**Overall:** the method captures the most important form of amplification for this tool, the non-linear growth of hours above a fixed limit, and it does that well. The quantile-morphing chain is sound and above common practice. The gaps are **(3) hot-day amplification beyond what models simulate, (4) the rarest long heatwaves and (5) unprecedented events.** All three bias the results **low**; (4) turned out smaller than first assumed (3.3), and (5) is now partly covered by the extreme reference year. A +1 °C hot-day stress test (2c) changes indoor WBGT hours by **+11 % to +67 %**, about as much as the whole 6-model range. Results should be presented as **central estimates with a stated high-end storyline**, not as an upper bound.
 
 ---
 
@@ -126,12 +126,35 @@ All 11 ERA5 years were re-morphed for four sites under SSP5-8.5, 2050, for each 
 
 ### 3.3 Heatwave persistence (duration and frequency)
 
-**Issue:** morphing changes how hot each day is, not the order of days. Future heatwaves have the same length and timing as 2015–2025 events. Duration matters for both use cases: heat strain builds up over consecutive days, and building mass heats up over a multi-day event (building-services review, 3.4).
+**Issue:** morphing changes how hot each day is, not the order of days. Duration matters for both use cases: heat strain builds up over consecutive days, and building mass heats up over a multi-day event (building-services review, 3.4). But a fixed threshold is crossed more often when every day is warmer, so runs above it get longer even with the order unchanged. The question is how much of the projected lengthening that captures.
 
-**Suggestions**
-1. **Use the NEX daily data directly for persistence metrics (low effort, data already downloaded):** for each model, count heatwave events, the longest run of days with Tmax > 30/35 °C and consecutive tropical nights in the bias-corrected 20–30-year future series, against the same metrics for the baseline. Report them as a **daily-resolution companion** to the hourly morphed results. The hourly WBGT counts stay as they are.
-2. **Storyline heatwaves:** take a real event (the 2019 or 2022 heatwave, or **2003**, which is outside the baseline) and build a lengthened future version (e.g. its peak week repeated or extended by the projected increase in duration). Run it through the WBGT and hall calculations. This gives clients a concrete "what if", much like the hot reference year now.
-3. Later: a **stochastic weather generator** conditioned on future statistics (as in UKCP or the CCWorldWeatherGen variants) for full persistence.
+**Test (perfect model):** inside each climate model, we apply the pipeline's own quantile deltas to the model's 2015–2025 daily series ("morphed") and compare with the same model's actual 2031–2050 / 2041–2060 series ("direct"). Both have nearly the same distribution of daily values, so any difference is the change in persistence that morphing cannot add. 6 models × 2 scenarios × 2 periods, all 15 sites. Script: [`scripts/heatwave_persistence_test.py`](../scripts/heatwave_persistence_test.py); results: `outputs/review/heatwave_persistence*.csv`.
+
+| Site (threshold) | Heatwave days a year: today → morphed / direct | Longest run, average year: today → morphed / direct | Longest run, 1-in-10 year: today → morphed / direct |
+|---|---|---|---|
+| Sevilla (35 °C) | 54 → 70 / 70 | 21 → 28 / 27 days | 35 → 41 / 43 days |
+| Getafe (35 °C) | 32 → 46 / 46 | 14 → 20 / 19 | 23 → 29 / 30 |
+| Marignane (30 °C) | 37 → 55 / 56 | 19 → 32 / 29 | 31 → 50 / 45 |
+| Toulouse (30 °C) | 35 → 49 / 48 | 12 → 16 / 17 | 20 → 24 / 26 |
+| Nantes (30 °C) | 4 → 8 / 8 | 3.0 → 4.9 / 5.4 | 6 → 8 / 9 |
+| Donauwörth (30 °C) | 4 → 10 / 11 | 3.4 → 4.8 / 5.3 | 6 → 8 / 9 |
+| Bremen (30 °C) | 3 → 6 / 7 | 3.0 → 4.1 / 4.4 | 5 → 7 / 8 |
+| Hamburg (30 °C) | 2 → 6 / 6 | 2.5 → 4.1 / 4.2 | 5 → 7 / 7 |
+
+Median across sites and models, share of the projected change that morphing reproduces: **heatwave days ~90 %**, **average longest run ~90 %**, **1-in-10 longest run ~75 %** (warm-night runs ~55 %).
+
+**Reading:**
+- **Most lengthening is captured.** It comes from warmer days crossing the threshold more often, which morphing includes. The hourly WBGT counts and the new heatwave metrics (D60) on morphed years are therefore close to what the models project.
+- **The rarest long events are short by 1–3 days** (up to ~3 days at Toulouse), mostly in the north and for warm nights. Partly the models' persistence changes, partly that 11 years only hold so many long sequences.
+- So the gap is **moderate, not the major gap** the first version of this review assumed.
+
+**Done (Nov 2026):**
+1. **Heatwave length metrics (D60)** for every historical and future year: heatwave events (3+ days above 30 / 35 °C), days in them, longest run, longest warm-night run and longest run of working days over the WBGT limit (heat-safety spells). Shown in the dashboard's Data summary.
+2. **Extreme reference year (D61–D62)** from 2000–2025 adjusted to today's climate. It brings in longer real sequences than 2015–2025 holds: 2003 at Marignane, Donauwörth and Toulouse, for example.
+
+**Still open:**
+1. **Storyline heatwave:** lengthen a real event (e.g. 2003 in 2050) by the projected change in the 1-in-10 longest run, and run it through WBGT and the hall model.
+2. Later: a **stochastic weather generator** conditioned on future statistics (as in UKCP or the CCWorldWeatherGen variants) for full persistence.
 
 ### 3.4 Unprecedented events and return periods
 
@@ -164,6 +187,15 @@ All 11 ERA5 years were re-morphed for four sites under SSP5-8.5, 2050, for each 
 - So a longer, adjusted baseline also helps the **heatwave-length gap** (3.3): it brings in real long events that morphing can then carry into the future.
 - **Site-by-site trends are too noisy for the adjustment.** Sevilla's ERA5 cell shows summer *cooling* since 2000, unlike every other site. In production, adjust with the climate models' own warming from each year to 2020 (the existing quantile morphing, run "backwards" in time), or scale with smoothed global mean temperature. The model-based option slightly under-adjusts in western Europe, where observations warm faster than models (3.2).
 - **Decisions this needs:** whether the hot reference year (D25/D42, an actual unadjusted year) may become an adjusted 2003, and whether the TMY stays on 2015–2025. Processing time grows ×2.4.
+
+**Implemented (D61–D63), as a hybrid.** Every ERA5 year 2000–2025 is adjusted to the 2020 climate with the models' own warming (6-model median change in monthly mean Tmax / Tmin and humidity between 2000–2010 and 2015–2025). The adjusted record supplies a second, **extreme reference year**; the headline typical and 1-in-10 statistics and the TMY stay on 2015–2025. The reason is the adjustment check (`outputs/phase1/baseline_adjustment_check.csv`): the models warm France and Germany 0.2–0.4 °C/decade less than ERA5 observed (consistent with 3.2), so after adjustment the 2000–2009 summers are still 0.3–0.6 °C cooler there. And on the Mediterranean coast the early years lack the recent humid heat altogether (Marignane: 50–90 working hours a year above WBGT 26 °C since 2018, mostly 0–30 before, even adjusted). A 26-year typical year would have understated today's heat (Marignane 51 → 12 hours, Toulouse 59 → 36); scaling the warming to observed country trends only partly helped (19 and 42).
+
+| | Extreme reference year |
+|---|---|
+| France (all five), Getafe, Illescas, Donauwörth | 2003 |
+| Sevilla | 2006 |
+| Bremen, Hamburg, Stade, Nordenham | 2018 (ranked on dry heat: humid heat is negligible there) |
+| Broughton, Filton | 2022 (also the hot year) |
 
 ### 3.5 Humidity on hot days
 
@@ -206,15 +238,15 @@ All 11 ERA5 years were re-morphed for four sites under SSP5-8.5, 2050, for each 
 |---|---|---|---|
 | 1 | **Less noisy deltas:** 10–15 models, ±1-month pooling (model window stays 2015–2025) | Hot-day signal is currently within noise (2b); ranges are mostly internal variability | Low–medium |
 | 2 | **High-end hot-day storyline** (+1 °C hot days, or 2× median-day warming in the north) shown next to the range | Models likely underestimate western European hot-day trends; matches 2c's sensitivity; useful for disclosure | Low |
-| 3 | **Heatwave persistence metrics** straight from the NEX daily series (events, longest run, consecutive warm nights) | Morphing can't change duration | Low–medium |
+| 3 | ~~Heatwave persistence metrics~~ **Done (D60)**, with the perfect-model test (3.3): morphing captures most lengthening | | |
 | 4 | **Global warming level deltas** (pooled scenarios, AR6-assessed timing) | Handles hot models; halves noise further | Medium |
 | 5 | **Benchmark NEX hot-day deltas** against raw CMIP6 / ISIMIP3b and against ERA5 observed trends | Checks whether bias correction or models damp the tail | Medium |
 | 6 | **Hot-day-conditional humidity deltas** | WBGT on the hottest days | Low–medium |
-| 7 | **Extended detrended baseline + non-stationary GEV** return levels (1-in-20, 1-in-50) | Unprecedented events; "how hot could it get?"; brings in 2003 | Medium–high |
+| 7 | ~~Extended adjusted baseline~~ **done for the extreme reference year (D61–D62)**; still to do: **non-stationary GEV** return levels (1-in-20, 1-in-50) | "How hot could it get?" with a probability | Medium–high |
 | 8 | **Storyline heatwave** (lengthened 2003/2019/2022 event) through WBGT and the hall model | Concrete worst-case narrative for clients | Medium |
 | 9 | Stochastic weather generator / UNSEEN | Full treatment of persistence and tail | High (later) |
 
-Priorities 1–3 address the user question directly: they make the amplification signal robust, give a defensible high-end case, and cover the duration gap. They can be done with data the pipeline already downloads, apart from extra NEX years and models.
+Priorities 1–2 now address the original question most directly: they make the amplification signal robust and give a defensible high-end case. They can be done with data the pipeline already downloads, apart from extra NEX models.
 
 ---
 

@@ -1,4 +1,4 @@
-"""Download ERA5 hourly time series (baseline years) for every pilot site.
+"""Download ERA5 hourly time series (2000-2025: the extended record, D61) for every pilot site.
 
 Usage:  CDSAPI_KEY=... python scripts/fetch_era5.py [--workers 4] [--sites TLS,SVQ]
 """
@@ -30,7 +30,7 @@ def main() -> None:
         t0 = time.time()
         for attempt in range(3):
             try:
-                path = era5.fetch(site, b["start_year"], b["end_year"], overwrite=args.overwrite)
+                path = era5.fetch(site, b["extended_start_year"], b["end_year"], overwrite=args.overwrite)  # D61
                 return site.site_id, f"ok {path.stat().st_size/1e6:.1f} MB in {time.time()-t0:.0f}s"
             except Exception as exc:  # retry transient CDS errors
                 err = exc

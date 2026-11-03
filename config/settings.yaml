@@ -1,8 +1,10 @@
 # Proof-of-concept settings. Decisions are documented in docs/concept.md (section 12).
 
 baseline:
-  start_year: 2015
-  end_year: 2025          # D29: 11-year baseline
+  start_year: 2015        # D29: headline multi-year statistics (typical / 1-in-10 hot year), the TMY and the
+  end_year: 2025          #      hot reference year use the 11 observed years 2015-2025 (kept by D61)
+  extended_start_year: 2000   # D61: ERA5 2000-2025, every year adjusted to the reference climate, for the
+  reference_year: 2020        #      extreme reference year (D62); 2020 = centre of the 2015-2025 delta window
 
 operating_hours:          # D39: user-adjustable for sensitivity tests
   start: "06:00"          # local time, inclusive
@@ -35,6 +37,10 @@ hot_year:
   # D42: per-site hottest year ranked by WBGT degree-hours above 25 C in operating hours,
   # using the Phase 3 shaded (indoor-equivalent) Liljegren WBGT.
   wbgt_degree_hour_base_c: 25.0
+  # D62: the extreme reference year is ranked the same way, unless the site's best year has fewer
+  # WBGT degree-hours than this (north Germany, UK: humid heat is negligible and a few humid hours
+  # would decide); then it is ranked on dry heat (hours above 30 C, then the highest temperature).
+  extreme_min_wbgt_degree_hours: 50.0
 
 heat:
   # Phase 3. ISO 7243 Class 2 (moderate work) reference values (D22, D58).
@@ -127,7 +133,12 @@ future:
     MPI-ESM1-2-HR: r1i1p1f1
     NorESM2-MM: r1i1p1f1
   variables: [tas, tasmax, tasmin, huss, rsds, rlds, sfcWind]
-  baseline_years: [2015, 2025]     # matches the ERA5 baseline
+  baseline_years: [2015, 2025]     # model window the future deltas are measured from (centre 2020)
+  # D61: the ERA5 years 2000-2025 are adjusted to the 2020 climate with the models' own warming between
+  # these windows (early from the historical run, late = baseline_years); see climate_risk/adjust.py
+  baseline_adjustment:
+    early_window: [2000, 2010]
+    variables: [tasmax, tasmin, huss]
   periods:
     "2040": [2031, 2050]
     "2050": [2041, 2060]
