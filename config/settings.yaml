@@ -10,6 +10,12 @@ operating_hours:          # D39: user-adjustable for sensitivity tests
   start: "06:00"          # local time, inclusive
   end: "22:00"            # local time, exclusive
   days: [0, 1, 2, 3, 4, 5, 6]   # Monday=0 ... Sunday=6
+# Shifts (local time, [start, end)): the shift splits in the summaries, the ladder and the dashboard all read
+# this block. Early + late should cover operating_hours; night is outside them by default.
+shifts:
+  early: ["06:00", "14:00"]
+  late: ["14:00", "22:00"]
+  night: ["22:00", "06:00"]
 
 era5:
   dataset: reanalysis-era5-single-levels-timeseries
@@ -41,6 +47,11 @@ hot_year:
   # WBGT degree-hours than this (north Germany, UK: humid heat is negligible and a few humid hours
   # would decide); then it is ranked on dry heat (hours above 30 C, then the highest temperature).
   extreme_min_wbgt_degree_hours: 50.0
+  # D68: the hot year (observed 2015-2025) gets the same dry-heat fallback where humid heat is negligible:
+  # the best year has under 20 WBGT degree-hours (a few working hours above 26 C a year; north Germany, UK).
+  # Lower than 50 because the observed record runs cooler than the adjusted one; at 50 the Madrid sites
+  # (47, with real WBGT hours) would switch on a knife-edge.
+  hot_min_wbgt_degree_hours: 20.0
 
 heat:
   # Phase 3. ISO 7243 Class 2 (moderate work) reference values (D22, D58).
@@ -86,8 +97,10 @@ heat:
       reference_c: 22.0
       reference_acclimatised_c: 25.0
       clothing_adjustment_c: 0.0
-  indoor_offset_c: 0.0            # D14: indoor = outdoor; set from engineering estimates later
   indoor_offsets_sensitivity: [2.0, 4.0]   # extra indoor heat gain cases (hall warmer than outside), shade WBGT
+  # D67: risk bands on worker heat-safety days a year (High from one week, Very high from two) and the map breaks
+  risk_bands_days: {high: 7, very_high: 14}
+  map_breaks_days: [1, 3, 7, 14, 28]
   utci_heat_stress_c: 28.0        # Power BI definition (D27); bands per D31
   # D52: indoor air movement for a warehouse / hangar with exhaust ventilation and no active cooling.
   # Occupied-zone air speed at body height; used by indoor WBGT (as the 2 m speed) and indoor UTCI
@@ -104,7 +117,8 @@ heat:
 # hall gain) above a user-set limit. The pipeline counts hours / days above every rung of a dry-bulb ladder,
 # so the dashboard can apply any limit (and the hall gain, a shift along the ladder) without the hourly data.
 process_lens:
-  ladder_c: [16.0, 46.0, 0.5]       # first rung, last rung, step (C, outdoor dry bulb)
+  ladder_c: [-25.0, 46.0, 0.5]      # first rung, last rung, step (C, outdoor dry bulb); the whole range lets the
+                                    # dashboard draw the histograms from the 11-year statistics
   limit_range_c: [20.0, 45.0]       # what the dashboard lets the user choose
   # Presets are PLACEHOLDERS until real process specifications are supplied (as D21)
   presets:

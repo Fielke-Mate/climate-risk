@@ -9,3 +9,7 @@ data/raw/
 data/weather/hourly/
 *.egg-info/
 data/weather/future/
+
+# Build outputs of scripts/build_dashboard.py (D69): index.html is committed, these are not
+dashboard/data.json
+dashboard/page.html

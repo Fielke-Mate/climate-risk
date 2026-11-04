@@ -24,7 +24,7 @@ from concurrent.futures import ProcessPoolExecutor
 
 from climate_risk.annual import wbgt_metric_names, wbgt_profiles
 from climate_risk.heatwave import heatwave_metric_names
-from climate_risk.config import ROOT, WEATHER_DIR, load_sites, settings
+from climate_risk.config import ROOT, WEATHER_DIR, load_sites, settings, shifts
 from climate_risk.heat import heat_frame, utci_indoor, wbgt_liljegren
 from climate_risk.ladder import rung_names, rungs
 from climate_risk.weather import operating_hours_mask
@@ -41,7 +41,7 @@ MAP_W = 1000
 TEMP_BANDS = [(-99, 16, "< 16"), (16, 21, "16–21"), (21, 24, "21–24 optimal"), (24, 25, "24–25"),
               (25, 30, "25–30"), (30, 35, "30–35"), (35, 99, "> 35")]
 UTCI_BANDS = [(-99, -13), (-13, 0), (0, 9), (9, 26), (26, 28), (28, 32), (32, 38), (38, 46), (46, 99)]
-SHIFTS = {"early": ("06:00", "14:00"), "late": ("14:00", "22:00"), "night": ("22:00", "06:00")}
+SHIFTS = shifts()   # config `shifts`
 KPI_METRICS = ["days_tmax_gt30", "days_tmax_gt35", "hours_t_gt30", "nights_tmin_gt20", "temp_max", "temp_mean", "op_wbgt_shade_degree_hours_gt_base",
                "wbgt_sun_max", "wbgt_shade_max", "op_hours_utci_in0_gt28", "op_hours_utci_in0_gt32", "op_hours_utci_in2_gt28",
                "op_hours_utci_in2_gt32", "op_hours_utci_in4_gt28", "op_hours_utci_in4_gt32", "op_hours_utci_sun_gt32",
@@ -49,7 +49,7 @@ KPI_METRICS = ["days_tmax_gt30", "days_tmax_gt35", "hours_t_gt30", "nights_tmin_
                "hours_utci_sun_gt38", "proc_hours_paint_application_max_temp", "proc_hours_paint_application_max_rh",
                "proc_hours_composite_room_cooling", "cdh24", "hdh19",
                *wbgt_metric_names(settings()["heat"]), *heatwave_metric_names(settings())]
-INDOOR_OFFSETS = [0.0, 2.0, 4.0]
+INDOOR_OFFSETS = [0.0, *[float(o) for o in settings()["heat"].get("indoor_offsets_sensitivity", [])]]   # hall gains (dashboard buttons)
 
 
 # --------------------------------------------------------------------------- projection / basemap
@@ -203,9 +203,9 @@ def local_clock(df: pd.DataFrame, tz: str) -> list[int]:
     """[UTC start of the first hour (ms), number of hours, standard offset (h)] for a gap-free hourly record,
     checked against the time-zone database so the browser's rule cannot drift from pandas."""
     starts = df.index - pd.Timedelta(hours=1)
-    assert (np.diff(starts.asi8) == 3_600_000_000).all() or (np.diff(starts.asi8) == 3_600_000).all(), "hours not consecutive"
+    assert (np.diff(starts.as_unit("s").asi8) == 3600).all(), "hours not consecutive"   # any pandas time unit
     start_ms = int(starts[0].value // 1_000_000)
-    base = 0 if tz == "Europe/London" else 1
+    base = int(pd.Timestamp("2021-01-15", tz=tz).utcoffset().total_seconds() // 3600)   # standard (winter) offset
     m, h = eu_local(start_ms, len(df), base)
     loc = starts.tz_convert(tz)
     assert (m == loc.month.to_numpy() - 1).all() and (h == loc.hour.to_numpy()).all(), f"EU summer-time rule disagrees for {tz}"
@@ -252,6 +252,8 @@ def combine(stats_list: list[dict]) -> dict:
 
 
 LADDER_RANGE = ("hours", "op_hours", "days", "op_days", "dh", "op_dh")   # metrics that also carry the model range (min, max)
+LADDER_FULL = ("hours", "op_hours")   # metrics exported over the whole ladder (histograms); the rest from LADDER_LIMIT_FROM up
+LADDER_LIMIT_FROM = 16.0              # lowest outdoor rung a limit can reach (limit range minus the largest hall gain)
 
 
 def ladder_kpi(sid: str, hot_year: int, ext_year: int, lad: dict) -> tuple[dict, dict]:
@@ -259,19 +261,24 @@ def ladder_kpi(sid: str, hot_year: int, ext_year: int, lad: dict) -> tuple[dict,
     hist_typical / hist_hot (11-year median / 90th percentile), hotref (the observed hot year), extref (the
     adjusted extreme year), <sc>_<per>_typical / _hot (model median of the year statistic) and
     hotref_<sc>_<per> / extref_<sc>_<per> (the reference years in the future climate, model median).
-    Model ranges for the hour counts go in a second dict as [min array, max array]."""
-    cfg, cols = lad["cfg"], rung_names(lad["cfg"])
+    Model ranges go in a second dict as [min array, max array]. Arrays start at the first rung for the hour
+    counts (LADDER_FULL, drawn as whole-year histograms) and at LADDER_LIMIT_FROM for everything else, ranges
+    included; meta.process_lens.limit_from_index says where."""
+    cfg, all_cols = lad["cfg"], rung_names(lad["cfg"])
     fc = cfg["future"]
-    as_list = lambda row: [int(round(float(x))) for x in row[cols].to_numpy(float)]
+    i0 = [float(r) for r in rungs(cfg)].index(LADDER_LIMIT_FROM)
+    as_list = lambda row, c: [int(round(float(v))) for v in row[c].to_numpy(float)]
     h, x, e, rf = (lad[k][lad[k].site_id == sid] for k in ("hist", "ext", "ens", "ref"))
     med, rng = {}, {}
     for metric, hm in h.groupby("metric"):
         d = med[metric] = {}
+        cols = all_cols if metric in LADDER_FULL else all_cols[i0:]
+        rcols = all_cols[i0:]
         em, xm, rm = e[e.metric == metric], x[x.metric == metric], rf[rf.metric == metric]
         for yt in ("typical", "hot"):
-            d[f"hist_{yt}"] = as_list(em[(em.scenario == "historical") & (em.year_type == yt)].iloc[0])
-        d["hotref"] = as_list(hm[hm.year == hot_year].iloc[0])
-        d["extref"] = as_list(xm[xm.year == ext_year].iloc[0])
+            d[f"hist_{yt}"] = as_list(em[(em.scenario == "historical") & (em.year_type == yt)].iloc[0], cols)
+        d["hotref"] = as_list(hm[hm.year == hot_year].iloc[0], cols)
+        d["extref"] = as_list(xm[xm.year == ext_year].iloc[0], cols)
         for sc in fc["scenarios"]:
             for per in fc["periods"]:
                 keys = {}
@@ -279,18 +286,28 @@ def ladder_kpi(sid: str, hot_year: int, ext_year: int, lad: dict) -> tuple[dict,
                     g = em[(em.scenario == sc) & (em.period == str(per)) & (em.year_type == yt)].set_index("stat")
                     keys[f"{sc}_{per}_{yt}"] = (g.loc["median"], g.loc["min"], g.loc["max"])
                 for ref, key in (("hot", "hotref"), ("extreme", "extref")):
-                    g = rm[(rm.ref == ref) & (rm.scenario == sc) & (rm.period.astype(str) == str(per))][cols]
+                    g = rm[(rm.ref == ref) & (rm.scenario == sc) & (rm.period.astype(str) == str(per))][all_cols]
                     keys[f"{key}_{sc}_{per}"] = (g.median(), g.min(), g.max())
                 for k, (m0, lo, hi) in keys.items():
-                    d[k] = as_list(m0)
+                    d[k] = as_list(m0, cols)
                     if metric in LADDER_RANGE:
-                        rng.setdefault(metric, {})[k] = [as_list(lo), as_list(hi)]
+                        rng.setdefault(metric, {})[k] = [as_list(lo, rcols), as_list(hi, rcols)]
     return med, rng
 
 
 # --------------------------------------------------------------------------- main
+def check_ladder_range(cfg: dict) -> None:
+    lo, hi = (float(v) for v in cfg["process_lens"]["limit_range_c"])
+    r = [float(v) for v in rungs(cfg)]
+    gains = [0.0, *[float(o) for o in cfg["heat"].get("indoor_offsets_sensitivity", [])]]
+    assert lo - max(gains) >= LADDER_LIMIT_FROM >= r[0], f"limit {lo} C minus hall gain {max(gains)} C is below the exported rungs"
+    assert hi + 1 <= r[-1], f"limit {hi} C + 1 C is above the last rung {r[-1]} C"
+    assert all(abs(g - round(g * 2) / 2) < 1e-9 for g in gains), "hall gains must be multiples of the 0.5 C rung step"
+
+
 def main() -> None:
     cfg = settings()
+    check_ladder_range(cfg)
     fc = cfg["future"]
     models = list(fc["models"])
     sites = sorted(load_sites(), key=lambda s: -s.lat)
@@ -317,7 +334,7 @@ def main() -> None:
         g = grid.loc[s.site_id]
         site_rows.append({"id": s.site_id, "name": s.name, "country": s.country, "lat": s.lat, "lon": s.lon,
                           "x": round(float(x), 1), "y": round(float(y), 1), "hot_year": hy, "extreme_year": ey,
-                          "extreme_rule": str(hot.loc[s.site_id, "extreme_rule"]),
+                          "extreme_rule": str(hot.loc[s.site_id, "extreme_rule"]), "hot_rule": str(hot.loc[s.site_id, "hot_rule"]),
                           "grid": [float(g.grid_lat), float(g.grid_lon), float(g.distance_km)], "tz": s.timezone})
         # headline indicators (multi-year analysis)
         k = {}
@@ -366,6 +383,7 @@ def main() -> None:
             "temp_bands": [b[2] for b in TEMP_BANDS],
             "operating_hours": cfg["operating_hours"],
             "indoor_offsets": INDOOR_OFFSETS,
+            "risk_bands_days": cfg["heat"]["risk_bands_days"], "map_breaks_days": cfg["heat"]["map_breaks_days"],
             "indoor_air_speed": cfg["heat"].get("indoor_air_speed_ms", 0.3),
             "wbgt_ref": cfg["heat"]["wbgt_reference_c"],
             "wbgt_ref_acc": cfg["heat"]["wbgt_reference_acclimatised_c"],
@@ -376,7 +394,10 @@ def main() -> None:
                                 for k, v in cfg["heat"]["worker_profiles"].items()},
             "process_limits": {k: v["label"] for k, v in cfg["heat"]["process_limits"].items()},
             "process_lens": {**{k: v for k, v in cfg["process_lens"].items() if k != "ladder_c"},
-                             "rungs": [float(r) for r in rungs(cfg)], "hourly_q": [-15, 0.25]},
+                             "rungs": [float(r) for r in rungs(cfg)], "hourly_q": [-15, 0.25],
+                             "limit_from_index": [float(r) for r in rungs(cfg)].index(LADDER_LIMIT_FROM),
+                             "full_metrics": list(LADDER_FULL)},
+            "shifts": {k: list(v) for k, v in SHIFTS.items()},
         },
         "basemap": basemap, "sites": site_rows, "kpi": kpi, "tmy": tmy, "hourly": hourly_dbt,
     }

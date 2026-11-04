@@ -79,4 +79,4 @@ def test_agrees_with_annual_summary():
     assert (h["32"] == h["proc_hours_composite_room_cooling"]).all()
     d = lad[lad.metric == "days"].merge(ann, on=["site_id", "year"])
     assert (d["30"] == d["days_tmax_gt30"]).all() and (d["35"] == d["days_tmax_gt35"]).all()
-    assert list(rungs(settings()))[0] == 16.0
+    assert list(rungs(settings()))[0] == -25.0

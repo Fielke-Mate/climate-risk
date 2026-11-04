@@ -9,7 +9,7 @@ Metrics (one row per year and metric, one column per rung):
   hours / op_hours        hours above the rung, all hours / operating hours (config operating_hours)
   early / late / night    hours above the rung in each shift (06-14, 14-22, 22-06)
   days / op_days          days with at least one hour above the rung (all hours / operating hours)
-  longest / op_longest    longest run of consecutive such days
+  longest / op_longest    longest run of consecutive such days (op: consecutive operating days)
   dh / op_dh              degree-hours above the rung (C h)
 """
 
@@ -18,10 +18,9 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from .config import shifts
 from .heatwave import run_lengths
 from .weather import operating_hours_mask
-
-SHIFTS = {"early": ("06:00", "14:00"), "late": ("14:00", "22:00"), "night": ("22:00", "06:00")}
 METRICS = ("hours", "op_hours", "early", "late", "night", "days", "op_days", "longest", "op_longest", "dh", "op_dh")
 
 
@@ -63,7 +62,7 @@ def ladder(hourly: pd.DataFrame, timezone: str, cfg: dict) -> pd.DataFrame:
     year = starts.year.to_numpy()
     date = starts.normalize().tz_localize(None).to_numpy()
     op = operating_hours_mask(hourly.index, timezone, op_cfg["start"], op_cfg["end"], op_cfg["days"])
-    sh = {k: operating_hours_mask(hourly.index, timezone, a, b, op_cfg["days"]) for k, (a, b) in SHIFTS.items()}
+    sh = {k: operating_hours_mask(hourly.index, timezone, a, b, op_cfg["days"]) for k, (a, b) in shifts(cfg).items()}
     rows = []
     for y in np.unique(year):
         m = year == y
@@ -77,7 +76,8 @@ def ladder(hourly: pd.DataFrame, timezone: str, cfg: dict) -> pd.DataFrame:
             "hours": _above(ty, r), "op_hours": _above(ty[oy], r),
             **{k: _above(ty[s[m]], r) for k, s in sh.items()},
             "days": _above(dall.to_numpy(), r), "op_days": _above(dop.dropna().to_numpy(), r),
-            "longest": _longest(dall.to_numpy(), r), "op_longest": _longest(dop.fillna(-99).to_numpy(), r),
+            # op runs over consecutive operating days: a non-operating day does not end a run (as the worker spells, D60)
+            "longest": _longest(dall.to_numpy(), r), "op_longest": _longest(dop.dropna().to_numpy(), r),
             "dh": np.round(_degree_hours(ty, r), 1), "op_dh": np.round(_degree_hours(ty[oy], r), 1),
         }
         rows += [{"year": int(y), "metric": k, **dict(zip(rung_names(cfg), v.tolist()))} for k, v in vals.items()]
