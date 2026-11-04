@@ -317,7 +317,7 @@ async function check(p, where) {
   await page.evaluate(() => localStorage.clear());
 
   // 6. Desktop one-screen layout: the page itself must not scroll at common laptop / monitor sizes
-  for (const [w, h] of [[1440, 900], [1920, 1080], [1280, 760]]) {
+  for (const [w, h] of [[1440, 900], [1600, 900], [1920, 1080], [1500, 800], [1280, 760]]) {
     const d = await browser.newPage({ viewport: { width: w, height: h } });
     d.on("pageerror", e => errors.push(`${w}x${h}: ` + e.message));
     await d.goto(PAGE + (w === 1280 ? "?lens=proc" : "") + "#SVQ");
@@ -328,6 +328,10 @@ async function check(p, where) {
         document.documentElement.scrollWidth - document.documentElement.clientWidth]);
       const oneScreen = w >= 1360 && h >= 820;   /* one-screen layout only where it fits (D56 relaxed) */
       if ((oneScreen && over[0] > 1) || over[1] > 0) fail(`desktop ${w}x${h}/${tab}`, `page scrolls (vertical ${over[0]}px, horizontal ${over[1]}px)`);
+      const cut = await d.evaluate(() => { const box = document.querySelector(".mapbox").getBoundingClientRect();
+        return [...document.querySelectorAll("#sites circle:not(.off)")].filter(c => { const q = c.getBoundingClientRect();
+          return q.top < box.top - 0.5 || q.bottom > box.bottom + 0.5 || q.left < box.left - 0.5 || q.right > box.right + 0.5; }).map(c => c.dataset.id); });
+      if (cut.length) fail(`desktop ${w}x${h}/${tab}`, `map markers outside the map: ${cut.join(", ")}`);
       const mapH = await d.$eval("#map", e => e.getBoundingClientRect().height);
       if (mapH < (oneScreen ? 200 : 280)) fail(`desktop ${w}x${h}`, `map only ${Math.round(mapH)}px tall`);
     }
