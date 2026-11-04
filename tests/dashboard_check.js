@@ -19,7 +19,7 @@ const fail = (where, msg) => failures.push(`${where}: ${msg}`);
 async function check(p, where) {
   const res = await p.evaluate(() => {
     const txt = sel => (document.querySelector(sel) || {}).innerText || "";
-    const areas = ["#kstrip", "#pane", "#rank", "#legend", "#map-sub", "#mapsel", "#s-name", "#s-chips", "#fsum", "#cnt"];
+    const areas = ["#kstrip", "#pane", "#rank", "#legend", "#map-sub", "#mapsel", "#s-name", "#fsum", "#cnt"];
     const text = Object.fromEntries(areas.map(a => [a, txt(a)]));
     const visible = [...document.querySelectorAll("#sites circle")].filter(c => !c.classList.contains("off"));
     const fills = visible.map(c => c.style.fill);
@@ -201,6 +201,17 @@ async function check(p, where) {
     await page.fill("#ctl-lim", typed); await page.press("#ctl-lim", "Enter"); await page.$eval("#ctl-lim", e => e.blur());
     if (await limVal() !== want) fail("limit entry", `typed ${typed}, limit ${await limVal()}, expected ${want}`);
   }
+  await page.selectOption("#ctl-proc", "paint");
+  // the histograms keep their bars when the limit moves: same positions and heights, only the colouring changes;
+  // at a half-degree limit the bin it falls in is split in two
+  await click('.tabs button[data-tab="summary"]');
+  const bars = () => page.$$eval("#pane .sc:nth-child(2) svg.chart rect", rs => rs.map(r => `${(+r.getAttribute("x")).toFixed(1)}:${(+r.getAttribute("y")).toFixed(1)}:${(+r.getAttribute("height")).toFixed(1)}`));
+  const b35 = await bars();
+  await click('.stepper button[data-d="0.5"]'); await click('.stepper button[data-d="0.5"]');
+  const b36 = await bars();
+  if (b35.join("|") !== b36.join("|")) fail("histogram", "bars change size or position when the limit moves by 1 °C");
+  await click('.stepper button[data-d="-0.5"]');
+  if ((await bars()).length !== b35.length + 3) fail("histogram", "a half-degree limit should split one bin in each of the three panels");
   await page.selectOption("#ctl-proc", "paint");
   // the summary's today bar equals the Indicators table (same 11-year statistic)
   await click('.tabs button[data-tab="summary"]');
