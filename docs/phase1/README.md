@@ -38,6 +38,7 @@ All 15 sites passed the automated checks: complete hourly record, no gaps or dup
 4. **Hot reference year (decision D42):** each year is ranked by **WBGT degree-hours above 25 °C in working hours** (06:00–22:00 local), using the shaded / indoor WBGT (originally a provisional psychrometric WBGT; since Phase 3 the Liljegren model with no solar radiation and 0.3 m/s indoor air speed): the sum of (WBGT − 25) over the hours above 25. Ties are broken by hours above 30 °C, then annual maximum temperature.
 5. **Cross-check:** the PVGIS 5.3 TMY (ERA5 meteorology + SARAH-3 satellite radiation, 2005–2023) is compared with our TMY.
 6. **Extended record (D61):** ERA5 is downloaded for 2000–2025. Every year is moved to the **2020 climate** with the climate models' own warming (`src/climate_risk/adjust.py`): for each site and month, the 6-model median change in mean daily maximum and minimum temperature and in specific humidity between 2000–2010 (NEX-GDDP-CMIP6 historical run) and 2015–2025, per year, smoothed over neighbouring months. Each day is shifted by its distance in years from mid-2020 through the same hour-by-hour step as future morphing (maximum and minimum shifted, hours in between stretched; vapour pressure scaled). Radiation and wind are unchanged.
+   **Dry-heat fallback for the hot year (D68):** where humid heat is negligible in the observed record (the site's best year has under 20 WBGT degree-hours: a few working hours above 26 °C a year), the hot year is ranked on dry heat instead (hours above 30 °C, then the highest temperature). This applies to Bremen, Nordenham, Hamburg-Finkenwerder and Stade, whose hot year changes from 2015 to 2018; under the humid ranking a handful of humid hours in 2015 had decided, although 2015 had typical-year dry heat.
 7. **Extreme reference year (D62):** the hottest year of the adjusted 2000–2025 record, ranked like the hot year (D42). Where humid heat is negligible (the site's best year has under 50 WBGT degree-hours), it is ranked on dry heat instead (hours above 30 °C, then the highest temperature).
 
 ## Results per site (south → north)
@@ -54,11 +55,11 @@ All 15 sites passed the automated checks: complete hourly record, no gaps or dup
 | Donauworth | 48.75, 10.75 (5 km) | 9.9 | -0.2 | +0.0 | **2015** | 0 → 4 | 0 (0) → 0 (0) |
 | Meaulte | 50.00, 2.75 (6 km) | 11.6 | +0.1 | +0.6 | **2025** | 1 → 22 | 0 (0) → 9 (0) |
 | Filton | 51.50, -2.50 (6 km) | 11.2 | +0.1 | +1.0 | **2022** | 0 → 0 | 0 (0) → 0 (0) |
-| Bremen | 53.00, 8.75 (7 km) | 10.5 | -0.2 | +0.3 | **2015** | 0 → 15 | 0 (0) → 7 (0) |
+| Bremen | 53.00, 8.75 (7 km) | 10.5 | -0.2 | +0.3 | **2018** (dry heat, D68) | 0 → 0 | 0 (0) → 0 (0) |
 | Broughton | 53.25, -3.00 (8 km) | 10.4 | -0.3 | +0.6 | **2022** | 0 → 0 | 0 (0) → 0 (0) |
-| Nordenham | 53.50, 8.50 (2 km) | 10.4 | -0.1 | +0.7 | **2015** | 0 → 5 | 0 (0) → 2 (0) |
-| Hamburg-Finkenwerder | 53.50, 9.75 (7 km) | 10.5 | +0.0 | +0.1 | **2015** | 0 → 9 | 0 (0) → 4 (0) |
-| Stade | 53.50, 9.50 (8 km) | 10.4 | -0.1 | +0.7 | **2015** | 0 → 9 | 0 (0) → 5 (0) |
+| Nordenham | 53.50, 8.50 (2 km) | 10.4 | -0.1 | +0.7 | **2018** (dry heat, D68) | 0 → 0 | 0 (0) → 0 (0) |
+| Hamburg-Finkenwerder | 53.50, 9.75 (7 km) | 10.5 | +0.0 | +0.1 | **2018** (dry heat, D68) | 0 → 0 | 0 (0) → 0 (0) |
+| Stade | 53.50, 9.50 (8 km) | 10.4 | -0.1 | +0.7 | **2018** (dry heat, D68) | 0 → 0 | 0 (0) → 0 (0) |
 
 ![WBGT degree-hours](figures/heatmap_wbgt_degree_hours.png)
 
@@ -102,14 +103,14 @@ All 15 sites passed the automated checks: complete hourly record, no gaps or dup
 | Donauworth | 2015 | 2003 (dry heat) | 0 / 0 | 133 / 170 | 4 / 12 | 35.7 / 37.7 |
 | Meaulte | 2025 | 2003 | 9 / 29 | 43 / 92 | 3 / 10 | 35.2 / 36.2 |
 | Filton | 2022 | 2022 (dry heat) | 0 / 0 | 46 / 46 | 4 / 4 | 34.9 / 34.8 |
-| Bremen | 2015 | 2018 (dry heat) | 7 / 0 | 28 / 79 | 1 / 5 | 35.6 / 35.4 |
+| Bremen | 2018 (dry heat) | 2018 (dry heat) | 0 / 0 | 78 / 79 | 5 / 5 | 35.4 / 35.4 |
 | Broughton | 2022 | 2022 (dry heat) | 0 / 0 | 15 / 15 | 2 / 2 | 33.9 / 33.8 |
-| Nordenham | 2015 | 2018 (dry heat) | 2 / 0 | 7 / 21 | 1 / 2 | 31.7 / 32.0 |
-| Hamburg-Finkenwerder | 2015 | 2018 (dry heat) | 4 / 0 | 20 / 72 | 1 / 5 | 35.4 / 35.1 |
-| Stade | 2015 | 2018 (dry heat) | 5 / 0 | 21 / 67 | 1 / 5 | 35.1 / 34.9 |
+| Nordenham | 2018 (dry heat) | 2018 (dry heat) | 0 / 0 | 21 / 21 | 2 / 2 | 32.0 / 32.0 |
+| Hamburg-Finkenwerder | 2018 (dry heat) | 2018 (dry heat) | 0 / 0 | 71 / 72 | 5 / 5 | 35.0 / 35.1 |
+| Stade | 2018 (dry heat) | 2018 (dry heat) | 0 / 0 | 67 / 67 | 5 / 5 | 34.8 / 34.9 |
 
 **Reading:**
 - **2003 is the extreme year at eight sites** (all of France, the Madrid sites, Donauwörth). In today's climate it brings **more heat and longer spells** than any recent year: Nantes 172 hours above 30 °C and a 12-day spell (2019: 94 hours, 4 days), Donauwörth 12 days (2015: 4), Marignane 30 days (2025: 19), Toulouse 168 indoor WBGT hours above 26 °C (2025: 107).
 - **Sevilla: 2006**, humid heat (398 WBGT hours, against 321 in 2025).
-- **North Germany: 2018**, chosen on dry heat: 3–4 times the hours above 30 °C of 2015 and the longest spells. It has slightly *fewer* indoor WBGT hours than 2015 (0 vs 1–7), which had a few humid days, so on WBGT views "Extreme" can read a little lower than "Hot" there.
+- **North Germany: 2018** is both the hot and the extreme year since D68 (dry-heat fallback for the hot year): 3–4 times the hours above 30 °C of 2015 and the longest spells. The extreme version is 2018 adjusted to the 2020 climate, so it reads marginally warmer. Before D68 the hot year was 2015, chosen on a few humid hours (1–7 indoor WBGT hours), which made the "hot" year lower than the typical year for dry heat.
 - **UK: 2022** is both the hot and the extreme year; no earlier year, even adjusted, beats it.
