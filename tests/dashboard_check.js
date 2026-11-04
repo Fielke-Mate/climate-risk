@@ -122,6 +122,17 @@ async function check(p, where) {
     return tr.querySelector("td").firstChild.textContent.trim();
   });
   if (barToday !== tableToday) fail("summary vs data", `today bar ${barToday} h, table ${tableToday} h`);
+  for (const yt of ["typical", "hot", "extreme"]) {
+    await click(`#ctl-yt button[data-v="${yt}"]`);
+    await click('.tabs button[data-tab="data"]');
+    const ind = await page.$$eval("#pane table tbody tr", trs => { const tr = trs.find(t => /^Working hours above WBGT \d+ °C/.test(t.querySelector("th").textContent) && !/acclimatised workforce/.test(t.querySelector("th").textContent));
+      return [...tr.querySelectorAll("td")].map(td => td.firstChild.textContent.trim()); });
+    await click('.tabs button[data-tab="stress"]');
+    const st = await page.$$eval("#pane table tbody tr", trs => { const tr = trs.find(t => /^All working hours .* WBGT above \d+ °C$/.test(t.querySelector("th").textContent));
+      return tr ? [...tr.querySelectorAll("td")].map(td => td.firstChild.textContent.trim()) : []; });
+    if (ind.join("|") !== st.join("|")) fail(`heat stress vs indicators (${yt})`, `stress ${st.join(" / ")} vs indicators ${ind.join(" / ")}`);
+  }
+  await click('#ctl-yt button[data-v="typical"]');
 
   // 1d. Worker profiles: every profile x exposure renders on every tab, and a lower reference never gives fewer hours
   const profs = await page.$$eval("#ctl-prof option", os => os.map(o => o.value));
@@ -212,6 +223,11 @@ async function check(p, where) {
   if (b35.join("|") !== b36.join("|")) fail("histogram", "bars change size or position when the limit moves by 1 °C");
   await click('.stepper button[data-d="-0.5"]');
   if ((await bars()).length !== b35.length + 3) fail("histogram", "a half-degree limit should split one bin in each of the three panels");
+  const tilesVsHist = await page.evaluate(() => {
+    const tiles = [...document.querySelectorAll("#pane .dtstrip .dt .v")].slice(0, 3).map(e => e.childNodes[0].textContent.trim());
+    const hist = [...document.querySelectorAll("#pane .sc:nth-child(2) svg.chart text.val")].map(e => e.textContent.replace(" h above", "").trim());
+    return [tiles, hist]; });
+  if (tilesVsHist[0].join("|") !== tilesVsHist[1].join("|")) fail("histogram vs tiles", `tiles ${tilesVsHist[0].join(" / ")}, histograms ${tilesVsHist[1].join(" / ")}`);
   await page.selectOption("#ctl-proc", "paint");
   // the summary's today bar equals the Indicators table (same 11-year statistic)
   await click('.tabs button[data-tab="summary"]');
@@ -232,6 +248,13 @@ async function check(p, where) {
     if (!pline.startsWith(pname + ":")) fail("process tile site line", `expected "${pname}: …", got "${pline}"`);
     for (const tab of ["summary", "data", "stress"]) { await click(`.tabs button[data-tab="${tab}"]`); await check(page, `proc site ${id}/${tab}`); states++; }
   }
+  // the URL carries the whole view and wins over remembered settings
+  await page.goto(PAGE + "?lens=work&scen=ssp585&period=2040&yt=extreme&expo=sun&prof=heavy&tab=data#TLS"); await page.waitForTimeout(300);
+  const st2 = await page.evaluate(() => [...["ctl-scen", "ctl-period", "ctl-yt", "ctl-expo"].map(i => document.querySelector(`#${i} button[aria-pressed="true"]`).dataset.v), document.querySelector("#ctl-prof").value, document.querySelector('.tabs button[aria-selected="true"]').dataset.tab, location.hash]);
+  if (st2.join(",") !== "ssp585,2040,extreme,sun,heavy,data,#TLS") fail("url state", `opened as ${st2.join(",")}`);
+  await click('#ctl-period button[data-v="2050"]');
+  if (!(await page.evaluate(() => location.search)).includes("period=2050")) fail("url state", "the URL does not follow a change");
+  if (!(await page.isVisible("#copylink"))) fail("copy link", "button hidden on an unframed page");
   // shareable link and back to the worker lens
   await page.goto(PAGE + "?lens=proc&lim=32#TLS"); await page.waitForTimeout(300);
   if (await limVal() !== 32 || !(await page.isVisible("#ctl-lim"))) fail("link", "?lens=proc&lim=32 not applied");
@@ -303,9 +326,10 @@ async function check(p, where) {
       await d.click(`.tabs button[data-tab="${tab}"]`);
       const over = await d.evaluate(() => [document.documentElement.scrollHeight - document.documentElement.clientHeight,
         document.documentElement.scrollWidth - document.documentElement.clientWidth]);
-      if (over[0] > 1 || over[1] > 0) fail(`desktop ${w}x${h}/${tab}`, `page scrolls (vertical ${over[0]}px, horizontal ${over[1]}px)`);
+      const oneScreen = w >= 1360 && h >= 820;   /* one-screen layout only where it fits (D56 relaxed) */
+      if ((oneScreen && over[0] > 1) || over[1] > 0) fail(`desktop ${w}x${h}/${tab}`, `page scrolls (vertical ${over[0]}px, horizontal ${over[1]}px)`);
       const mapH = await d.$eval("#map", e => e.getBoundingClientRect().height);
-      if (mapH < 140) fail(`desktop ${w}x${h}`, `map only ${Math.round(mapH)}px tall`);
+      if (mapH < (oneScreen ? 200 : 280)) fail(`desktop ${w}x${h}`, `map only ${Math.round(mapH)}px tall`);
     }
     await d.close();
   }
