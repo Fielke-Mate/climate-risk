@@ -19,7 +19,7 @@ const fail = (where, msg) => failures.push(`${where}: ${msg}`);
 async function check(p, where) {
   const res = await p.evaluate(() => {
     const txt = sel => (document.querySelector(sel) || {}).innerText || "";
-    const areas = ["#kstrip", "#pane", "#rank", "#legend", "#map-sub", "#mapsel", "#s-name", "#fsum", "#cnt"];
+    const areas = ["#kstrip", "#pane", "#rank", "#legend", "#mapsel", "#s-name", "#fsum", "#cnt"];
     const text = Object.fromEntries(areas.map(a => [a, txt(a)]));
     const visible = [...document.querySelectorAll("#sites circle")].filter(c => !c.classList.contains("off"));
     const fills = visible.map(c => c.style.fill);
@@ -328,6 +328,12 @@ async function check(p, where) {
           return q.top < box.top - 0.5 || q.bottom > box.bottom + 0.5 || q.left < box.left - 0.5 || q.right > box.right + 0.5; }).map(c => c.dataset.id); });
       if (cut.length) fail(`desktop ${w}x${h}/${tab}`, `map markers outside the map: ${cut.join(", ")}`);
       const mapH = await d.$eval("#map", e => e.getBoundingClientRect().height);
+      const vbW = await d.$eval("#map", e => e.getAttribute("viewBox"));
+      await d.click(`#ctl-lens button[data-v="${await d.$eval('#ctl-lens button[aria-pressed="true"]', e => e.dataset.v) === "work" ? "proc" : "work"}"]`);
+      await d.waitForTimeout(150);
+      const vbP = await d.$eval("#map", e => e.getAttribute("viewBox"));
+      if (vbW !== vbP) fail(`desktop ${w}x${h}/${tab}`, `map zoom changes with the lens: ${vbW} vs ${vbP}`);
+      await d.click('#ctl-lens button[aria-pressed="false"]'); await d.waitForTimeout(100);
       if (mapH < (oneScreen ? 200 : 280)) fail(`desktop ${w}x${h}`, `map only ${Math.round(mapH)}px tall`);
     }
     await d.close();
