@@ -19,7 +19,7 @@ const fail = (where, msg) => failures.push(`${where}: ${msg}`);
 async function check(p, where) {
   const res = await p.evaluate(() => {
     const txt = sel => (document.querySelector(sel) || {}).innerText || "";
-    const areas = ["#kstrip", "#pane", "#rank", "#legend", "#map-sub", "#mapsel", "#s-name", "#fsum", "#cnt"];
+    const areas = ["#kstrip", "#pane", "#rank", "#legend", "#mapsel", "#s-name", "#fsum", "#cnt"];
     const text = Object.fromEntries(areas.map(a => [a, txt(a)]));
     const visible = [...document.querySelectorAll("#sites circle")].filter(c => !c.classList.contains("off"));
     const fills = visible.map(c => c.style.fill);
@@ -87,14 +87,11 @@ async function check(p, where) {
   paneText = await page.$eval("#pane", e => e.innerText);
   if (/weather in 2050/.test(paneText)) fail("typical charts", "typical view still shows the hot-year series");
 
-  // 1b'. The working-time tile names the selected site and its own hours, and follows a click on the map
-  for (const sid of ["TLS", "XFW"]) {
-    await page.$eval(`#map [data-id="${sid}"]`, e => e.dispatchEvent(new MouseEvent("click", { bubbles: true })));
-    await page.waitForTimeout(150);
-    const name = await page.$eval("#s-name", e => e.textContent);
-    const line = await page.$eval("#kstrip .selsite", e => e.textContent).catch(() => "");
-    if (!line.startsWith(name + ":")) fail("tile site line", `expected "${name}: …", got "${line}"`);
-  }
+  // 1b'. The working-time tile follows the filter: with one site in view it shows that site's own hours
+  const oneSite = await page.evaluate(() => { const keep = new Set(S.sel); S.sel = new Set(["TLS"]); afterFilter();
+    const tile = document.querySelector("#kstrip .kstat:nth-child(2) .val").childNodes[0].textContent.trim();
+    const own = fmt(kpiVal("TLS", EXPO().hours)[0]); S.sel = keep; afterFilter(); return [tile, own]; });
+  if (oneSite[0] !== oneSite[1]) fail("tile follows filter", `one site in view: tile ${oneSite[0]} h, site ${oneSite[1]} h`);
   // 1c. Summary tab: comfort-shift year pickers and the hours chart (consistent with the Indicators table)
   await click('.tabs button[data-tab="summary"]');
   await page.selectOption('select[data-cmp="cmpB"]', "hotref");
@@ -168,30 +165,29 @@ async function check(p, where) {
   for (const scen of ["ssp245", "ssp585"])
     for (const period of ["hist", "2040", "2050"])
       for (const yt of ["typical", "hot", "extreme"])
-        for (const run of ["op", "24"])
           for (const hall of ["0", "4"]) {
             await click(`#ctl-scen button[data-v="${scen}"]`); await click(`#ctl-period button[data-v="${period}"]`);
-            await click(`#ctl-yt button[data-v="${yt}"]`); await click(`#ctl-run button[data-v="${run}"]`); await click(`#ctl-hall button[data-v="${hall}"]`);
+            await click(`#ctl-yt button[data-v="${yt}"]`); await click(`#ctl-hall button[data-v="${hall}"]`);
             for (const layer of procLayers) {
               await page.selectOption("#ctl-layer", layer);
-              const where = `proc ${scen}/${period}/${yt}/${run}+${hall}/${layer}`, rr = await check(page, where), isChange = ["d_proc_hours", "warming"].includes(layer);
+              const where = `proc ${scen}/${period}/${yt}+${hall}/${layer}`, rr = await check(page, where), isChange = ["d_proc_hours", "warming"].includes(layer);
               if (period === "hist" && isChange && !rr.noteShown) fail(where, "change layer in Today without explanation");
               if (!(period === "hist" && isChange) && rr.fills.some(f => f === "rgb(201, 196, 211)")) fail(where, "grey (no value) marker");
               states++;
             }
             for (const tab of ["summary", "data", "temp", "stress", "about"]) {
               await click(`.tabs button[data-tab="${tab}"]`);
-              await check(page, `proc ${scen}/${period}/${yt}/${run}+${hall}/tab:${tab}`);
+              await check(page, `proc ${scen}/${period}/${yt}+${hall}/tab:${tab}`);
               states++;
             }
           }
   await click('#ctl-scen button[data-v="ssp245"]'); await click('#ctl-period button[data-v="2050"]'); await click('#ctl-yt button[data-v="typical"]');
-  await click('#ctl-run button[data-v="op"]'); await click('#ctl-hall button[data-v="0"]');
+  await click('#ctl-hall button[data-v="0"]');
   const limVal = () => page.$eval("#ctl-lim", e => Number(e.value));
   await page.selectOption("#ctl-proc", "paint");
   if (await limVal() !== 35) fail("presets", `paint preset gives ${await limVal()} °C`);
   const procHours = await tileHours();
-  // raising the limit never adds downtime; a warmer hall and running 24 h never remove any
+  // raising the limit never adds downtime; a warmer hall never removes any
   let prev = Infinity;
   for (const d of [-5, 1, 1, 1, 1, 1]) {
     for (let k = 0; k < Math.abs(d) * 2; k++) await click(`.stepper button[data-d="${d < 0 ? "-0.5" : "0.5"}"]`);
@@ -205,9 +201,7 @@ async function check(p, where) {
   await click('#ctl-hall button[data-v="4"]');
   if (await tileHours() < procHours) fail("hall gain", "a warmer hall gave less downtime");
   await click('#ctl-hall button[data-v="0"]');
-  await click('#ctl-run button[data-v="24"]');
-  if (await tileHours() < procHours) fail("run 24 h", "running 24 h gave less downtime than 06–22");
-  await click('#ctl-run button[data-v="op"]');
+  if (await page.$("#ctl-run")) fail("process lens", "the running-hours toggle is back (D70: one running window for both lenses)");
   for (const [typed, want] of [["33.4", 33.5], ["99", 45], ["5", 20]]) {
     await page.fill("#ctl-lim", typed); await page.press("#ctl-lim", "Enter"); await page.$eval("#ctl-lim", e => e.blur());
     if (await limVal() !== want) fail("limit entry", `typed ${typed}, limit ${await limVal()}, expected ${want}`);
@@ -244,8 +238,6 @@ async function check(p, where) {
   }
   for (const id of ["XFW", "TLS", "SVQ"]) {   // cool, temperate and hot sites
     await page.click(`#sites circle[data-id="${id}"]`, { force: true });
-    const pname = await page.$eval("#s-name", e => e.textContent), pline = await page.$eval("#kstrip .selsite", e => e.textContent).catch(() => "");
-    if (!pline.startsWith(pname + ":")) fail("process tile site line", `expected "${pname}: …", got "${pline}"`);
     for (const tab of ["summary", "data", "stress"]) { await click(`.tabs button[data-tab="${tab}"]`); await check(page, `proc site ${id}/${tab}`); states++; }
   }
   // the URL carries the whole view and wins over remembered settings
@@ -317,7 +309,7 @@ async function check(p, where) {
   await page.evaluate(() => localStorage.clear());
 
   // 6. Desktop one-screen layout: the page itself must not scroll at common laptop / monitor sizes
-  for (const [w, h] of [[1440, 900], [1920, 1080], [1280, 760]]) {
+  for (const [w, h] of [[1440, 900], [1600, 900], [1920, 1080], [1500, 800], [1280, 760]]) {
     const d = await browser.newPage({ viewport: { width: w, height: h } });
     d.on("pageerror", e => errors.push(`${w}x${h}: ` + e.message));
     await d.goto(PAGE + (w === 1280 ? "?lens=proc" : "") + "#SVQ");
@@ -328,7 +320,17 @@ async function check(p, where) {
         document.documentElement.scrollWidth - document.documentElement.clientWidth]);
       const oneScreen = w >= 1360 && h >= 820;   /* one-screen layout only where it fits (D56 relaxed) */
       if ((oneScreen && over[0] > 1) || over[1] > 0) fail(`desktop ${w}x${h}/${tab}`, `page scrolls (vertical ${over[0]}px, horizontal ${over[1]}px)`);
+      const cut = await d.evaluate(() => { const box = document.querySelector(".mapbox").getBoundingClientRect();
+        return [...document.querySelectorAll("#sites circle:not(.off)")].filter(c => { const q = c.getBoundingClientRect();
+          return q.top < box.top - 0.5 || q.bottom > box.bottom + 0.5 || q.left < box.left - 0.5 || q.right > box.right + 0.5; }).map(c => c.dataset.id); });
+      if (cut.length) fail(`desktop ${w}x${h}/${tab}`, `map markers outside the map: ${cut.join(", ")}`);
       const mapH = await d.$eval("#map", e => e.getBoundingClientRect().height);
+      const vbW = await d.$eval("#map", e => e.getAttribute("viewBox"));
+      await d.click(`#ctl-lens button[data-v="${await d.$eval('#ctl-lens button[aria-pressed="true"]', e => e.dataset.v) === "work" ? "proc" : "work"}"]`);
+      await d.waitForTimeout(150);
+      const vbP = await d.$eval("#map", e => e.getAttribute("viewBox"));
+      if (vbW !== vbP) fail(`desktop ${w}x${h}/${tab}`, `map zoom changes with the lens: ${vbW} vs ${vbP}`);
+      await d.click('#ctl-lens button[aria-pressed="false"]'); await d.waitForTimeout(100);
       if (mapH < (oneScreen ? 200 : 280)) fail(`desktop ${w}x${h}`, `map only ${Math.round(mapH)}px tall`);
     }
     await d.close();

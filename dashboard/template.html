@@ -122,7 +122,8 @@ select.ksel { height: 30px; font: inherit; font-size: var(--fs-125); padding: 0 
 @media (max-width: 1100px) { .kstrip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 520px) { .kstrip { grid-template-columns: minmax(0, 1fr); } }
 .kstat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); padding: 12px 14px; box-shadow: var(--sh-1); min-width: 0; display: grid; gap: 4px; }
-.kstat .lab { display: flex; align-items: center; gap: 8px; font-size: var(--fs-115); color: var(--ink-2); font-weight: 500; }
+.kstat .lab { display: flex; align-items: center; gap: 8px; font-size: var(--fs-115); color: var(--ink-2); font-weight: 500; min-width: 0; }
+.kstat .lab .lt { min-width: 0; }
 .kstat .ic { width: 26px; height: 26px; border-radius: 8px; background: var(--bg-2); display: grid; place-items: center; color: var(--ink-3); flex: none; }
 .kstat .ic svg { width: 15px; height: 15px; }
 .kstat .val { font-size: 22px; font-weight: 600; letter-spacing: -.02em; line-height: 1.2; font-variant-numeric: tabular-nums lining-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -279,7 +280,8 @@ svg.chart .gridl { stroke: var(--line); }
 .sidefoot b { color: var(--ink-2); font-weight: 600; }
 
 /* ---- one-screen desktop layout: the page fits the window; long content scrolls inside its card ---- */
-/* one-screen layout where the window is big enough to keep a usable map; smaller windows scroll (relaxes D56) */
+/* one-screen layout where the window is big enough to keep a usable map; smaller windows scroll (relaxes D56).
+   Keep in step with ONE_SCREEN in the script (the map frame follows the same switch). */
 @media (min-width: 1360px) and (min-height: 820px) {
   html, body { height: 100%; overflow: hidden; }
   .shell { height: 100%; grid-template-rows: auto minmax(0, 1fr); }
@@ -290,6 +292,7 @@ svg.chart .gridl { stroke: var(--line); }
   .leftcol { min-height: 0; height: 100%; grid-template-rows: auto minmax(0, 1fr); gap: 10px; }
   .kstat { padding: 8px 12px; gap: 2px; }
   .kstat .ic { width: 22px; height: 22px; }
+  .kstat .lab .lt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* one line: the tile row, and so the map zoom, is the same in both lenses */
   .kstat .val { font-size: 19px; }
   .kstat .foot { padding-top: 4px; margin-top: 1px; }
   .cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); min-height: 0; height: 100%; align-items: stretch; }
@@ -297,7 +300,7 @@ svg.chart .gridl { stroke: var(--line); }
   .phead { padding-top: 10px; }
   .cbody { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; padding-top: 8px; padding-bottom: 10px; }
   .mapbox { flex: 1 1 0; min-height: 260px; }   /* the map takes the space the ranking leaves */
-  #map { height: 100%; }
+  #map { height: 100%; min-height: 0; }   /* the box sets the height here; the 300 px floor is for the scrolling layout only */
   .tview { flex: 0 1 auto; max-height: 55%; min-height: 0; overflow-y: auto; margin-top: 6px; }   /* fits without scrolling unless the window is short */
   .site-h { padding-top: 10px; }
   .tabs { padding-top: 4px; }
@@ -371,7 +374,6 @@ svg.chart .gridl { stroke: var(--line); }
       <div class="vgrp wk"><span title="Work intensity and clothing: sets the WBGT limit (not acclimatised)">Worker</span><select class="ksel" id="ctl-prof" aria-label="Worker profile"></select></div>
       <div class="vgrp pl"><span>Process</span><select class="ksel" id="ctl-proc" aria-label="Process"></select></div>
       <div class="vgrp pl"><span title="Hall air temperature above which the process cannot run">Limit</span><div class="toggle stepper"><button type="button" data-d="-0.5" aria-label="Lower the limit">−</button><input id="ctl-lim" type="number" step="0.5" aria-label="Process limit, °C"><span class="u">°C</span><button type="button" data-d="0.5" aria-label="Raise the limit">+</button></div><span class="limhint" id="limhint" aria-live="polite"></span></div>
-      <div class="vgrp pl"><span title="When the process runs">Runs</span><div class="toggle" id="ctl-run"><button data-v="op" id="run-op">06–22</button><button data-v="24">24 h</button></div></div>
       <span class="cnt" id="cnt"></span>
     </section>
 
@@ -380,7 +382,7 @@ svg.chart .gridl { stroke: var(--line); }
       <section class="kstrip" id="kstrip" aria-label="Headline figures"></section>
       <section class="card mapcard" aria-labelledby="map-title">
         <div class="phead">
-          <div><h2 id="map-title">Where the heat is</h2><p id="map-sub"></p></div>
+          <div><h2 id="map-title">Where the heat is</h2></div>
           <div class="slot"><span>Colour by</span>
             <select class="ksel" id="ctl-layer" aria-label="Colour the map by">
               <option value="worker_days">Worker heat-safety days (WBGT above the limit)</option>
@@ -431,7 +433,7 @@ const PROF = () => PROFILES[S.prof] || PROFILES[DEF_PROF];
 const PSUF = () => S.prof === DEF_PROF || !PROFILES[S.prof] ? "" : "_" + S.prof;
 const WR = () => PROF().ref, WA = () => PROF().acc;
 const S = { scen: "ssp245", period: "2050", yt: "typical", layer: "worker_days", site: null, tab: "summary", sel: null, open: {}, expo: "in", hall: "0", prof: DATA.meta.default_profile, cmpA: null, cmpB: null, rankAll: false,
-  lens: "work", proc: DATA.meta.process_lens.default_preset, lim: String(DATA.meta.process_lens.presets[DATA.meta.process_lens.default_preset].limit_c), run: "op" };
+  lens: "work", proc: DATA.meta.process_lens.default_preset, lim: String(DATA.meta.process_lens.presets[DATA.meta.process_lens.default_preset].limit_c) };
 /* exposure -> metric keys. Indoor: no solar radiation (shaded WBGT, UTCI with radiant temperature = air), hall at outdoor temperature plus the chosen heat gain. */
 const EXPO = () => {
   const x = S.expo === "sun" ? "sun" : S.hall === "0" ? "shade" : "in" + S.hall, tag = S.expo === "sun" ? "sun" : "in" + S.hall, P = PSUF();
@@ -588,55 +590,70 @@ function bindFilters() {
 function renderStrip() {
   if (PROC()) return renderStripProc();
   const v = inView(), n = v.length;
-  const per = `${S.period === "hist" ? "today" : `${S.period}, ${SCEN[S.scen]}`}, ${S.yt} year`;
   /* A: sites at high risk on worker heat-safety days (D67: High = 1 week or more, Very high = 2 weeks or more) */
   const HIGH = DATA.meta.risk_bands_days.high, VHIGH = DATA.meta.risk_bands_days.very_high, E = EXPO();
   const wd = (s, per) => kpiVal(s.id, "worker_days", per)[0];
   const nHigh = v.filter(s => wd(s) >= HIGH && wd(s) < VHIGH).length, nVHigh = v.filter(s => wd(s) >= VHIGH).length;
-  const nRiskToday = v.filter(s => wd(s, "hist") >= HIGH).length;
-  /* D: working hours above the WBGT reference, summed over the sites in view (per worker at each site) */
+  /* D: working hours above the WBGT reference for the sites in view (one site in the filter = that site's hours) */
   const hrs = per => v.reduce((a, s) => a + kpiVal(s.id, E.hours, per)[0], 0);
   const hNow = hrs(S.period), hToday = hrs("hist");
   const dPct = hToday > 0 ? 100 * (hNow - hToday) / hToday : null;
-  const tile = (ic, lab, val, foot) => `<div class="kstat"><div class="lab"><span class="ic">${ICON[ic]}</span>${lab}</div><div class="val">${val}</div><div class="foot">${foot}</div></div>`;
+  const tile = (ic, lab, val, foot, full) => `<div class="kstat"><div class="lab" title="${esc(full || lab)}"><span class="ic">${ICON[ic]}</span><span class="lt">${lab}</span></div><div class="val">${val}</div><div class="foot">${foot}</div></div>`;
   $("#kstrip").innerHTML =
-    tile("therm", "Sites at high risk · worker heat-safety days", `${nHigh + nVHigh}<small>of ${n}${n ? ` (${fmt(100 * (nHigh + nVHigh) / n)} %)` : ""}</small>`,
-      `High (7–13 days) ${nHigh} · Very high (14+) ${nVHigh} · ${E.label} · ${per}${S.period !== "hist" ? `<br>Today: ${nRiskToday} of ${n} sites` : ""}`) +
-    tile("up", "Working time above the ISO 7243 reference", `${fmt(hNow)}<small>hours a year</small>${S.period !== "hist" && dPct != null ? `<div class="trend">${sgn(dPct)} % vs today (${fmt(hToday)} h)</div>` : ""}`,
-      /* the selected site's own hours under the portfolio total (only when it is in view) */
-      (byId[S.site] && S.sel.has(S.site) ? `<span class="selsite"><b>${esc(byId[S.site].name)}</b>: ${fmt(kpiVal(S.site, E.hours)[0])} h${S.period !== "hist" ? ` (today ${fmt(kpiVal(S.site, E.hours, "hist")[0])} h)` : ""}</span>` : "") +
-      `Working hours above WBGT ${WR()} °C (${profText()}), summed over ${n} ${n === 1 ? "site" : "sites"} (one worker per site) · ${E.label} · ${per}${S.yt === "hot" ? " · each site's own 1-in-10 year, so the sum is above a portfolio 1-in-10 year" : ""}`);
+    tile("therm", "Sites at high risk", `${nHigh + nVHigh}<small>of ${n}${n ? ` (${fmt(100 * (nHigh + nVHigh) / n)} %)` : ""}</small>`,
+      `High (${HIGH}–${VHIGH - 1} days) ${nHigh} · Very high (${VHIGH}+ days) ${nVHigh}`, "Sites at high risk on worker heat-safety days") +
+    tile("up", "Hours above the WBGT reference", `${fmt(hNow)}<small>hours a year</small>${S.period !== "hist" && dPct != null ? `<div class="trend">${sgn(dPct)} % vs today (${fmt(hToday)} h)</div>` : ""}`,
+      `Working hours above WBGT ${WR()} °C`, "Working time above the ISO 7243 WBGT reference");
 }
 
 /* ---------- map ---------- */
+const ONE_SCREEN = "(min-width: 1360px) and (min-height: 820px)";   /* same switch as the one-screen CSS */
 function drawMap() {
   const svg = $("#map"), bm = DATA.basemap, box = $(".mapbox");
   const fit = S.sel && S.sel.size ? SITES.filter(s => S.sel.has(s.id)) : SITES, xs = fit.map(s => s.x), ys = fit.map(s => s.y);   /* frame the sites in view */
   /* frame: the sites' bounding box with a small margin, widened or heightened to the shape of the map box,
      so the map fills its card and stays as close in as the sites allow (one-screen layout); elsewhere 1.3 : 1 */
-  const fixed = matchMedia("(min-width: 1100px) and (min-height: 620px)").matches;
+  const fixed = matchMedia(ONE_SCREEN).matches;
   const bw = Math.max(box.clientWidth, 200), aspect = fixed ? bw / Math.max(box.clientHeight, 140) : 1.3;
-  let x0 = Math.min(...xs) - 30, y0 = Math.min(...ys) - 30, fw = Math.max(...xs) + 30 - x0, fh = Math.max(...ys) + 30 - y0;
-  if (fw / fh < aspect) { const nw = fh * aspect; x0 -= (nw - fw) / 2; fw = nw; } else { const nh = fw / aspect; y0 -= (nh - fh) / 2; fh = nh; }
-  svg.setAttribute("viewBox", `${x0.toFixed(1)} ${y0.toFixed(1)} ${fw.toFixed(1)} ${fh.toFixed(1)}`);
-  /* markers are 8 px in radius on screen at any zoom (k = map units per screen pixel). Nearby sites
-     (Getafe / Illescas, Nantes / Saint-Nazaire, the Hamburg cluster) are nudged apart until none overlaps,
-     so every site can be clicked; a short leader line and dot keep the true location visible. */
-  const k = fw / bw, R = 8 * k, GAP = 2 * k;
-  MAPK = k;
-  for (const s of SITES) POS[s.id] = { x: s.x, y: s.y };
-  for (let it = 0; it < 200; it++) {
-    let moved = false;
-    for (let i = 0; i < SITES.length; i++) for (let j = i + 1; j < SITES.length; j++) {
-      const a = POS[SITES[i].id], b = POS[SITES[j].id];
-      let dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
-      if (d >= 2 * R + GAP) continue;
-      if (d < 1e-6) { dx = 1; dy = 0; d = 1; }
-      const push = (2 * R + GAP - d) / 2 + 0.1;
-      a.x -= dx / d * push; a.y -= dy / d * push; b.x += dx / d * push; b.y += dy / d * push; moved = true;
+  /* padding in screen pixels (a marker, its selection ring and some air), a little more at the top. It is converted to map
+     units at the frame's own scale, and the frame is fitted around the markers' drawn positions: clustered sites (the
+     Hamburg cluster, Getafe / Illescas, Nantes / Saint-Nazaire) are nudged apart so each can be clicked, which can move a
+     marker beyond its true location. Scale and nudge depend on each other, so a few passes settle both. */
+  const PAD = { t: 30, r: 24, b: 24, l: 24 };
+  const frameOf = (px, py, k) => {
+    let x0 = Math.min(...px) - PAD.l * k, y0 = Math.min(...py) - PAD.t * k, fw = Math.max(...px) + PAD.r * k - x0, fh = Math.max(...py) + PAD.b * k - y0;
+    if (fw / fh < aspect) { const nw = fh * aspect; x0 -= (nw - fw) / 2; fw = nw; } else { const nh = fw / aspect; y0 -= (nh - fh) / 2; fh = nh; }
+    return [x0, y0, fw, fh];
+  };
+  /* markers are 8 px in radius on screen at any zoom (k = map units per screen pixel); a short leader line and dot keep a
+     nudged site's true location visible */
+  const nudge = R => {
+    const GAP = R / 4;
+    for (const s of SITES) POS[s.id] = { x: s.x, y: s.y };
+    for (let it = 0; it < 200; it++) {
+      let moved = false;
+      for (let i = 0; i < SITES.length; i++) for (let j = i + 1; j < SITES.length; j++) {
+        const a = POS[SITES[i].id], b = POS[SITES[j].id];
+        let dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
+        if (d >= 2 * R + GAP) continue;
+        if (d < 1e-6) { dx = 1; dy = 0; d = 1; }
+        const push = (2 * R + GAP - d) / 2 + 0.1;
+        a.x -= dx / d * push; a.y -= dy / d * push; b.x += dx / d * push; b.y += dy / d * push; moved = true;
+      }
+      if (!moved) break;
     }
-    if (!moved) break;
+  };
+  let [x0, y0, fw, fh] = frameOf(xs, ys, 0), k = fw / bw;
+  for (let pass = 0; pass < 4; pass++) {
+    nudge(8 * k);
+    const shown = fit.map(s => POS[s.id]);
+    [x0, y0, fw, fh] = frameOf(shown.map(q => q.x), shown.map(q => q.y), k);
+    k = fw / bw;
   }
+  nudge(8 * k);
+  svg.setAttribute("viewBox", `${x0.toFixed(1)} ${y0.toFixed(1)} ${fw.toFixed(1)} ${fh.toFixed(1)}`);
+  const R = 8 * k;
+  MAPK = k;
   let h = `<path class="grat" d="${bm.graticule}"/>` + bm.land.map(d => `<path class="land" d="${d}"/>`).join("");
   h += SITES.filter(s => Math.hypot(POS[s.id].x - s.x, POS[s.id].y - s.y) > 1).map(s =>
     `<line class="leader" data-id="${s.id}" x1="${s.x}" y1="${s.y}" x2="${POS[s.id].x.toFixed(1)}" y2="${POS[s.id].y.toFixed(1)}"/><circle class="true-pt" data-id="${s.id}" cx="${s.x}" cy="${s.y}" r="${(2.5 * k).toFixed(2)}"/>`).join("");
@@ -652,7 +669,6 @@ function drawMap() {
 function updateMap() {
   const info = LAYER[S.layer];
   const per = S.period === "hist" ? `Today (${B0}–${B1})` : `${S.period} (${S.period === "2040" ? "2031–2050" : "2041–2060"}) · ${SCEN[S.scen]}`;
-  $("#map-sub").textContent = `${per} · ${YT_TEXT[S.yt]}${S.layer === "worker_days" ? ` · ${EXPO().label} · ${PROF().short.toLowerCase()} (WBGT ${WR()} °C)` : ""}${S.layer.includes("proc") ? ` · ${procName()}, limit ${limText()} · ${hallText()} · ${runText()}` : ""} · click a site for its card`;
   for (const c of $$("#sites circle")) { const id = c.dataset.id; c.classList.toggle("off", !S.sel.has(id)); c.style.fill = colorFor(layerVal(id), info); }
   const s = byId[S.site], ring = $("#ring");
   ring.style.display = s && S.sel.has(s.id) ? "" : "none";
@@ -810,7 +826,7 @@ function renderStory() {
   o += `</svg>`;
   /* the shift legend uses neutral greys: bar colour means the period, the shade means the shift */
   const swatch = (op, extra = "") => `<i style="background:rgba(74,77,87,${op});${extra}"></i>`;
-  const keys1 = `<div class="keys"><span>${swatch(0.5)}Early ${shLbl("early")}</span><span>${swatch(1)}Late ${shLbl("late")}</span><span>${swatch(0.15, "outline:1px solid #4A4D57")}Night ${shLbl("night")} (outside working hours, not in the total)</span><span>Colour = period: today grey, 2040 teal, 2050 ochre; darker = hotter year</span></div>`;
+  const keys1 = `<div class="keys"><span>${swatch(0.5)}Early ${shLbl("early")}</span><span>${swatch(1)}Late ${shLbl("late")}</span><span>${swatch(0.15, "outline:1px solid #4A4D57")}Night ${shLbl("night")} (outside working hours, not in the total)</span></div>`;
   const wd = K[E.days], tNow = wd.hist.typical, hNow = wd.hotref, tF = wd[`${sc}_${per}_typical`][0], hF = wd[`hotref_${sc}_${per}`][0];
   const xNow = wd.extref, xF = wd[`extref_${sc}_${per}`][0], spF = K[E.longest][`extref_${sc}_${per}`][0];
   const rF = rows.find(r => r.kpi === `${sc}_${per}_typical`), latePct = rF.tot ? Math.round(100 * rF.late / rF.tot) : 0;
@@ -822,7 +838,7 @@ function renderStory() {
        ${rF.tot >= 10 ? `<b>${latePct} %</b> of the working hours above the limit fall on the late shift.` : ""}`;
   const why = whyNote(rows, s, `working hours above WBGT ${WR()} °C`);
   return `<div class="story"><div class="sc"><div class="t">${headline}</div>
-    <div class="sub">Working hours above WBGT ${WR()} °C by shift; a heat-safety day is a day with at least one of these hours · ISO 7243: ${profText()} · ${E.label}</div>${o}${keys1}${why}<div class="fn">${yearsNote()}</div></div>${climateHere()}${comfortShift()}</div>
+    <div class="sub">Working hours above WBGT ${WR()} °C by shift; a heat-safety day is a day with at least one of these hours</div>${o}${keys1}${why}<div class="fn">${yearsNote()}</div></div>${climateHere()}${comfortShift()}</div>
     <p class="note">${SCEN[sc]} · median of ${DATA.meta.models.length} climate models · working hours ${DATA.meta.operating_hours.start}–${DATA.meta.operating_hours.end} local · full table in Indicators.</p>`;
 }
 /* comfort shift (Heat stress tab): one column per UTCI band, year B minus year A, compact */
@@ -1099,12 +1115,14 @@ const txtCol = c => TXT[c] || c;
 const LIM = () => Number(S.lim);
 const limText = (v = LIM()) => `${fmt(v, 1)} °C`;
 const procName = () => PRESETS[S.proc] ? PRESETS[S.proc].label : "Custom limit";
-const runText = () => S.run === "op" ? `runs ${DATA.meta.operating_hours.start}–${DATA.meta.operating_hours.end}` : "runs 24 h";
+/* the process counts the same operating hours as the worker lens (config operating_hours); hours outside them are shown
+   as "+ night", as in the worker story card (D70) */
+const runText = () => `operating hours ${DATA.meta.operating_hours.start}–${DATA.meta.operating_hours.end}`;
 const hallText = () => S.hall === "0" ? "hall = outside" : `hall +${S.hall} °C`;
 const rungOf = lim => Math.max(0, Math.min(NR - 1, Math.round((lim - Number(S.hall) - RUNG0) / RSTEP)));
-const PM = { proc_hours: ["op_hours", "hours"], proc_days: ["op_days", "days"], proc_longest: ["op_longest", "longest"], proc_dh: ["op_dh", "dh"],
-             proc_early: ["early", "early"], proc_late: ["late", "late"], proc_night: ["night", "night"] };
-const srcOf = m => PM[m][S.run === "op" ? 0 : 1];
+const PM = { proc_hours: "op_hours", proc_days: "op_days", proc_longest: "op_longest", proc_dh: "op_dh",
+             proc_early: "early", proc_late: "late", proc_night: "night" };
+const srcOf = m => PM[m];
 /* one metric at one rung, in the shape of the other KPI metrics */
 function procMetric(site, src, i) {
   const D = DATA.kpi[site].dbt[src], G = DATA.kpi[site].dbt_rng[src];
@@ -1161,9 +1179,9 @@ const baseOf = k => k === "hist" || k.startsWith("ssp") ? "hist" : k.startsWith(
 const HS = new Map();
 /* hall air of the counted hours (sorted), and hours above the limit by month x hour and by shift */
 function hstats(site, key) {
-  const ck = `${site}|${key}|${S.hall}|${S.run}|${S.lim}`;
+  const ck = `${site}|${key}|${S.hall}|${S.lim}`;
   if (HS.has(ck)) return HS.get(ck);
-  const H = hourly(site), t = H.t[key], L = H.loc[baseOf(key)], g = Number(S.hall), lim = LIM(), op = S.run === "op";
+  const H = hourly(site), t = H.t[key], L = H.loc[baseOf(key)], g = Number(S.hall), lim = LIM(), op = true;
   const mh = Array.from({ length: 12 }, () => new Array(24).fill(0)), vals = [];
   let early = 0, hours = 0, mx = -99;
   for (let i = 0; i < t.length; i++) {
@@ -1179,18 +1197,15 @@ const nAbove = (st, x) => { const a = st.sorted; let lo = 0, hi = a.length; whil
 /* ---------- process lens: KPI strip ---------- */
 function renderStripProc() {
   const v = inView(), n = v.length;
-  const per = `${S.period === "hist" ? "today" : `${S.period}, ${SCEN[S.scen]}`}, ${S.yt} year`;
   const HIGH = PL.high_hours, VHIGH = PL.very_high_hours, d = (s, p) => kpiVal(s.id, "proc_hours", p)[0];
-  const nHigh = v.filter(s => d(s) >= HIGH && d(s) < VHIGH).length, nVHigh = v.filter(s => d(s) >= VHIGH).length, nToday = v.filter(s => d(s, "hist") >= HIGH).length;
+  const nHigh = v.filter(s => d(s) >= HIGH && d(s) < VHIGH).length, nVHigh = v.filter(s => d(s) >= VHIGH).length;
   const hNow = v.reduce((a, s) => a + d(s), 0), hToday = v.reduce((a, s) => a + d(s, "hist"), 0), dPct = hToday > 0 ? 100 * (hNow - hToday) / hToday : null;
-  const tile = (ic, lab, val, foot) => `<div class="kstat"><div class="lab"><span class="ic">${ICON[ic]}</span>${lab}</div><div class="val">${val}</div><div class="foot">${foot}</div></div>`;
+  const tile = (ic, lab, val, foot, full) => `<div class="kstat"><div class="lab" title="${esc(full || lab)}"><span class="ic">${ICON[ic]}</span><span class="lt">${lab}</span></div><div class="val">${val}</div><div class="foot">${foot}</div></div>`;
   $("#kstrip").innerHTML =
-    tile("therm", "Sites at high risk · downtime hours", `${nHigh + nVHigh}<small>of ${n}${n ? ` (${fmt(100 * (nHigh + nVHigh) / n)} %)` : ""}</small>`,
-      `High (${HIGH}–${VHIGH - 1} h) ${nHigh} · Very high (${VHIGH}+ h) ${nVHigh} · limit ${limText()} · ${hallText()} · ${per}${S.period !== "hist" ? `<br>Today: ${nToday} of ${n} sites` : ""}`) +
+    tile("therm", "Sites at high risk", `${nHigh + nVHigh}<small>of ${n}${n ? ` (${fmt(100 * (nHigh + nVHigh) / n)} %)` : ""}</small>`,
+      `High (${HIGH}–${VHIGH - 1} h) ${nHigh} · Very high (${VHIGH}+ h) ${nVHigh}`, "Sites at high risk on process downtime hours") +
     tile("up", "Process downtime", `${fmt(hNow)}<small>hours a year</small>${S.period !== "hist" && dPct != null ? `<div class="trend">${sgn(dPct)} % vs today (${fmt(hToday)} h)</div>` : ""}`,
-      /* the selected site's own downtime under the portfolio total (only when it is in view), as in the worker lens */
-      (byId[S.site] && S.sel.has(S.site) ? `<span class="selsite"><b>${esc(byId[S.site].name)}</b>: ${fmt(d(byId[S.site]))} h${S.period !== "hist" ? ` (today ${fmt(d(byId[S.site], "hist"))} h)` : ""}</span>` : "") +
-      `Operating hours above ${limText()} (${esc(procName().toLowerCase())}), summed over ${n} ${n === 1 ? "site" : "sites"} (one line per site) · ${hallText()} · ${runText()} · ${per}${S.yt === "hot" ? " · each site's own 1-in-10 year, so the sum is above a portfolio 1-in-10 year" : ""}`);
+      `Operating hours above ${limText()}`);
 }
 
 /* ---------- process lens: Summary ---------- */
@@ -1199,7 +1214,7 @@ function renderStoryProc() {
     <p class="note">${SCEN[S.scen]} · median of ${DATA.meta.models.length} climate models · ${runText()} local · the limit applies to hall air (${hallText()}) · full table in Indicators.</p>`;
 }
 function procCard1() {
-  const id = S.site, sc = S.scen, K = DATA.kpi[id], s = byId[id], per = futPer(), YRS = storyYears(), W0 = paneW(30), op = S.run === "op";
+  const id = S.site, sc = S.scen, K = DATA.kpi[id], s = byId[id], per = futPer(), YRS = storyYears(), W0 = paneW(30), op = true;
   const pick = (m, k) => k === "hist" ? K[m].hist.typical : k === "hotref" || k === "extref" ? K[m][k] : K[m][k][0];
   const rows = YRS.map(y => {
     const tot = pick("proc_hours", y.kpi), e = pick("proc_early", y.kpi), l = pick("proc_late", y.kpi), n = pick("proc_night", y.kpi);
@@ -1216,25 +1231,25 @@ function procCard1() {
     o += `<text class="lab" x="${gw}" y="${y + 14}">${r.sub}</text>`;
     for (const k of ["early", "late", "night"]) {
       const len = W * r[k] / mx, outside = op && k === "night";
-      if (len > 0) o += `<rect x="${x}" y="${y + 5}" width="${Math.max(len - 1, 0.5)}" height="${bh}" rx="2" fill="${r.color}" fill-opacity="${SH[k]}" ${outside ? `stroke="${r.color}" stroke-width="1"` : ""} data-t="${r.name}<br>${SHN[k]}: ${fmt(r[k])} h${outside ? " (process not running)" : ""}"/>`;
+      if (len > 0) o += `<rect x="${x}" y="${y + 5}" width="${Math.max(len - 1, 0.5)}" height="${bh}" rx="2" fill="${r.color}" fill-opacity="${SH[k]}" ${outside ? `stroke="${r.color}" stroke-width="1"` : ""} data-t="${r.name}<br>${SHN[k]}: ${fmt(r[k])} h${outside ? " (outside operating hours)" : ""}"/>`;
       x += len;
     }
     o += `<text class="val" x="${x + 6}" y="${y + 14}">${fmt(r.tot)} h${op && r.night >= 0.5 ? `<tspan style="fill:var(--ink-3)"> +${fmt(r.night)} night</tspan>` : ""}</text>`;
   });
   o += `</svg>`;
   const sw = (a, extra = "") => `<i style="background:rgba(74,77,87,${a});${extra}"></i>`;
-  const keys = `<div class="keys"><span>${sw(0.5)}Early ${shLbl("early")}</span><span>${sw(1)}Late ${shLbl("late")}</span>${op ? `<span>${sw(0.15, "outline:1px solid #4A4D57")}Night ${shLbl("night")} (process not running, not in the total)</span>` : `<span>${sw(0.75)}Night ${shLbl("night")}</span>`}<span>Colour = period: today grey, 2040 teal, 2050 ochre; darker = hotter year</span></div>`;
+  const keys = `<div class="keys"><span>${sw(0.5)}Early ${shLbl("early")}</span><span>${sw(1)}Late ${shLbl("late")}</span>${op ? `<span>${sw(0.15, "outline:1px solid #4A4D57")}Night ${shLbl("night")} (outside operating hours, not in the total)</span>` : `<span>${sw(0.75)}Night ${shLbl("night")}</span>`}</div>`;
   const g = k => rows.find(r => r.kpi === k), rF = g(`${sc}_${per}_typical`), tN = g("hist").tot;
-  const latePct = rF.tot ? Math.round(100 * rF.late / rF.tot) : 0, dT = K.proc_days.hist.typical, dF = K.proc_days[`${sc}_${per}_typical`][0];
+  const latePct = rF.tot ? Math.round(100 * rF.late / rF.tot) : 0;
   const none = Math.max(...rows.map(r => r.tot)) < 0.5;
   const head = none ? `<i>No operating hour goes above ${limText()}</i> today or by 2050, even in a hot or extreme year (${hallText()}).${S.hall !== "4" ? " A larger hall heat gain (View bar) shows how sensitive this is." : ""}`
     : `By ${per}, a typical year brings <b>${fmt(rF.tot)} hours of downtime</b> (today ${fmt(tN)}${tN >= 50 ? `, ${sgn(100 * (rF.tot - tN) / tN)} %` : ""}). A hot year brings <b>${fmt(g(`hotref_${sc}_${per}`).tot)} h</b> (today ${fmt(g("hotref").tot)}); an extreme year, with ${s.extreme_year} weather, <b>${fmt(g(`extref_${sc}_${per}`).tot)} h</b> (today ${fmt(g("extref").tot)}). ${rF.tot >= 10 ? `<b>${latePct} %</b> of it falls on the late shift.` : ""}`;
   return `<div class="sc"><div class="t">${head}</div>
-    <div class="sub">Downtime: operating hours with hall air above ${limText()} (${esc(procName().toLowerCase())}), by shift; ${plural(dF, "process-stop day", "process-stop days")} in a typical ${per} year (today ${fmt(dT)}) · ${hallText()} · ${runText()}</div>${o}${keys}
+    <div class="sub">Operating hours above ${limText()} by shift; a process-stop day is a day with at least one of these hours</div>${o}${keys}
     ${whyNote(rows, s, `hall air above ${limText()}`)}<div class="fn">${yearsNote()}</div></div>`;
 }
 /* downtime hours as days of the running window (06–22 = 16 h, 24 h = full days) */
-const runHours = () => { if (S.run !== "op") return 24; const [a, b] = [DATA.meta.operating_hours.start, DATA.meta.operating_hours.end].map(t => +t.slice(0, 2) + +t.slice(3) / 60); return b > a ? b - a : 24 - a + b; };
+const runHours = () => { const [a, b] = [DATA.meta.operating_hours.start, DATA.meta.operating_hours.end].map(t => +t.slice(0, 2) + +t.slice(3) / 60); return b > a ? b - a : 24 - a + b; };
 const dayTxt = h => { const n = runHours(), d = h / n; return h <= 0 ? "none" : d < 1 ? `under one ${n === 24 ? "full day" : `working day (${fmt(n)} h)`}` : `≈ ${fmt(d)} ${n === 24 ? (Math.round(d) === 1 ? "full day" : "full days") : `${Math.round(d) === 1 ? "working day" : "working days"} of ${fmt(n)} h`}`; };
 /* card 2: downtime at the limit: callout strip and one histogram per period with the limit as a line */
 function procDowntime() {
@@ -1291,7 +1306,7 @@ function procDowntime() {
   o += `</svg>`;
   const keys = `<div class="keys"><span><i style="background:var(--c-today);opacity:.28"></i>hours below the limit</span>${ser.map(s => `<span><i style="background:${s.color}"></i>${s.name} downtime</span>`).join("")}<span><i style="background:none;border-top:1px solid var(--c-hot);height:0;border-radius:0;vertical-align:3px"></i>today, for comparison</span></div>`;
   return `<div class="sc"><div class="t">${head}</div>${strip}
-    <div class="sub">${S.run === "op" ? "Operating hours" : "Hours"} a year at each hall-air temperature (1 °C bins), one panel per period on the same scale · coloured: above the limit (downtime) · ${hallText()} · ${runText()}</div>${o}${keys}
+    <div class="sub">Operating hours a year at each hall-air temperature (1 °C bins), one panel per period on the same scale · coloured: above the limit (downtime) · ${hallText()} · ${runText()}</div>${o}${keys}
     <div class="fn">Tiles, headline and histograms use the same ${NY}-year statistics (${ytn}: ${{ typical: "the median year, step by step", hot: "the 1-in-10 year, the 90th percentile, step by step", extreme: `the extreme year ${byId[id].extreme_year}` }[yt]}), median of the climate models; the month × hour grid below draws one real year.</div></div>`;
 }
 /* card 3: when the limit is exceeded, month x hour of day */
@@ -1299,7 +1314,7 @@ function procGrid() {
   const id = S.site, YRS = storyYears(), per = futPer(), yt = S.yt;
   const auto = `${{ typical: "", hot: "hot_", extreme: "ext_" }[yt]}${S.scen}_${per}`, b = cmpKey(S.cmpB, auto), y = YRS.find(x => x.key === b);
   const base = YRS.find(x => x.key === { typical: "hist", hot: "hotref", extreme: "extref" }[yt]);
-  const st = hstats(id, y.key), st0 = hstats(id, base.key), d = st.mh, W0 = paneW(30), op = S.run === "op";
+  const st = hstats(id, y.key), st0 = hstats(id, base.key), d = st.mh, W0 = paneW(30), op = true;
   const l = 34, t = 4, rw = 70, cw = Math.min(22, (W0 - l - rw - 12) / 24), ch = 17, gw = cw * 24, gh = ch * 12, rx = l + gw + 10, bw = rw - 26;
   const mT = d.map(r => r.reduce((a, c) => a + c, 0)), hT = Array.from({ length: 24 }, (_, h) => d.reduce((a, r) => a + r[h], 0));
   const cmx = Math.max(1, ...d.flat()), mmx = Math.max(1, ...mT), hmx = Math.max(1, ...hT);
@@ -1325,14 +1340,14 @@ function procGrid() {
   const head = !tot ? `No hour above ${limText()} in ${esc(nm)}.` : `In ${esc(nm)}, <b>${Math.round(100 * best[1] / tot)} %</b> of the downtime falls in <b>${MONTHS[best[0]]}–${MONTHS[best[0] + 1]}</b>, all between <b>${String(Math.min(...hs)).padStart(2, "0")}:00 and ${String(Math.max(...hs) + 1).padStart(2, "0")}:00</b>. The early shift takes <i>${Math.round(100 * st.early / tot)} %</i>${y.key === base.key ? "" : `; ${newCells} month-hour ${newCells === 1 ? "slot is" : "slots are"} new compared with ${esc(base.name.charAt(0).toLowerCase() + base.name.slice(1))}`}.`;
   const sel = `<select class="ksel" data-cmp="cmpB" aria-label="Year to show">${YRS.map(x => `<option value="${x.key}" ${x.key === y.key ? "selected" : ""}>${esc(x.name)}</option>`).join("")}</select>`;
   return `<div class="sc"><div class="t">${head}</div><div class="cmp">Show ${sel}</div>
-    <div class="sub">Downtime hours a year above ${limText()} by month and hour of day, in one real year (typical = the typical meteorological year; hot ${byId[id].hot_year} and extreme ${byId[id].extreme_year} weather; futures = median of the models, hour by hour); darker = more hours; magenta outline: slots with no downtime in ${esc(base.name.charAt(0).toLowerCase() + base.name.slice(1))}${op ? "; grey columns: process not running" : ""} · ${hallText()}</div>${o}${gkey}</div>`;
+    <div class="sub">Downtime hours a year above ${limText()} by month and hour of day, in one real year (typical = the typical meteorological year; hot ${byId[id].hot_year} and extreme ${byId[id].extreme_year} weather; futures = median of the models, hour by hour); darker = more hours; magenta outline: slots with no downtime in ${esc(base.name.charAt(0).toLowerCase() + base.name.slice(1))}${op ? "; grey columns: outside operating hours" : ""} · ${hallText()}</div>${o}${gkey}</div>`;
 }
 
 /* ---------- process lens: Process tab (replaces Heat stress) ---------- */
 function renderProcessTab() {
-  const id = S.site, cols = columns(), op = S.run === "op";
+  const id = S.site, cols = columns(), op = true;
   const rows = [["Downtime hours (operating hours above the limit)", "proc_hours"], [SHIFT_NAME("early"), "proc_early"], [SHIFT_NAME("late"), "proc_late"],
-    [`${SHIFT_NAME("night")}${op ? " (process not running)" : ""}`, "proc_night"], ["Process-stop days (an hour above the limit)", "proc_days"],
+    [`${SHIFT_NAME("night")}${op ? " (outside operating hours)" : ""}`, "proc_night"], ["Process-stop days (an hour above the limit)", "proc_days"],
     ["Longest run of process-stop days", "proc_longest"], ["Degree-hours above the limit (°C·h)", "proc_dh"]];
   const pre = Object.entries(PRESETS).map(([k, p]) => [`${p.label} · ${fmt(p.limit_c, 1)} °C`, `proc_hours_at_${k}`]);
   const tbl = rs => `<div class="tw"><table>${thead(cols, "Hours a year")}<tbody>${rs.map(([lb, m]) => `<tr><th scope="row">${lb}</th>${cols.map(c => cell(id, m, c.key, 0)).join("")}</tr>`).join("")}</tbody></table></div>`;
@@ -1361,11 +1376,11 @@ function syncLens() {
   $("#ctl-proc").value = PRESETS[S.proc] ? S.proc : "custom"; $("#ctl-lim").value = LIM().toFixed(1);
 }
 /* the URL carries the whole view (it wins over remembered settings), so a link opens what the sender saw */
-const URL_KEYS = ["lens", "scen", "period", "yt", "expo", "hall", "prof", "layer", "tab", "lim", "run"];
+const URL_KEYS = ["lens", "scen", "period", "yt", "expo", "hall", "prof", "layer", "tab", "lim"];
 function writeUrl() {
   const q = new URLSearchParams();
   for (const k of URL_KEYS) {
-    if ((k === "lim" || k === "run") && !PROC()) continue;
+    if (k === "lim" && !PROC()) continue;
     if ((k === "expo" || k === "prof") && PROC()) continue;
     q.set(k, S[k]);
   }
@@ -1392,7 +1407,7 @@ function init() {
   /* restore remembered view settings, ignoring anything an older version of the page stored */
   const VALID = { scen: DATA.meta.scenarios, period: ["hist", ...DATA.meta.periods], yt: ["typical", "hot", "extreme"], layer: Object.keys(LAYER),
     tab: ["summary", "data", "temp", "stress", "about"], prof: Object.keys(PROFILES), expo: ["in", "sun"], hall: DATA.meta.indoor_offsets.map(o => fmt(o)),
-    lens: ["work", "proc"], run: ["op", "24"], proc: [...Object.keys(PRESETS), "custom"] };
+    lens: ["work", "proc"], proc: [...Object.keys(PRESETS), "custom"] };
   for (const [k, ok] of Object.entries(VALID)) { const v = store.get("cr-" + k); if (v && ok.includes(v)) S[k] = v; }
   const [lmin, lmax] = PL.limit_range_c, sl = Number(store.get("cr-lim"));
   if (store.get("cr-lim") && sl >= lmin && sl <= lmax) S.lim = String(Math.round(sl * 2) / 2);
@@ -1405,9 +1420,8 @@ function init() {
   S.sel = new Set(SITES.map(s => s.id));
   S.open = { EU: true };
   $("#ctl-hall").innerHTML = DATA.meta.indoor_offsets.map(o => `<button data-v="${fmt(o)}">+${fmt(o)} °C</button>`).join("");
-  $("#run-op").textContent = opLbl();
   bindToggle("ctl-scen", "scen"); bindToggle("ctl-period", "period"); bindToggle("ctl-yt", "yt"); bindToggle("ctl-expo", "expo"); bindToggle("ctl-hall", "hall");
-  bindToggle("ctl-lens", "lens"); bindToggle("ctl-run", "run");
+  bindToggle("ctl-lens", "lens");
   /* process lens controls (D66): presets, a 0.5 C stepper and free entry, clamped to the configured range */
   $("#ctl-proc").innerHTML = Object.entries(PRESETS).map(([k, q]) => `<option value="${k}" title="${esc(q.label)}">${esc(q.short || q.label)} · ${fmt(q.limit_c, 0)} °C</option>`).join("") + `<option value="custom">Custom limit</option>`;
   const setLim = v => { S.lim = String(Math.min(lmax, Math.max(lmin, Math.round(v * 2) / 2))); S.proc = Object.keys(PRESETS).find(k => PRESETS[k].limit_c === LIM()) || "custom"; store.set("cr-lim", S.lim); store.set("cr-proc", S.proc); renderAll(); };
