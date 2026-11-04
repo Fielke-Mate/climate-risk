@@ -618,27 +618,45 @@ function drawMap() {
      so the map fills its card and stays as close in as the sites allow (one-screen layout); elsewhere 1.3 : 1 */
   const fixed = matchMedia(ONE_SCREEN).matches;
   const bw = Math.max(box.clientWidth, 200), aspect = fixed ? bw / Math.max(box.clientHeight, 140) : 1.3;
-  let x0 = Math.min(...xs) - 30, y0 = Math.min(...ys) - 30, fw = Math.max(...xs) + 30 - x0, fh = Math.max(...ys) + 30 - y0;
-  if (fw / fh < aspect) { const nw = fh * aspect; x0 -= (nw - fw) / 2; fw = nw; } else { const nh = fw / aspect; y0 -= (nh - fh) / 2; fh = nh; }
-  svg.setAttribute("viewBox", `${x0.toFixed(1)} ${y0.toFixed(1)} ${fw.toFixed(1)} ${fh.toFixed(1)}`);
-  /* markers are 8 px in radius on screen at any zoom (k = map units per screen pixel). Nearby sites
-     (Getafe / Illescas, Nantes / Saint-Nazaire, the Hamburg cluster) are nudged apart until none overlaps,
-     so every site can be clicked; a short leader line and dot keep the true location visible. */
-  const k = fw / bw, R = 8 * k, GAP = 2 * k;
-  MAPK = k;
-  for (const s of SITES) POS[s.id] = { x: s.x, y: s.y };
-  for (let it = 0; it < 200; it++) {
-    let moved = false;
-    for (let i = 0; i < SITES.length; i++) for (let j = i + 1; j < SITES.length; j++) {
-      const a = POS[SITES[i].id], b = POS[SITES[j].id];
-      let dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
-      if (d >= 2 * R + GAP) continue;
-      if (d < 1e-6) { dx = 1; dy = 0; d = 1; }
-      const push = (2 * R + GAP - d) / 2 + 0.1;
-      a.x -= dx / d * push; a.y -= dy / d * push; b.x += dx / d * push; b.y += dy / d * push; moved = true;
+  /* padding in screen pixels (a marker, its selection ring and some air), a little more at the top. It is converted to map
+     units at the frame's own scale, and the frame is fitted around the markers' drawn positions: clustered sites (the
+     Hamburg cluster, Getafe / Illescas, Nantes / Saint-Nazaire) are nudged apart so each can be clicked, which can move a
+     marker beyond its true location. Scale and nudge depend on each other, so a few passes settle both. */
+  const PAD = { t: 30, r: 24, b: 24, l: 24 };
+  const frameOf = (px, py, k) => {
+    let x0 = Math.min(...px) - PAD.l * k, y0 = Math.min(...py) - PAD.t * k, fw = Math.max(...px) + PAD.r * k - x0, fh = Math.max(...py) + PAD.b * k - y0;
+    if (fw / fh < aspect) { const nw = fh * aspect; x0 -= (nw - fw) / 2; fw = nw; } else { const nh = fw / aspect; y0 -= (nh - fh) / 2; fh = nh; }
+    return [x0, y0, fw, fh];
+  };
+  /* markers are 8 px in radius on screen at any zoom (k = map units per screen pixel); a short leader line and dot keep a
+     nudged site's true location visible */
+  const nudge = R => {
+    const GAP = R / 4;
+    for (const s of SITES) POS[s.id] = { x: s.x, y: s.y };
+    for (let it = 0; it < 200; it++) {
+      let moved = false;
+      for (let i = 0; i < SITES.length; i++) for (let j = i + 1; j < SITES.length; j++) {
+        const a = POS[SITES[i].id], b = POS[SITES[j].id];
+        let dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
+        if (d >= 2 * R + GAP) continue;
+        if (d < 1e-6) { dx = 1; dy = 0; d = 1; }
+        const push = (2 * R + GAP - d) / 2 + 0.1;
+        a.x -= dx / d * push; a.y -= dy / d * push; b.x += dx / d * push; b.y += dy / d * push; moved = true;
+      }
+      if (!moved) break;
     }
-    if (!moved) break;
+  };
+  let [x0, y0, fw, fh] = frameOf(xs, ys, 0), k = fw / bw;
+  for (let pass = 0; pass < 4; pass++) {
+    nudge(8 * k);
+    const shown = fit.map(s => POS[s.id]);
+    [x0, y0, fw, fh] = frameOf(shown.map(q => q.x), shown.map(q => q.y), k);
+    k = fw / bw;
   }
+  nudge(8 * k);
+  svg.setAttribute("viewBox", `${x0.toFixed(1)} ${y0.toFixed(1)} ${fw.toFixed(1)} ${fh.toFixed(1)}`);
+  const R = 8 * k;
+  MAPK = k;
   let h = `<path class="grat" d="${bm.graticule}"/>` + bm.land.map(d => `<path class="land" d="${d}"/>`).join("");
   h += SITES.filter(s => Math.hypot(POS[s.id].x - s.x, POS[s.id].y - s.y) > 1).map(s =>
     `<line class="leader" data-id="${s.id}" x1="${s.x}" y1="${s.y}" x2="${POS[s.id].x.toFixed(1)}" y2="${POS[s.id].y.toFixed(1)}"/><circle class="true-pt" data-id="${s.id}" cx="${s.x}" cy="${s.y}" r="${(2.5 * k).toFixed(2)}"/>`).join("");
