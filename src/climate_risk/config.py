@@ -23,6 +23,11 @@ def settings() -> dict:
         return yaml.safe_load(f)
 
 
+def shifts(cfg: dict | None = None) -> dict[str, tuple[str, str]]:
+    """Shift name -> (start, end) local time, from config `shifts` (one definition for every module)."""
+    return {k: (str(a), str(b)) for k, (a, b) in (cfg or settings())["shifts"].items()}
+
+
 @dataclass(frozen=True)
 class Site:
     site_id: str

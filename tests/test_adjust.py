@@ -61,3 +61,16 @@ def test_extreme_year_falls_back_to_dry_heat_where_humid_heat_is_negligible():
     north = humid.assign(op_wbgt_shade_degree_hours_gt_base=[1.0, 9.0, 3.0])
     year, rule = select_extreme_year(north, 50.0)
     assert year == 2022 and rule.startswith("dry heat")         # a few humid hours don't decide
+
+
+def test_hot_year_uses_the_lower_threshold():
+    """D68: the hot year falls back to dry heat only below 20 WBGT degree-hours; Madrid-like sites (47) keep humid ranking."""
+    from climate_risk.annual import select_reference_year
+    from climate_risk.config import settings
+    thr = settings()["hot_year"]["hot_min_wbgt_degree_hours"]
+    assert thr == 20.0
+    madrid = pd.DataFrame({"op_wbgt_shade_degree_hours_gt_base": [47.0, 20.0], "hours_t_gt30": [800, 900],
+                           "temp_max": [41.0, 42.0]}, index=[2022, 2025])
+    assert select_reference_year(madrid, thr) == (2022, "humid heat (WBGT degree-hours)")
+    hamburg = madrid.assign(op_wbgt_shade_degree_hours_gt_base=[9.1, 2.0], hours_t_gt30=[20, 39])
+    assert select_reference_year(hamburg, thr)[0] == 2025

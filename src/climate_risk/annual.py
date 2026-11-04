@@ -27,7 +27,9 @@ def _count(s, thr):
     return int((s > thr).sum())
 
 
-SHIFTS = {"early": ("06:00", "14:00"), "late": ("14:00", "22:00"), "night": ("22:00", "06:00")}
+from .config import settings as _settings, shifts as _shifts
+
+SHIFTS = _shifts(_settings())   # config `shifts`
 
 
 def wbgt_profiles(hc: dict) -> dict[str, tuple[float, float]]:
@@ -67,8 +69,8 @@ def annual_summary(hourly: pd.DataFrame, lat: float, lon: float, timezone: str, 
     hc, op_cfg = cfg["heat"], cfg["operating_hours"]
     dh_base = cfg["hot_year"]["wbgt_degree_hour_base_c"]
     if heat is None:
-        heat = heat_frame(hourly, lat, lon, indoor_offset=hc.get("indoor_offset_c", 0.0),
-                          indoor_air_speed=hc.get("indoor_air_speed_ms", 0.3))
+        heat = heat_frame(hourly, lat, lon, indoor_air_speed=hc.get("indoor_air_speed_ms", 0.3))   # hall = outside;
+        # warmer halls are the indoor_offsets_sensitivity cases below (the dashboard's hall gain)
     df = pd.concat([hourly[["temp_air", "relative_humidity"]], heat], axis=1)
     offsets = [float(o) for o in hc.get("indoor_offsets_sensitivity", [])]
     for off in offsets:  # indoor sensitivity: hall warmer than outside by `off` C, no solar (shade)
@@ -113,13 +115,14 @@ def annual_summary(hourly: pd.DataFrame, lat: float, lon: float, timezone: str, 
         "hours_utci_sun_gt32": g["utci_sun"].apply(lambda s: _count(s, 32)),
         "hours_utci_sun_gt38": g["utci_sun"].apply(lambda s: _count(s, 38)),
     }).join(dy)
-    summary["op_hours_utci_in0_gt28"] = go["utci_indoor"].apply(lambda s: _count(s, 28))
-    summary["op_hours_utci_in0_gt32"] = go["utci_indoor"].apply(lambda s: _count(s, 32))
-    summary["op_hours_utci_sun_gt32"] = go["utci_sun"].apply(lambda s: _count(s, 32))
+    cols = {}   # collected and joined once (assigning ~200 columns one by one fragments the frame)
+    cols["op_hours_utci_in0_gt28"] = go["utci_indoor"].apply(lambda s: _count(s, 28))
+    cols["op_hours_utci_in0_gt32"] = go["utci_indoor"].apply(lambda s: _count(s, 32))
+    cols["op_hours_utci_sun_gt32"] = go["utci_sun"].apply(lambda s: _count(s, 32))
     for o in offsets:
         tag = f"in{int(o)}"
-        summary[f"op_hours_utci_{tag}_gt28"] = go[f"utci_{tag}"].apply(lambda s: _count(s, 28))
-        summary[f"op_hours_utci_{tag}_gt32"] = go[f"utci_{tag}"].apply(lambda s: _count(s, 32))
+        cols[f"op_hours_utci_{tag}_gt28"] = go[f"utci_{tag}"].apply(lambda s: _count(s, 28))
+        cols[f"op_hours_utci_{tag}_gt32"] = go[f"utci_{tag}"].apply(lambda s: _count(s, 32))
     # WBGT counts for every exposure and worker profile (D58, D59): days with a working hour above the
     # reference, working hours above it (and above the acclimatised reference), and hours per shift
     # (D57: the story cards use these, so the shift split agrees with the headline numbers; night is
@@ -135,16 +138,18 @@ def annual_summary(hourly: pd.DataFrame, lat: float, lon: float, timezone: str, 
         return (int(runs.max()) if len(runs) else 0), int((runs >= min_days).sum())
     for suf, (ref, ref_a) in wbgt_profiles(hc).items():
         for tag, col in expo_cols.items():
-            summary[f"op_days_wbgt_{tag}_gt_ref{suf}"] = gd[col].apply(lambda s, r=ref: int((s > r).sum()))
-            summary[f"op_hours_wbgt_{tag}_gt_ref{suf}"] = go[col].apply(lambda s, r=ref: _count(s, r))
-            summary[f"op_hours_wbgt_{tag}_gt_ref{suf}_acc"] = go[col].apply(lambda s, r=ref_a: _count(s, r))
+            cols[f"op_days_wbgt_{tag}_gt_ref{suf}"] = gd[col].apply(lambda s, r=ref: int((s > r).sum()))
+            cols[f"op_hours_wbgt_{tag}_gt_ref{suf}"] = go[col].apply(lambda s, r=ref: _count(s, r))
+            cols[f"op_hours_wbgt_{tag}_gt_ref{suf}_acc"] = go[col].apply(lambda s, r=ref_a: _count(s, r))
             sp = gd[col].apply(lambda s, r=ref: spells(s, r))
-            summary[f"op_longest_wbgt_{tag}_gt_ref{suf}"] = sp.str[0]
-            summary[f"op_spells_wbgt_{tag}_gt_ref{suf}"] = sp.str[1]
+            cols[f"op_longest_wbgt_{tag}_gt_ref{suf}"] = sp.str[0]
+            cols[f"op_spells_wbgt_{tag}_gt_ref{suf}"] = sp.str[1]
             for sh, gs in shift_groups.items():
-                summary[f"op_hours_wbgt_{tag}_gt_ref{suf}_{sh}"] = gs[col].apply(lambda s, r=ref: _count(s, r))
+                cols[f"op_hours_wbgt_{tag}_gt_ref{suf}_{sh}"] = gs[col].apply(lambda s, r=ref: _count(s, r))
     for name, lim in hc.get("process_limits", {}).items():
-        summary[f"proc_hours_{name}"] = g[lim["variable"]].apply(lambda s, a=lim["above"]: _count(s, a)) if lim["variable"] in df else 0
+        cols[f"proc_hours_{name}"] = g[lim["variable"]].apply(lambda s, a=lim["above"]: _count(s, a)) if lim["variable"] in df else 0
+    cols = {k: (v if isinstance(v, pd.Series) else pd.Series(v, index=summary.index)) for k, v in cols.items()}
+    summary = pd.concat([summary, pd.DataFrame(cols).reindex(summary.index)], axis=1)
     summary = summary.fillna(0)
     summary = summary[summary["hours"] >= 8700]  # complete years only
     return summary
@@ -159,10 +164,16 @@ def select_hot_year(summary: pd.DataFrame) -> int:
     return int(ranked.index[0])
 
 
-def select_extreme_year(summary: pd.DataFrame, min_wbgt_degree_hours: float) -> tuple[int, str]:
-    """D62: the extreme reference year from the adjusted 2000-2025 record, and the rule used. Ranked like
-    the hot year (D42) unless humid heat is negligible at the site; then on dry heat."""
+def select_reference_year(summary: pd.DataFrame, min_wbgt_degree_hours: float) -> tuple[int, str]:
+    """A reference year and the rule used: ranked on humid heat (D42) unless humid heat is negligible at the
+    site (its best year has fewer WBGT degree-hours than `min_wbgt_degree_hours`); then on dry heat. Used for
+    the extreme year (D62, adjusted 2000-2025 record) and the hot year (D68, observed 2015-2025)."""
     if summary["op_wbgt_shade_degree_hours_gt_base"].max() >= min_wbgt_degree_hours:
         return select_hot_year(summary), "humid heat (WBGT degree-hours)"
     ranked = summary.sort_values(["hours_t_gt30", "temp_max"], ascending=False)
     return int(ranked.index[0]), "dry heat (hours above 30 °C)"
+
+
+def select_extreme_year(summary: pd.DataFrame, min_wbgt_degree_hours: float) -> tuple[int, str]:
+    """D62: the extreme reference year (alias kept for callers and tests)."""
+    return select_reference_year(summary, min_wbgt_degree_hours)
