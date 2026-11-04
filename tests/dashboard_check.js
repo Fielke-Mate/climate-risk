@@ -87,14 +87,11 @@ async function check(p, where) {
   paneText = await page.$eval("#pane", e => e.innerText);
   if (/weather in 2050/.test(paneText)) fail("typical charts", "typical view still shows the hot-year series");
 
-  // 1b'. The working-time tile names the selected site and its own hours, and follows a click on the map
-  for (const sid of ["TLS", "XFW"]) {
-    await page.$eval(`#map [data-id="${sid}"]`, e => e.dispatchEvent(new MouseEvent("click", { bubbles: true })));
-    await page.waitForTimeout(150);
-    const name = await page.$eval("#s-name", e => e.textContent);
-    const line = await page.$eval("#kstrip .selsite", e => e.textContent).catch(() => "");
-    if (!line.startsWith(name + ":")) fail("tile site line", `expected "${name}: …", got "${line}"`);
-  }
+  // 1b'. The working-time tile follows the filter: with one site in view it shows that site's own hours
+  const oneSite = await page.evaluate(() => { const keep = new Set(S.sel); S.sel = new Set(["TLS"]); afterFilter();
+    const tile = document.querySelector("#kstrip .kstat:nth-child(2) .val").childNodes[0].textContent.trim();
+    const own = fmt(kpiVal("TLS", EXPO().hours)[0]); S.sel = keep; afterFilter(); return [tile, own]; });
+  if (oneSite[0] !== oneSite[1]) fail("tile follows filter", `one site in view: tile ${oneSite[0]} h, site ${oneSite[1]} h`);
   // 1c. Summary tab: comfort-shift year pickers and the hours chart (consistent with the Indicators table)
   await click('.tabs button[data-tab="summary"]');
   await page.selectOption('select[data-cmp="cmpB"]', "hotref");
@@ -244,8 +241,6 @@ async function check(p, where) {
   }
   for (const id of ["XFW", "TLS", "SVQ"]) {   // cool, temperate and hot sites
     await page.click(`#sites circle[data-id="${id}"]`, { force: true });
-    const pname = await page.$eval("#s-name", e => e.textContent), pline = await page.$eval("#kstrip .selsite", e => e.textContent).catch(() => "");
-    if (!pline.startsWith(pname + ":")) fail("process tile site line", `expected "${pname}: …", got "${pline}"`);
     for (const tab of ["summary", "data", "stress"]) { await click(`.tabs button[data-tab="${tab}"]`); await check(page, `proc site ${id}/${tab}`); states++; }
   }
   // the URL carries the whole view and wins over remembered settings
