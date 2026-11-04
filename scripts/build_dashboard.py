@@ -251,8 +251,10 @@ def combine(stats_list: list[dict]) -> dict:
     return out
 
 
-LADDER_RANGE = ("hours", "op_hours", "days", "op_days", "dh", "op_dh")   # metrics that also carry the model range (min, max)
-LADDER_FULL = ("hours", "op_hours")   # metrics exported over the whole ladder (histograms); the rest from LADDER_LIMIT_FROM up
+LADDER_EXPORT = ("op_hours", "op_days", "op_longest", "op_dh", "early", "late", "night")   # what the dashboard reads (D70:
+#                 operating hours only; the all-hours metrics stay in the parquet outputs)
+LADDER_RANGE = ("op_hours", "op_days", "op_dh")   # metrics that also carry the model range (min, max)
+LADDER_FULL = ("op_hours",)   # metrics exported over the whole ladder (histograms); the rest from LADDER_LIMIT_FROM up
 LADDER_LIMIT_FROM = 16.0              # lowest outdoor rung a limit can reach (limit range minus the largest hall gain)
 
 
@@ -271,6 +273,8 @@ def ladder_kpi(sid: str, hot_year: int, ext_year: int, lad: dict) -> tuple[dict,
     h, x, e, rf = (lad[k][lad[k].site_id == sid] for k in ("hist", "ext", "ens", "ref"))
     med, rng = {}, {}
     for metric, hm in h.groupby("metric"):
+        if metric not in LADDER_EXPORT:
+            continue
         d = med[metric] = {}
         cols = all_cols if metric in LADDER_FULL else all_cols[i0:]
         rcols = all_cols[i0:]

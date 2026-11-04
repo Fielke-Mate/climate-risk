@@ -165,30 +165,29 @@ async function check(p, where) {
   for (const scen of ["ssp245", "ssp585"])
     for (const period of ["hist", "2040", "2050"])
       for (const yt of ["typical", "hot", "extreme"])
-        for (const run of ["op", "24"])
           for (const hall of ["0", "4"]) {
             await click(`#ctl-scen button[data-v="${scen}"]`); await click(`#ctl-period button[data-v="${period}"]`);
-            await click(`#ctl-yt button[data-v="${yt}"]`); await click(`#ctl-run button[data-v="${run}"]`); await click(`#ctl-hall button[data-v="${hall}"]`);
+            await click(`#ctl-yt button[data-v="${yt}"]`); await click(`#ctl-hall button[data-v="${hall}"]`);
             for (const layer of procLayers) {
               await page.selectOption("#ctl-layer", layer);
-              const where = `proc ${scen}/${period}/${yt}/${run}+${hall}/${layer}`, rr = await check(page, where), isChange = ["d_proc_hours", "warming"].includes(layer);
+              const where = `proc ${scen}/${period}/${yt}+${hall}/${layer}`, rr = await check(page, where), isChange = ["d_proc_hours", "warming"].includes(layer);
               if (period === "hist" && isChange && !rr.noteShown) fail(where, "change layer in Today without explanation");
               if (!(period === "hist" && isChange) && rr.fills.some(f => f === "rgb(201, 196, 211)")) fail(where, "grey (no value) marker");
               states++;
             }
             for (const tab of ["summary", "data", "temp", "stress", "about"]) {
               await click(`.tabs button[data-tab="${tab}"]`);
-              await check(page, `proc ${scen}/${period}/${yt}/${run}+${hall}/tab:${tab}`);
+              await check(page, `proc ${scen}/${period}/${yt}+${hall}/tab:${tab}`);
               states++;
             }
           }
   await click('#ctl-scen button[data-v="ssp245"]'); await click('#ctl-period button[data-v="2050"]'); await click('#ctl-yt button[data-v="typical"]');
-  await click('#ctl-run button[data-v="op"]'); await click('#ctl-hall button[data-v="0"]');
+  await click('#ctl-hall button[data-v="0"]');
   const limVal = () => page.$eval("#ctl-lim", e => Number(e.value));
   await page.selectOption("#ctl-proc", "paint");
   if (await limVal() !== 35) fail("presets", `paint preset gives ${await limVal()} °C`);
   const procHours = await tileHours();
-  // raising the limit never adds downtime; a warmer hall and running 24 h never remove any
+  // raising the limit never adds downtime; a warmer hall never removes any
   let prev = Infinity;
   for (const d of [-5, 1, 1, 1, 1, 1]) {
     for (let k = 0; k < Math.abs(d) * 2; k++) await click(`.stepper button[data-d="${d < 0 ? "-0.5" : "0.5"}"]`);
@@ -202,9 +201,7 @@ async function check(p, where) {
   await click('#ctl-hall button[data-v="4"]');
   if (await tileHours() < procHours) fail("hall gain", "a warmer hall gave less downtime");
   await click('#ctl-hall button[data-v="0"]');
-  await click('#ctl-run button[data-v="24"]');
-  if (await tileHours() < procHours) fail("run 24 h", "running 24 h gave less downtime than 06–22");
-  await click('#ctl-run button[data-v="op"]');
+  if (await page.$("#ctl-run")) fail("process lens", "the running-hours toggle is back (D70: one running window for both lenses)");
   for (const [typed, want] of [["33.4", 33.5], ["99", 45], ["5", 20]]) {
     await page.fill("#ctl-lim", typed); await page.press("#ctl-lim", "Enter"); await page.$eval("#ctl-lim", e => e.blur());
     if (await limVal() !== want) fail("limit entry", `typed ${typed}, limit ${await limVal()}, expected ${want}`);
