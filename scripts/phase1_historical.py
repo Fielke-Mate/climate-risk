@@ -30,7 +30,7 @@ from matplotlib.colors import LinearSegmentedColormap  # noqa: E402
 from matplotlib.patches import Rectangle  # noqa: E402
 
 from climate_risk import adjust, era5, pvgis, tmy, weather  # noqa: E402
-from climate_risk.annual import annual_summary, select_extreme_year, select_hot_year  # noqa: E402
+from climate_risk.annual import annual_summary, select_extreme_year, select_reference_year  # noqa: E402
 from climate_risk.config import ROOT, WEATHER_DIR, hourly_path, load_sites, settings  # noqa: E402
 from climate_risk.ladder import ladder  # noqa: E402
 
@@ -125,7 +125,7 @@ def process_site(job):
 
     summ = annual_summary(hourly, site.lat, site.lon, site.timezone, cfg)        # headline baseline
     summ_ext = annual_summary(adjusted, site.lat, site.lon, site.timezone, cfg)  # 2000-2025 in today's climate
-    hot = select_hot_year(summ)
+    hot, hot_rule = select_reference_year(summ, cfg["hot_year"]["hot_min_wbgt_degree_hours"])   # D68
     # D62: the extreme reference year = the hottest year of the adjusted 2000-2025 record
     ext, rule = select_extreme_year(summ_ext, cfg["hot_year"]["extreme_min_wbgt_degree_hours"])
     local_year = (hourly.index - pd.Timedelta(hours=1)).tz_convert(site.timezone).year
@@ -134,7 +134,7 @@ def process_site(job):
     to_float32(adjusted[adj_year == ext]).to_parquet(WEATHER_DIR / "extreme_year" / f"{site_id}_{ext}.parquet")
     keys = ["op_wbgt_shade_degree_hours_gt_base", "op_hours_wbgt_shade_gt_ref", "op_days_wbgt_shade_gt_ref",
             "hours_t_gt30", "temp_max", "days_tmax_gt35", "hw30_longest"]
-    hot_row = {"site_id": site_id, "name": site.name, "hot_year": hot, "extreme_year": ext, "extreme_rule": rule,
+    hot_row = {"site_id": site_id, "name": site.name, "hot_year": hot, "hot_rule": hot_rule, "extreme_year": ext, "extreme_rule": rule,
                **{f"hot_{k}": v for k, v in summ.loc[hot, keys].items()},
                **{f"extreme_{k}": v for k, v in summ_ext.loc[ext, keys].items()},
                "median_op_hours_wbgt_shade_gt_ref": float(summ["op_hours_wbgt_shade_gt_ref"].median())}

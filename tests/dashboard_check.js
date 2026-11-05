@@ -19,7 +19,7 @@ const fail = (where, msg) => failures.push(`${where}: ${msg}`);
 async function check(p, where) {
   const res = await p.evaluate(() => {
     const txt = sel => (document.querySelector(sel) || {}).innerText || "";
-    const areas = ["#kstrip", "#pane", "#rank", "#legend", "#map-sub", "#mapsel", "#s-name", "#s-chips", "#fsum", "#cnt"];
+    const areas = ["#kstrip", "#pane", "#rank", "#legend", "#mapsel", "#s-name", "#fsum", "#cnt"];
     const text = Object.fromEntries(areas.map(a => [a, txt(a)]));
     const visible = [...document.querySelectorAll("#sites circle")].filter(c => !c.classList.contains("off"));
     const fills = visible.map(c => c.style.fill);
@@ -87,14 +87,11 @@ async function check(p, where) {
   paneText = await page.$eval("#pane", e => e.innerText);
   if (/weather in 2050/.test(paneText)) fail("typical charts", "typical view still shows the hot-year series");
 
-  // 1b'. The working-time tile names the selected site and its own hours, and follows a click on the map
-  for (const sid of ["TLS", "XFW"]) {
-    await page.$eval(`#map [data-id="${sid}"]`, e => e.dispatchEvent(new MouseEvent("click", { bubbles: true })));
-    await page.waitForTimeout(150);
-    const name = await page.$eval("#s-name", e => e.textContent);
-    const line = await page.$eval("#kstrip .selsite", e => e.textContent).catch(() => "");
-    if (!line.startsWith(name + ":")) fail("tile site line", `expected "${name}: …", got "${line}"`);
-  }
+  // 1b'. The working-time tile follows the filter: with one site in view it shows that site's own hours
+  const oneSite = await page.evaluate(() => { const keep = new Set(S.sel), was = S.site; S.sel = new Set(["TLS"]); afterFilter();
+    const tile = document.querySelector("#kstrip .kstat:nth-child(2) .val").childNodes[0].textContent.trim();
+    const own = fmt(kpiVal("TLS", EXPO().hours)[0]); S.sel = keep; afterFilter(); selectSite(was); return [tile, own]; });
+  if (oneSite[0] !== oneSite[1]) fail("tile follows filter", `one site in view: tile ${oneSite[0]} h, site ${oneSite[1]} h`);
   // 1c. Summary tab: comfort-shift year pickers and the hours chart (consistent with the Indicators table)
   await click('.tabs button[data-tab="summary"]');
   await page.selectOption('select[data-cmp="cmpB"]', "hotref");
@@ -122,6 +119,17 @@ async function check(p, where) {
     return tr.querySelector("td").firstChild.textContent.trim();
   });
   if (barToday !== tableToday) fail("summary vs data", `today bar ${barToday} h, table ${tableToday} h`);
+  for (const yt of ["typical", "hot", "extreme"]) {
+    await click(`#ctl-yt button[data-v="${yt}"]`);
+    await click('.tabs button[data-tab="data"]');
+    const ind = await page.$$eval("#pane table tbody tr", trs => { const tr = trs.find(t => /^Working hours above WBGT \d+ °C/.test(t.querySelector("th").textContent) && !/acclimatised workforce/.test(t.querySelector("th").textContent));
+      return [...tr.querySelectorAll("td")].map(td => td.firstChild.textContent.trim()); });
+    await click('.tabs button[data-tab="stress"]');
+    const st = await page.$$eval("#pane table tbody tr", trs => { const tr = trs.find(t => /^All working hours .* WBGT above \d+ °C$/.test(t.querySelector("th").textContent));
+      return tr ? [...tr.querySelectorAll("td")].map(td => td.firstChild.textContent.trim()) : []; });
+    if (ind.join("|") !== st.join("|")) fail(`heat stress vs indicators (${yt})`, `stress ${st.join(" / ")} vs indicators ${ind.join(" / ")}`);
+  }
+  await click('#ctl-yt button[data-v="typical"]');
 
   // 1d. Worker profiles: every profile x exposure renders on every tab, and a lower reference never gives fewer hours
   const profs = await page.$$eval("#ctl-prof option", os => os.map(o => o.value));
@@ -157,30 +165,29 @@ async function check(p, where) {
   for (const scen of ["ssp245", "ssp585"])
     for (const period of ["hist", "2040", "2050"])
       for (const yt of ["typical", "hot", "extreme"])
-        for (const run of ["op", "24"])
           for (const hall of ["0", "4"]) {
             await click(`#ctl-scen button[data-v="${scen}"]`); await click(`#ctl-period button[data-v="${period}"]`);
-            await click(`#ctl-yt button[data-v="${yt}"]`); await click(`#ctl-run button[data-v="${run}"]`); await click(`#ctl-hall button[data-v="${hall}"]`);
+            await click(`#ctl-yt button[data-v="${yt}"]`); await click(`#ctl-hall button[data-v="${hall}"]`);
             for (const layer of procLayers) {
               await page.selectOption("#ctl-layer", layer);
-              const where = `proc ${scen}/${period}/${yt}/${run}+${hall}/${layer}`, rr = await check(page, where), isChange = ["d_proc_hours", "warming"].includes(layer);
+              const where = `proc ${scen}/${period}/${yt}+${hall}/${layer}`, rr = await check(page, where), isChange = ["d_proc_hours", "warming"].includes(layer);
               if (period === "hist" && isChange && !rr.noteShown) fail(where, "change layer in Today without explanation");
               if (!(period === "hist" && isChange) && rr.fills.some(f => f === "rgb(201, 196, 211)")) fail(where, "grey (no value) marker");
               states++;
             }
             for (const tab of ["summary", "data", "temp", "stress", "about"]) {
               await click(`.tabs button[data-tab="${tab}"]`);
-              await check(page, `proc ${scen}/${period}/${yt}/${run}+${hall}/tab:${tab}`);
+              await check(page, `proc ${scen}/${period}/${yt}+${hall}/tab:${tab}`);
               states++;
             }
           }
   await click('#ctl-scen button[data-v="ssp245"]'); await click('#ctl-period button[data-v="2050"]'); await click('#ctl-yt button[data-v="typical"]');
-  await click('#ctl-run button[data-v="op"]'); await click('#ctl-hall button[data-v="0"]');
+  await click('#ctl-hall button[data-v="0"]');
   const limVal = () => page.$eval("#ctl-lim", e => Number(e.value));
   await page.selectOption("#ctl-proc", "paint");
   if (await limVal() !== 35) fail("presets", `paint preset gives ${await limVal()} °C`);
   const procHours = await tileHours();
-  // raising the limit never adds downtime; a warmer hall and running 24 h never remove any
+  // raising the limit never adds downtime; a warmer hall never removes any
   let prev = Infinity;
   for (const d of [-5, 1, 1, 1, 1, 1]) {
     for (let k = 0; k < Math.abs(d) * 2; k++) await click(`.stepper button[data-d="${d < 0 ? "-0.5" : "0.5"}"]`);
@@ -194,13 +201,27 @@ async function check(p, where) {
   await click('#ctl-hall button[data-v="4"]');
   if (await tileHours() < procHours) fail("hall gain", "a warmer hall gave less downtime");
   await click('#ctl-hall button[data-v="0"]');
-  await click('#ctl-run button[data-v="24"]');
-  if (await tileHours() < procHours) fail("run 24 h", "running 24 h gave less downtime than 06–22");
-  await click('#ctl-run button[data-v="op"]');
+  if (await page.$("#ctl-run")) fail("process lens", "the running-hours toggle is back (D70: one running window for both lenses)");
   for (const [typed, want] of [["33.4", 33.5], ["99", 45], ["5", 20]]) {
     await page.fill("#ctl-lim", typed); await page.press("#ctl-lim", "Enter"); await page.$eval("#ctl-lim", e => e.blur());
     if (await limVal() !== want) fail("limit entry", `typed ${typed}, limit ${await limVal()}, expected ${want}`);
   }
+  await page.selectOption("#ctl-proc", "paint");
+  // the histograms keep their bars when the limit moves: same positions and heights, only the colouring changes;
+  // at a half-degree limit the bin it falls in is split in two
+  await click('.tabs button[data-tab="summary"]');
+  const bars = () => page.$$eval("#pane .sc:nth-child(2) svg.chart rect", rs => rs.map(r => `${(+r.getAttribute("x")).toFixed(1)}:${(+r.getAttribute("y")).toFixed(1)}:${(+r.getAttribute("height")).toFixed(1)}`));
+  const b35 = await bars();
+  await click('.stepper button[data-d="0.5"]'); await click('.stepper button[data-d="0.5"]');
+  const b36 = await bars();
+  if (b35.join("|") !== b36.join("|")) fail("histogram", "bars change size or position when the limit moves by 1 °C");
+  await click('.stepper button[data-d="-0.5"]');
+  if ((await bars()).length !== b35.length + 3) fail("histogram", "a half-degree limit should split one bin in each of the three panels");
+  const tilesVsHist = await page.evaluate(() => {
+    const tiles = [...document.querySelectorAll("#pane .dtstrip .dt .v")].slice(0, 3).map(e => e.childNodes[0].textContent.trim());
+    const hist = [...document.querySelectorAll("#pane .sc:nth-child(2) svg.chart text.val")].map(e => e.textContent.replace(" h above", "").trim());
+    return [tiles, hist]; });
+  if (tilesVsHist[0].join("|") !== tilesVsHist[1].join("|")) fail("histogram vs tiles", `tiles ${tilesVsHist[0].join(" / ")}, histograms ${tilesVsHist[1].join(" / ")}`);
   await page.selectOption("#ctl-proc", "paint");
   // the summary's today bar equals the Indicators table (same 11-year statistic)
   await click('.tabs button[data-tab="summary"]');
@@ -217,10 +238,15 @@ async function check(p, where) {
   }
   for (const id of ["XFW", "TLS", "SVQ"]) {   // cool, temperate and hot sites
     await page.click(`#sites circle[data-id="${id}"]`, { force: true });
-    const pname = await page.$eval("#s-name", e => e.textContent), pline = await page.$eval("#kstrip .selsite", e => e.textContent).catch(() => "");
-    if (!pline.startsWith(pname + ":")) fail("process tile site line", `expected "${pname}: …", got "${pline}"`);
     for (const tab of ["summary", "data", "stress"]) { await click(`.tabs button[data-tab="${tab}"]`); await check(page, `proc site ${id}/${tab}`); states++; }
   }
+  // the URL carries the whole view and wins over remembered settings
+  await page.goto(PAGE + "?lens=work&scen=ssp585&period=2040&yt=extreme&expo=sun&prof=heavy&tab=data#TLS"); await page.waitForTimeout(300);
+  const st2 = await page.evaluate(() => [...["ctl-scen", "ctl-period", "ctl-yt", "ctl-expo"].map(i => document.querySelector(`#${i} button[aria-pressed="true"]`).dataset.v), document.querySelector("#ctl-prof").value, document.querySelector('.tabs button[aria-selected="true"]').dataset.tab, location.hash]);
+  if (st2.join(",") !== "ssp585,2040,extreme,sun,heavy,data,#TLS") fail("url state", `opened as ${st2.join(",")}`);
+  await click('#ctl-period button[data-v="2050"]');
+  if (!(await page.evaluate(() => location.search)).includes("period=2050")) fail("url state", "the URL does not follow a change");
+  if (!(await page.isVisible("#copylink"))) fail("copy link", "button hidden on an unframed page");
   // shareable link and back to the worker lens
   await page.goto(PAGE + "?lens=proc&lim=32#TLS"); await page.waitForTimeout(300);
   if (await limVal() !== 32 || !(await page.isVisible("#ctl-lim"))) fail("link", "?lens=proc&lim=32 not applied");
@@ -229,6 +255,38 @@ async function check(p, where) {
   const wl = await page.$eval("#ctl-layer", e => [e.value, [...e.options].map(o => o.value)]);
   if (wl[0].includes("proc") || !wl[1].includes("worker_days") || wl[1].some(v => v.includes("proc"))) fail("worker lens", `map layers not restored: ${wl[0]} of ${wl[1].join(", ")}`);
   if ((await page.$eval('.tabs button[data-tab="stress"]', e => e.textContent)) !== "Heat stress") fail("worker lens", "tab label not restored");
+  await page.goto(PAGE + "#SVQ"); await page.waitForTimeout(300);
+
+  // 1f. Group view: with no site picked the panel shows the sites in view (Europe), totals agree with the tile, clicking off a
+  //     site clears the name tag, a country row filters to that country, a single-site filter opens that site
+  await page.goto(PAGE); await page.waitForTimeout(400);
+  if (!(await page.$eval("#s-name", e => e.textContent)).startsWith("Europe")) fail("group view", "does not start at Europe without a site in the link");
+  if (!(await page.isHidden("#mapsel"))) fail("group view", "a name tag shows with no site picked");
+  for (const tab of ["summary", "data", "temp", "stress", "about"]) { await click(`.tabs button[data-tab="${tab}"]`); await check(page, `group/tab:${tab}`); states++; }
+  await click('.tabs button[data-tab="summary"]');
+  const gt = await page.evaluate(() => [document.querySelector("#kstrip .kstat:nth-child(2) .val").childNodes[0].textContent.trim(),
+    document.querySelector("#pane table.grp tr.tot td:nth-child(4)").textContent.trim(), document.querySelectorAll('#pane table.grp tr[data-site]').length]);
+  if (gt[0] !== gt[1]) fail("group view", `Europe total ${gt[1]} h does not match the tile ${gt[0]} h`);
+  if (gt[2] !== 15) fail("group view", `site table has ${gt[2]} rows`);
+  await page.click('#sites circle[data-id="TLS"]', { force: true });
+  if ((await page.$eval("#s-name", e => e.textContent)) !== "Toulouse (Blagnac)" || await page.isHidden("#mapsel")) fail("deselect", "clicking a site did not open it");
+  const mb = await page.$eval("#map", e => { const r = e.getBoundingClientRect(); return [r.left + 6, r.bottom - 6]; });
+  await page.mouse.click(mb[0], mb[1]); await page.waitForTimeout(100);
+  if (!(await page.isHidden("#mapsel")) || !(await page.$eval("#s-name", e => e.textContent)).startsWith("Europe")) fail("deselect", "clicking off a site did not clear the tag and return to Europe");
+  await page.click('#sites circle[data-id="SVQ"]', { force: true }); await page.keyboard.press("Escape"); await page.waitForTimeout(100);
+  if (!(await page.$eval("#s-name", e => e.textContent)).startsWith("Europe")) fail("deselect", "Esc did not clear the site");
+  await page.click('#pane tr[data-country="ES"]'); await page.waitForTimeout(150);
+  const es = await page.evaluate(() => [document.querySelector("#s-name").textContent, document.querySelectorAll('#pane table.grp tr[data-site]').length, document.querySelectorAll("#sites circle:not(.off)").length]);
+  if (!es[0].startsWith("Spain") || es[1] !== 3 || es[2] !== 3) fail("country filter", `after clicking Spain: ${es.join(" / ")}`);
+  for (const tab of ["summary", "data"]) { await click(`.tabs button[data-tab="${tab}"]`); await check(page, `group Spain/tab:${tab}`); states++; }
+  await click('#ctl-lens button[data-v="proc"]'); await click('.tabs button[data-tab="summary"]'); await check(page, "group Spain/process"); states++;
+  if ((await page.$$("#pane .dtstrip .dt")).length !== 4) fail("group view", "process lens: no downtime tiles for the group");
+  const gh = await page.evaluate(() => [[...document.querySelectorAll("#pane .dtstrip .dt .v")].slice(0, 3).map(e => e.childNodes[0].textContent.trim()),
+    [...document.querySelectorAll("#pane .sc svg.chart text.val")].filter(e => / h above$/.test(e.textContent)).map(e => e.textContent.replace(" h above", "").trim())]);
+  if (gh[0].join("|") !== gh[1].join("|")) fail("group histograms", `tiles ${gh[0].join(" / ")}, histograms ${gh[1].join(" / ")}`);
+  await click('#ctl-lens button[data-v="work"]');
+  await page.evaluate(() => { S.sel = new Set(["GET"]); afterFilter(); });
+  if ((await page.$eval("#s-name", e => e.textContent)) !== "Getafe") fail("country filter", "a one-site filter did not open that site");
   await page.goto(PAGE + "#SVQ"); await page.waitForTimeout(300);
 
   // 2. Every site, every tab (default view)
@@ -283,7 +341,7 @@ async function check(p, where) {
   await page.evaluate(() => localStorage.clear());
 
   // 6. Desktop one-screen layout: the page itself must not scroll at common laptop / monitor sizes
-  for (const [w, h] of [[1440, 900], [1920, 1080], [1280, 760]]) {
+  for (const [w, h] of [[1440, 900], [1600, 900], [1920, 1080], [1500, 800], [1280, 760]]) {
     const d = await browser.newPage({ viewport: { width: w, height: h } });
     d.on("pageerror", e => errors.push(`${w}x${h}: ` + e.message));
     await d.goto(PAGE + (w === 1280 ? "?lens=proc" : "") + "#SVQ");
@@ -292,9 +350,20 @@ async function check(p, where) {
       await d.click(`.tabs button[data-tab="${tab}"]`);
       const over = await d.evaluate(() => [document.documentElement.scrollHeight - document.documentElement.clientHeight,
         document.documentElement.scrollWidth - document.documentElement.clientWidth]);
-      if (over[0] > 1 || over[1] > 0) fail(`desktop ${w}x${h}/${tab}`, `page scrolls (vertical ${over[0]}px, horizontal ${over[1]}px)`);
+      const oneScreen = w >= 1360 && h >= 820;   /* one-screen layout only where it fits (D56 relaxed) */
+      if ((oneScreen && over[0] > 1) || over[1] > 0) fail(`desktop ${w}x${h}/${tab}`, `page scrolls (vertical ${over[0]}px, horizontal ${over[1]}px)`);
+      const cut = await d.evaluate(() => { const box = document.querySelector(".mapbox").getBoundingClientRect();
+        return [...document.querySelectorAll("#sites circle:not(.off)")].filter(c => { const q = c.getBoundingClientRect();
+          return q.top < box.top - 0.5 || q.bottom > box.bottom + 0.5 || q.left < box.left - 0.5 || q.right > box.right + 0.5; }).map(c => c.dataset.id); });
+      if (cut.length) fail(`desktop ${w}x${h}/${tab}`, `map markers outside the map: ${cut.join(", ")}`);
       const mapH = await d.$eval("#map", e => e.getBoundingClientRect().height);
-      if (mapH < 140) fail(`desktop ${w}x${h}`, `map only ${Math.round(mapH)}px tall`);
+      const vbW = await d.$eval("#map", e => e.getAttribute("viewBox"));
+      await d.click(`#ctl-lens button[data-v="${await d.$eval('#ctl-lens button[aria-pressed="true"]', e => e.dataset.v) === "work" ? "proc" : "work"}"]`);
+      await d.waitForTimeout(150);
+      const vbP = await d.$eval("#map", e => e.getAttribute("viewBox"));
+      if (vbW !== vbP) fail(`desktop ${w}x${h}/${tab}`, `map zoom changes with the lens: ${vbW} vs ${vbP}`);
+      await d.click('#ctl-lens button[aria-pressed="false"]'); await d.waitForTimeout(100);
+      if (mapH < (oneScreen ? 200 : 280)) fail(`desktop ${w}x${h}`, `map only ${Math.round(mapH)}px tall`);
     }
     await d.close();
   }

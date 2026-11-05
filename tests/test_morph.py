@@ -75,6 +75,13 @@ def test_radiation_ratio_applied():
 
 
 def test_month_weights_continuous():
-    a, b, w = morph._daily_month_weights(np.array([1.0, 15.5, 30.0, 45.0, 364.0]))
-    assert (a[1], b[1], w[1]) == (0, 1, 0.0) or (b[1] == 0 and w[1] == pytest.approx(1.0))
+    """Interpolated monthly values change smoothly from day to day, including across 31 Dec -> 1 Jan."""
+    doy = np.arange(1, 366, dtype=float)
+    a, b, w = morph._daily_month_weights(doy)
     assert 0 <= w.min() and w.max() <= 1
+    rng = np.random.default_rng(0)
+    for _ in range(20):
+        v = rng.uniform(-3, 3, 12)
+        x = (1 - w) * v[a] + w * v[b]
+        step = np.abs(np.diff(np.concatenate([x, x[:1]])))   # last element compares 31 Dec with 1 Jan
+        assert step.max() < 6 / 28 + 1e-9                     # at most the full month-to-month range over ~a month
