@@ -502,6 +502,8 @@ function moveTip(e) { const w = tip.offsetWidth, h = tip.offsetHeight; let x = e
   if (x + w > innerWidth - 8) x = e.clientX - w - 14; if (y + h > innerHeight - 8) y = e.clientY - h - 14; tip.style.left = x + "px"; tip.style.top = y + "px"; }
 function hover(el, html) { el.addEventListener("mouseenter", e => { tip.innerHTML = typeof html === "function" ? html() : html; tip.style.display = "block"; moveTip(e); });
   el.addEventListener("mousemove", moveTip); el.addEventListener("mouseleave", () => tip.style.display = "none"); }
+/* touch screens: a tap sends mouseenter but no mouseleave, so the tooltip would stay; any new touch clears it */
+addEventListener("touchstart", () => { tip.style.display = "none"; }, { passive: true });
 
 /* ---------- values ---------- */
 function kpiVal(site, metric, period = S.period, scen = S.scen, yt = S.yt) {
@@ -728,10 +730,16 @@ function placeMapsel() {
   if (el.hidden || !c) return;
   const b = box.getBoundingClientRect(), r = c.getBoundingClientRect();
   const cx = r.left + r.width / 2 - b.left, cy = r.top + r.height / 2 - b.top, gap = r.width / 2 + 10;
-  let x = cx + gap;
-  if (x + el.offsetWidth > b.width - 6) x = cx - gap - el.offsetWidth;
-  el.style.left = `${Math.max(6, x)}px`;
-  el.style.top = `${Math.max(6, Math.min(b.height - el.offsetHeight - 6, cy - el.offsetHeight / 2))}px`;
+  const w = el.offsetWidth, h = el.offsetHeight, clampY = y => Math.max(6, Math.min(b.height - h - 6, y));
+  let x, y;
+  if (cx + gap + w <= b.width - 6) { x = cx + gap; y = clampY(cy - h / 2); }          /* right of the dot */
+  else if (cx - gap - w >= 6) { x = cx - gap - w; y = clampY(cy - h / 2); }           /* left of the dot */
+  else {                                                                              /* narrow map: above or below */
+    x = Math.max(6, Math.min(b.width - w - 6, cx - w / 2));
+    y = cy - gap - h >= 6 ? cy - gap - h : cy + gap;
+  }
+  el.style.left = `${x}px`;
+  el.style.top = `${y}px`;
 }
 
 /* ---------- site card ---------- */
@@ -1491,6 +1499,7 @@ function clearSite() { if (!S.site) return; S.site = null; renderTree(); renderA
 function selectSite(id) {
   if (!byId[id]) return;
   S.site = id;
+  tip.style.display = "none";   /* the map label replaces the hover tooltip (on touch screens both would show) */
   renderTree(); renderAll();
 }
 function bindToggle(id, key) {

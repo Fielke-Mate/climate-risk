@@ -6,7 +6,7 @@
  * Drives every view control and tab, the filters, search, hash navigation and stale
  * stored settings, and fails on: page errors, "undefined"/"NaN"/"[object" text, map
  * markers without a colour, missing explanations for change layers in "Today",
- * horizontal overflow at phone width.
+ * horizontal overflow at phone width, and a phone tap on a map site leaving one label clear of the dot.
  */
 const path = require("path");
 const { chromium } = require("playwright");
@@ -379,6 +379,21 @@ async function check(p, where) {
       const over = await phone.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       if (over > 0) fail(`phone/${lens}/${tab}`, `page scrolls sideways by ${over}px`);
     }
+  }
+  // 7b. Phone tap on a map site: a tap sends touchstart, compatibility mouse events (mouseenter) and click.
+  // Only the site label may remain (no stuck hover tooltip), and it must not cover the dot.
+  for (const sid of ["TLS", "MRS", "SVQ", "XFW", "BRG"]) {
+    const r = await phone.evaluate(id => {
+      const c = document.querySelector(`#sites circle[data-id="${id}"]`);
+      window.dispatchEvent(new TouchEvent("touchstart", { bubbles: true }));
+      c.dispatchEvent(new MouseEvent("mouseenter", { clientX: 10, clientY: 10 }));
+      c.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      const q = c.getBoundingClientRect(), L = document.querySelector("#mapsel").getBoundingClientRect();
+      return { tip: getComputedStyle(document.querySelector("#tip")).display,
+               overlap: !(L.right < q.left || L.left > q.right || L.bottom < q.top || L.top > q.bottom) };
+    }, sid);
+    if (r.tip !== "none") fail(`phone tap ${sid}`, "hover tooltip stays on screen next to the site label");
+    if (r.overlap) fail(`phone tap ${sid}`, "site label covers the selected dot");
   }
 
   for (const e of errors) fail("console", e);
