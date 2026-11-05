@@ -1137,7 +1137,7 @@ function renderGroupSummary() {
   const nHi = (p, yt) => ids.filter(id => kpiVal(id, M.band, p, S.scen, yt)[0] >= M.hi).length;
   const head = `By ${per}, a typical year brings <b>${fmt(tF)} ${M.what}</b> across ${plural(ids.length, "site", "sites")} (today ${fmt(tN)}${tN >= 50 ? `, ${sgn(100 * (tF - tN) / tN)} %` : ""}). <b>${nHi(per, "typical")} of ${ids.length}</b> ${ids.length === 1 ? "site is" : "sites are"} at High risk or above (today ${nHi("hist", "typical")}).`;
   /* process lens: the downtime tiles, summed */
-  let strip = "";
+  let strip = "", downCard = "";
   if (PROC()) {
     const yk = S.yt, ser = ["hist", "2040", "2050"].map(p => sumOf(ids, "proc_hours", p, yk)), ty = ["hist", "2040", "2050"].map(p => sumOf(ids, "proc_hours", p, "typical"));
     const yr = y => y <= 2040 ? ty[0] + (ty[1] - ty[0]) * (y - 2020) / 20 : ty[1] + (ty[2] - ty[1]) * (y - 2040) / 10;
@@ -1145,8 +1145,16 @@ function renderGroupSummary() {
     const r10 = x => Math.round(x / 10) * 10, YRS = storyYears(), col = p => YRS.find(o => o.key === (p === "hist" ? { typical: "hist", hot: "hotref", extreme: "extref" }[yk] : `${{ typical: "", hot: "hot_", extreme: "ext_" }[yk]}${S.scen}_${p}`)).color;
     const tile = (lab, val, sub, color, dark) => `<div class="dt${dark ? " dk" : ""}"><span class="l">${lab}</span><span class="v" style="${color ? `color:${txtCol(color)}` : ""}">${val}<small> h</small></span><span class="s">${sub}</span></div>`;
     strip = `<div class="dtstrip">${tile("Today", fmt(ser[0]), "summed over the sites", col("hist"))}${tile("2040", fmt(ser[1]), `${sgn(ser[1] - ser[0])} h vs today`, col("2040"))}${tile("2050", fmt(ser[2]), `${sgn(ser[2] - ser[0])} h vs today`, col("2050"))}${tile("Total 2026–2050", fmt(r10(cum)), `typical years · ${sgn(r10(cum - 25 * ty[0]))} h from climate change`, null, true)}</div>`;
+    /* the histograms, summed over the sites (site-hours at each hall-air temperature) */
+    const hs = [["hist", "Today"], ["2040", "2040"], ["2050", "2050"]].map(([p, name]) => ({ p, name, color: col(p) }));
+    const arrs = hs.map(x => { const k = dbtKey(x.p); return ids.reduce((acc, id) => { const a = DATA.kpi[id].dbt.op_hours[k]; return acc ? acc.map((v, i) => v + a[i]) : [...a]; }, null); });
+    const ytn = { typical: "typical year", hot: "1-in-10 year", extreme: "extreme year" }[yk], art = yk === "extreme" ? "an" : "a";
+    downCard = `<div class="sc"><div class="t">At ${limText()} ${art} ${ytn} costs <b>${fmt(ser[0])} hours</b> of downtime across the sites today and <b>${fmt(ser[{ hist: 0, 2040: 1, 2050: 2 }[per]])} h</b> by ${per}: about <b>${fmt(r10(cum))} h</b> in total from 2026 to 2050 (typical years).</div>${strip}
+      <div class="sub">Operating hours a year at each hall-air temperature (1 °C bins), summed over the sites in view, one panel per period on the same scale · coloured: above the limit (downtime) · ${hallText()}</div>
+      ${downtimeHists(hs, arrs, { typical: "typical", hot: "1-in-10", extreme: "extreme" }[yk])}
+      <div class="fn">Each site's ${NY}-year statistics (${ytn}), summed: one hour at each of two sites counts as two hours.</div></div>`;
   }
-  const card1 = `<div class="sc"><div class="t">${head}</div>${strip}
+  const card1 = `<div class="sc"><div class="t">${head}</div>
     <div class="sub">${PROC() ? `Operating hours above ${limText()}` : `Working hours above WBGT ${WR()} °C`} by shift, summed over the sites in view</div>${shiftChart(rows, "Hours above the limit by shift, summed over the sites")}${shiftKeys()}
     <div class="fn"><b>Typical</b>: the median of the last ${NY} years for each site. <b>Hot</b> and <b>extreme</b> rows: each site's own hot and extreme year, as on its card, summed.</div></div>`;
   /* by country and site by site, for the Year and scenario in the View bar */
@@ -1161,7 +1169,7 @@ function renderGroupSummary() {
   const sites = [...v].sort((x, y) => kpiVal(y.id, M.tot, "2050")[0] - kpiVal(x.id, M.tot, "2050")[0]);
   const bySite = `<div class="sc"><div class="t">Site by site</div><div class="sub">${PROC() ? "Downtime" : "Working"} hours a year above the limit · ${ytn} · ${SCEN[S.scen]} · click a site for its card</div>
     <div class="tw"><table class="grp">${hdr("Site")}<tbody>${cs.length === 1 ? line(`<b>${esc(scopeOf().name)}</b>`, ids, "", "tot") : ""}${sites.map(x => line(`${esc(x.name)}${cs.length > 1 ? ` <small>${esc(cname(x.country))}</small>` : ""}`, [x.id], `data-site="${x.id}" tabindex="0"`)).join("")}</tbody></table></div></div>`;
-  return `<div class="story">${card1}${byCountry}${bySite}</div>
+  return `<div class="story">${card1}${downCard}${byCountry}${bySite}</div>
     <p class="note">${SCEN[S.scen]} · median of ${DATA.meta.models.length} climate models · operating hours ${OPH.start}–${OPH.end} local · sums count each site once (one ${PROC() ? "line" : "worker"} per site); "high" uses the risk bands in the tiles.</p>`;
 }
 /* Indicators for the group: one row per site, today -> 2050 for the Year in the View bar */
@@ -1350,11 +1358,19 @@ function procDowntime() {
   const art = yt === "extreme" ? "an" : "a";
   const head = f.down < 0.5 ? `No downtime at ${limText()}, even in ${art} ${per} ${ytn}.`
     : `At ${limText()} ${art} ${ytn} costs <b>${fmt(today)} hours</b> of downtime today and <b>${fmt(f.down)} h</b> by ${per}: about <b>${fmt(r10(cum))} h</b> in total from 2026 to 2050 (typical years). ${eq != null ? `<b>${fmt(eq - LIM(), 1)} °C</b> more process tolerance or hall cooling would hold ${per} at today's level; ` : ""}each extra 1 °C saves about <i>${fmt(f.down - p1)} h</i> a year by ${per}.`;
+  const ysub = { typical: "typical", hot: "1-in-10", extreme: `extreme ${byId[id].extreme_year}` }[yt];
+  const hist = downtimeHists(ser, ser.map(x => DATA.kpi[id].dbt[srcOf("proc_hours")][dbtKey(x.p)]), ysub);
+  return `<div class="sc"><div class="t">${head}</div>${strip}
+    <div class="sub">Operating hours a year at each hall-air temperature (1 °C bins), one panel per period on the same scale · coloured: above the limit (downtime) · ${hallText()} · ${runText()}</div>${hist}
+    <div class="fn">Tiles, headline and histograms use the same ${NY}-year statistics (${ytn}: ${{ typical: "the median year, step by step", hot: "the 1-in-10 year, the 90th percentile, step by step", extreme: `the extreme year ${byId[id].extreme_year}` }[yt]}), median of the climate models; the month × hour grid below draws one real year.</div></div>`;
+}
+/* downtime histograms: one panel per period (ser: name, color), drawn from ladder arrays of operating hours above every
+   0.5 C step (arrs: one site's, or summed over several sites), so their "h above" equals the tiles */
+function downtimeHists(ser, arrs, ysub) {
   /* histograms from the 11-year statistics (the ladder: hours above every 0.5 C step), so their "h above" equals the tiles.
      Fixed 1 C bins on whole degrees of hall air: the bars stay put when the limit moves; at a half-degree limit the bin it
      falls in is split into two half-width bars. Heights are hours per 1 C; the scale comes from the full bins only. */
-  const lim = LIM(), g = Number(S.hall), src = srcOf("proc_hours");
-  const arrs = ser.map(s => DATA.kpi[id].dbt[src][dbtKey(s.p)]);
+  const lim = LIM(), g = Number(S.hall), W0 = paneW(30);
   const ab = (a, T) => { const i = Math.round((T - g - RUNG0) / RSTEP); return i < 0 ? a[0] : i >= NR ? 0 : a[i]; };   /* hours above hall air T */
   const lowT = Math.ceil(RUNG0 + g), highT = Math.floor(RUNG0 + g + (NR - 1) * RSTEP);
   const firstBin = a => { for (let T = lowT; T <= highT; T++) if (ab(a, T) < a[0]) return T - 1; return lowT; };
@@ -1364,7 +1380,7 @@ function procDowntime() {
   const counts = arrs.map(a => edges.slice(0, -1).map((e, i) => ab(a, e) - ab(a, edges[i + 1])));
   const mxC = Math.max(1, ...counts.flat()), lw = 64, rw = 136, rh = 64, gap = 12, top = 18, nb = edges.length - 1;
   const bw = (W0 - lw - rw) / nb, X = t => lw + (t - edges[0]) * bw, H = top + 3 * rh + 2 * gap + 22;
-  const split = lim % 1 !== 0, ysub = { typical: "typical", hot: "1-in-10", extreme: `extreme ${byId[id].extreme_year}` }[yt];
+  const split = lim % 1 !== 0;
   let o = `<svg class="chart" width="${W0}" viewBox="0 0 ${W0} ${H}" style="max-width:${W0}px" role="img" aria-label="Operating hours at each temperature, with the process limit">`;
   ser.forEach((s, r) => {
     const A = arrs[r], y0 = top + r * (rh + gap), base = y0 + rh, Yh = v => base - rh * Math.min(v, mxC) / mxC, a = ab(A, lim), tot = A[0];
@@ -1386,9 +1402,7 @@ function procDowntime() {
   for (let t = Math.ceil(edges[0] / tk) * tk; t <= edges[nb]; t += tk) o += `<text x="${X(t)}" y="${ly + 16}" text-anchor="middle">${t} °C</text>`;
   o += `</svg>`;
   const keys = `<div class="keys"><span><i style="background:var(--c-today);opacity:.28"></i>hours below the limit</span>${ser.map(s => `<span><i style="background:${s.color}"></i>${s.name} downtime</span>`).join("")}<span><i style="background:none;border-top:1px solid var(--c-hot);height:0;border-radius:0;vertical-align:3px"></i>today, for comparison</span></div>`;
-  return `<div class="sc"><div class="t">${head}</div>${strip}
-    <div class="sub">Operating hours a year at each hall-air temperature (1 °C bins), one panel per period on the same scale · coloured: above the limit (downtime) · ${hallText()} · ${runText()}</div>${o}${keys}
-    <div class="fn">Tiles, headline and histograms use the same ${NY}-year statistics (${ytn}: ${{ typical: "the median year, step by step", hot: "the 1-in-10 year, the 90th percentile, step by step", extreme: `the extreme year ${byId[id].extreme_year}` }[yt]}), median of the climate models; the month × hour grid below draws one real year.</div></div>`;
+  return o + keys;
 }
 /* card 3: when the limit is exceeded, month x hour of day */
 function procGrid() {

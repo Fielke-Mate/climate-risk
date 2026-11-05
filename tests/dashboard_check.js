@@ -281,6 +281,9 @@ async function check(p, where) {
   for (const tab of ["summary", "data"]) { await click(`.tabs button[data-tab="${tab}"]`); await check(page, `group Spain/tab:${tab}`); states++; }
   await click('#ctl-lens button[data-v="proc"]'); await click('.tabs button[data-tab="summary"]'); await check(page, "group Spain/process"); states++;
   if ((await page.$$("#pane .dtstrip .dt")).length !== 4) fail("group view", "process lens: no downtime tiles for the group");
+  const gh = await page.evaluate(() => [[...document.querySelectorAll("#pane .dtstrip .dt .v")].slice(0, 3).map(e => e.childNodes[0].textContent.trim()),
+    [...document.querySelectorAll("#pane .sc svg.chart text.val")].filter(e => / h above$/.test(e.textContent)).map(e => e.textContent.replace(" h above", "").trim())]);
+  if (gh[0].join("|") !== gh[1].join("|")) fail("group histograms", `tiles ${gh[0].join(" / ")}, histograms ${gh[1].join(" / ")}`);
   await click('#ctl-lens button[data-v="work"]');
   await page.evaluate(() => { S.sel = new Set(["GET"]); afterFilter(); });
   if ((await page.$eval("#s-name", e => e.textContent)) !== "Getafe") fail("country filter", "a one-site filter did not open that site");
