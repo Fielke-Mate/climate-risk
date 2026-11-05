@@ -24,6 +24,7 @@
   --sea:#FBFAFD; --land:#ECEAF1; --land-edge:#D6D2DF;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }   /* hidden wins over component display rules (e.g. the map name tag) */
 body { background: var(--bg); color: var(--ink); font-family: var(--font); font-size: var(--fs-13); line-height: 1.5; letter-spacing: -.011em; -webkit-font-smoothing: antialiased; }
 button { font-family: inherit; }
 .mono, .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
@@ -197,6 +198,12 @@ select.ksel { height: 30px; font: inherit; font-size: var(--fs-125); padding: 0 
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { font-size: var(--fs-115); padding: 1px 9px; border-radius: var(--r-pill); background: var(--bg-2); color: var(--ink-2); }
 .chip b { color: var(--ink); font-weight: 600; }
+#s-name .scope { font-size: var(--fs-125); font-weight: 400; color: var(--ink-3); margin-left: 6px; }
+table.grp tbody tr[data-site], table.grp tbody tr[data-country] { cursor: pointer; }
+table.grp tbody tr[data-site]:hover, table.grp tbody tr[data-country]:hover { background: var(--bg-2); }
+table.grp tr.tot th, table.grp tr.tot td { border-bottom: 1px solid var(--line-2); }
+table.grp th small { color: var(--ink-3); font-weight: 400; margin-left: 4px; }
+.sitepick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .offsel { font-size: var(--fs-12); font-weight: 400; color: var(--need); margin-left: 6px; }
 .offsel .lnk { color: var(--need); font-size: var(--fs-12); }
 .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); padding: 6px 16px 0; overflow-x: auto; }
@@ -557,7 +564,8 @@ function toggleIds(ids) {
 }
 function afterFilter() {
   drawMap();   /* the map frame fits the sites in view */
-  if (S.sel.size && !S.sel.has(S.site)) S.site = [...S.sel][0];
+  /* a new filter shows the sites in view as a whole; a filter down to one site opens that site */
+  S.site = S.sel.size === 1 ? [...S.sel][0] : null;
   renderTree(); renderAll();
 }
 function bindFilters() {
@@ -620,8 +628,12 @@ function drawMap() {
      Hamburg cluster, Getafe / Illescas, Nantes / Saint-Nazaire) are nudged apart so each can be clicked, which can move a
      marker beyond its true location. Scale and nudge depend on each other, so a few passes settle both. */
   const PAD = { t: 30, r: 24, b: 24, l: 24 };
+  /* never closer than about half the whole portfolio, so a filtered map keeps its coastlines and neighbours for context */
+  const allW = Math.max(...SITES.map(s => s.x)) - Math.min(...SITES.map(s => s.x)), allH = Math.max(...SITES.map(s => s.y)) - Math.min(...SITES.map(s => s.y));
   const frameOf = (px, py, k) => {
     let x0 = Math.min(...px) - PAD.l * k, y0 = Math.min(...py) - PAD.t * k, fw = Math.max(...px) + PAD.r * k - x0, fh = Math.max(...py) + PAD.b * k - y0;
+    if (fw < 0.5 * allW) { x0 -= (0.5 * allW - fw) / 2; fw = 0.5 * allW; }
+    if (fh < 0.5 * allH) { y0 -= (0.5 * allH - fh) / 2; fh = 0.5 * allH; }
     if (fw / fh < aspect) { const nw = fh * aspect; x0 -= (nw - fw) / 2; fw = nw; } else { const nh = fw / aspect; y0 -= (nh - fh) / 2; fh = nh; }
     return [x0, y0, fw, fh];
   };
@@ -659,6 +671,8 @@ function drawMap() {
     `<line class="leader" data-id="${s.id}" x1="${s.x}" y1="${s.y}" x2="${POS[s.id].x.toFixed(1)}" y2="${POS[s.id].y.toFixed(1)}"/><circle class="true-pt" data-id="${s.id}" cx="${s.x}" cy="${s.y}" r="${(2.5 * k).toFixed(2)}"/>`).join("");
   h += `<circle id="ring" class="sel-ring" r="${(R + 4 * k).toFixed(2)}"/><g id="sites">` + SITES.map(s => `<circle class="site" data-id="${s.id}" cx="${POS[s.id].x.toFixed(1)}" cy="${POS[s.id].y.toFixed(1)}" r="${R.toFixed(2)}" tabindex="0" role="button" aria-label="${esc(s.name)}"/>`).join("") + `</g>`;
   svg.innerHTML = h;
+  /* clicking the map away from a site clears the selection: the name tag and ring go, the panel shows the sites in view */
+  svg.onclick = e => { if (!e.target.closest("#sites circle")) clearSite(); };
   for (const c of $$("#sites circle")) {
     const id = c.dataset.id;
     c.addEventListener("click", () => selectSite(id));
@@ -758,6 +772,39 @@ function cell(id, m, col, d) {
 function thead(cols, first) { return `<thead><tr><th>${first}</th>${cols.map(c => `<th><span class="k" style="background:${c.color}"></span>${c.label}<small>${c.sub}</small></th>`).join("")}</tr></thead>`; }
 
 /* ---------- Summary tab: story card ---------- */
+/* the nine-year bars of hours above the limit by shift (worker and process story cards, group view). rows: storyYears()
+   entries with early, late, night (outside the operating hours, not in the total) and tot */
+function shiftChart(rows, aria) {
+  const W0 = paneW(30), SHADE = { early: 0.5, late: 1, night: 0.15 }, SHN = { early: SHIFT_NAME("early"), late: SHIFT_NAME("late"), night: SHIFT_NAME("night") };
+  const gw = 46, lw = 150, rh = 20, gap = 8, bh = 11, W = Math.max(80, W0 - lw - 112);
+  const mx = Math.max(...rows.map(r => r.tot + r.night), 1), yOf = i => i * rh + Math.floor(i / 3) * gap;
+  let o = `<svg class="chart" width="${W0}" viewBox="0 0 ${W0} ${yOf(rows.length - 1) + rh}" style="max-width:${W0}px" role="img" aria-label="${aria}">`;
+  rows.forEach((r, i) => {
+    const y = yOf(i); let x = lw;
+    if (i % 3 === 0) o += `<text class="grp" x="0" y="${y + 14}">${r.grp}</text>`;
+    o += `<text class="lab" x="${gw}" y="${y + 14}">${r.sub}</text>`;
+    for (const k of ["early", "late", "night"]) {
+      const len = W * r[k] / mx;
+      if (len > 0) o += `<rect x="${x}" y="${y + 5}" width="${Math.max(len - 1, 0.5)}" height="${bh}" rx="2" fill="${r.color}" fill-opacity="${SHADE[k]}" ${k === "night" ? `stroke="${r.color}" stroke-width="1"` : ""} data-t="${r.name}<br>${SHN[k]}: ${fmt(r[k])} h${k === "night" ? " (outside operating hours)" : ""}"/>`;
+      x += len;
+    }
+    o += `<text class="val" x="${x + 6}" y="${y + 14}">${fmt(r.tot)} h${r.night >= 0.5 ? `<tspan style="fill:var(--ink-3)"> +${fmt(r.night)} night</tspan>` : ""}</text>`;
+  });
+  return o + `</svg>`;
+}
+/* the shift legend uses neutral greys: bar colour means the period, the shade means the shift */
+const shiftKeys = () => { const sw = (a, extra = "") => `<i style="background:rgba(74,77,87,${a});${extra}"></i>`;
+  return `<div class="keys"><span>${sw(0.5)}Early ${shLbl("early")}</span><span>${sw(1)}Late ${shLbl("late")}</span><span>${sw(0.15, "outline:1px solid #4A4D57")}Night ${shLbl("night")} (outside ${PROC() ? "operating" : "working"} hours, not in the total)</span></div>`; };
+/* nine rows from a total and its shift metrics, for one site or summed over several (early / late split the total in the
+   ratio of the shift values of the same year; night is outside the operating hours) */
+function shiftRows(ids, mTot, mE, mL, mN) {
+  const pick = (id, m, k) => { const K = DATA.kpi[id]; return k === "hist" ? K[m].hist.typical : k === "hotref" || k === "extref" ? K[m][k] : K[m][k][0]; };
+  const sum = (m, k) => ids.reduce((a, id) => a + pick(id, m, k), 0);
+  return storyYears().map(y => {
+    const tot = sum(mTot, y.kpi), e = sum(mE, y.kpi), l = sum(mL, y.kpi), f = e + l > 0 ? e / (e + l) : 0;
+    return { ...y, early: tot * f, late: tot * (1 - f), night: sum(mN, y.kpi), tot };
+  });
+}
 /* what Typical / Hot / Extreme mean, for the story cards (the nine years) */
 const yearsNote = () => { const s = byId[S.site];
   return `<b>Typical</b>: the median of the last ${NY} years (${B0}–${B1}). <b>Hot ${s.hot_year}</b>: the site's hottest of those years, as it happened (elsewhere on the page, Hot is the 1-in-10 year, the 90th percentile of the ${NY}). <b>Extreme ${s.extreme_year}</b>: the site's hottest year since ${E0}, adjusted to a current-day climate baseline. The 2040 and 2050 rows are the same years adjusted to those climates.`; };
@@ -775,17 +822,17 @@ function whyNote(rows, s, what) {
    (bar chart). Colour = period (today grey, 2040 teal, 2050 ochre: never the map's risk colours or the
    purple UI accent); within a period, darker = hotter year. */
 function storyYears() {
-  const sc = S.scen, ey = byId[S.site].extreme_year, hy = byId[S.site].hot_year;
+  const sc = S.scen, ey = S.site ? byId[S.site].extreme_year : "", hy = S.site ? byId[S.site].hot_year : "";   /* group view: each site's own */
   return [
     { key: "hist", kpi: "hist", grp: "Today", sub: "typical", name: "Today, typical year", color: "var(--c-today)" },
-    { key: "hotref", kpi: "hotref", grp: "Today", sub: `hot ${hy}`, name: "Today, hot year", color: "var(--c-hot)" },
-    { key: "extref", kpi: "extref", grp: "Today", sub: `extreme ${ey}`, name: "Today, extreme year", color: "var(--c-ext)" },
+    { key: "hotref", kpi: "hotref", grp: "Today", sub: hy ? `hot ${hy}` : "hot year", name: "Today, hot year", color: "var(--c-hot)" },
+    { key: "extref", kpi: "extref", grp: "Today", sub: ey ? `extreme ${ey}` : "extreme", name: "Today, extreme year", color: "var(--c-ext)" },
     { key: `${sc}_2040`, kpi: `${sc}_2040_typical`, grp: "2040", sub: "typical", name: "2040, typical year", color: "var(--c-2040)" },
-    { key: `hot_${sc}_2040`, kpi: `hotref_${sc}_2040`, grp: "2040", sub: `hot ${hy}`, name: "2040, hot year", color: "var(--c-2040-hot)" },
-    { key: `ext_${sc}_2040`, kpi: `extref_${sc}_2040`, grp: "2040", sub: `extreme ${ey}`, name: "2040, extreme year", color: "var(--c-2040-ext)" },
+    { key: `hot_${sc}_2040`, kpi: `hotref_${sc}_2040`, grp: "2040", sub: hy ? `hot ${hy}` : "hot year", name: "2040, hot year", color: "var(--c-2040-hot)" },
+    { key: `ext_${sc}_2040`, kpi: `extref_${sc}_2040`, grp: "2040", sub: ey ? `extreme ${ey}` : "extreme", name: "2040, extreme year", color: "var(--c-2040-ext)" },
     { key: `${sc}_2050`, kpi: `${sc}_2050_typical`, grp: "2050", sub: "typical", name: "2050, typical year", color: "var(--c-2050)" },
-    { key: `hot_${sc}_2050`, kpi: `hotref_${sc}_2050`, grp: "2050", sub: `hot ${hy}`, name: "2050, hot year", color: "var(--c-2050-hot)" },
-    { key: `ext_${sc}_2050`, kpi: `extref_${sc}_2050`, grp: "2050", sub: `extreme ${ey}`, name: "2050, extreme year", color: "var(--c-2050-ext)" }];
+    { key: `hot_${sc}_2050`, kpi: `hotref_${sc}_2050`, grp: "2050", sub: hy ? `hot ${hy}` : "hot year", name: "2050, hot year", color: "var(--c-2050-hot)" },
+    { key: `ext_${sc}_2050`, kpi: `extref_${sc}_2050`, grp: "2050", sub: ey ? `extreme ${ey}` : "extreme", name: "2050, extreme year", color: "var(--c-2050-ext)" }];
 }
 const futPer = () => S.period === "hist" ? "2050" : S.period;
 /* keep a picked year when the scenario changes; empty = follow the View bar */
@@ -802,31 +849,8 @@ function renderStory() {
   const sh = E.byShift, YRS = storyYears(), W0 = paneW(30);
   /* working hours above the headline WBGT reference split by shift. Totals are the multi-year values of the Indicators tab;
      the early/late split follows the per-shift values of the same year. Night (22–06) lies outside the working hours. */
-  const pick = (m, k) => k === "hist" ? K[m].hist.typical : k === "hotref" || k === "extref" ? K[m][k] : K[m][k][0];
-  const rows = YRS.map(y => {
-    const tot = pick(E.hours, y.kpi), e = pick(sh("early"), y.kpi), l = pick(sh("late"), y.kpi), f = e + l > 0 ? e / (e + l) : 0;
-    return { ...y, early: tot * f, late: tot * (1 - f), night: pick(sh("night"), y.kpi), tot };
-  });
-  const SHADE = { early: 0.5, late: 1, night: 0.15 }, SHN = { early: SHIFT_NAME("early"), late: SHIFT_NAME("late"), night: SHIFT_NAME("night") };
-  /* rows grouped by period: period name once, then typical / hot / extreme as sub-labels */
-  const gw = 46, lw = 150, rh = 20, gap = 8, bh = 11, W = Math.max(80, W0 - lw - 112);
-  const mx = Math.max(...rows.map(r => r.tot + r.night), 1), yOf = i => i * rh + Math.floor(i / 3) * gap;
-  let o = `<svg class="chart" width="${W0}" viewBox="0 0 ${W0} ${yOf(rows.length - 1) + rh}" style="max-width:${W0}px" role="img" aria-label="Working hours above the WBGT limit by shift">`;
-  rows.forEach((r, i) => {
-    const y = yOf(i); let x = lw;
-    if (i % 3 === 0) o += `<text class="grp" x="0" y="${y + 14}">${r.grp}</text>`;
-    o += `<text class="lab" x="${gw}" y="${y + 14}">${r.sub}</text>`;
-    for (const k of ["early", "late", "night"]) {
-      const len = W * r[k] / mx;
-      if (len > 0) o += `<rect x="${x}" y="${y + 5}" width="${Math.max(len - 1, 0.5)}" height="${bh}" rx="2" fill="${r.color}" fill-opacity="${SHADE[k]}" ${k === "night" ? `stroke="${r.color}" stroke-width="1"` : ""} data-t="${r.name}<br>${SHN[k]}: ${fmt(r[k])} h"/>`;
-      x += len;
-    }
-    o += `<text class="val" x="${x + 6}" y="${y + 14}">${fmt(r.tot)} h${r.night >= 0.5 ? `<tspan style="fill:var(--ink-3)"> +${fmt(r.night)} night</tspan>` : ""}</text>`;
-  });
-  o += `</svg>`;
-  /* the shift legend uses neutral greys: bar colour means the period, the shade means the shift */
-  const swatch = (op, extra = "") => `<i style="background:rgba(74,77,87,${op});${extra}"></i>`;
-  const keys1 = `<div class="keys"><span>${swatch(0.5)}Early ${shLbl("early")}</span><span>${swatch(1)}Late ${shLbl("late")}</span><span>${swatch(0.15, "outline:1px solid #4A4D57")}Night ${shLbl("night")} (outside working hours, not in the total)</span></div>`;
+  const rows = shiftRows([id], E.hours, sh("early"), sh("late"), sh("night"));
+  const o = shiftChart(rows, "Working hours above the WBGT limit by shift"), keys1 = shiftKeys();
   const wd = K[E.days], tNow = wd.hist.typical, hNow = wd.hotref, tF = wd[`${sc}_${per}_typical`][0], hF = wd[`hotref_${sc}_${per}`][0];
   const xNow = wd.extref, xF = wd[`extref_${sc}_${per}`][0], spF = K[E.longest][`extref_${sc}_${per}`][0];
   const rF = rows.find(r => r.kpi === `${sc}_${per}_typical`), latePct = rF.tot ? Math.round(100 * rF.late / rF.tot) : 0;
@@ -1069,9 +1093,9 @@ function renderStress() {
       <p class="note">${sunU ? "In sun, ASHRAE 55 SolarCal adds the radiant load on a standing person." : `Indoors (exhaust-ventilated hall, no active cooling): hall air temperature including the heat gain, radiant temperature equal to air temperature (roof radiant heat not yet included) and ${DATA.meta.indoor_air_speed} m/s air speed at body height.`}</p></div>`;
 }
 function renderAbout() {
-  const s = byId[S.site];
+  const s = byId[S.site] || { grid: null, hot_year: "each site's own", extreme_year: "each site's own", extreme_rule: "humid or dry heat (see a site's card)" };
   return `<div class="about"><h3>How these numbers are made</h3><ul>
-    <li><b>Today:</b> hourly ERA5 reanalysis for ${B0}–${B1} at the nearest 0.25° grid point (${s.grid[0]}, ${s.grid[1]}; ${fmt(s.grid[2], 1)} km from the site).</li>
+    <li><b>Today:</b> hourly ERA5 reanalysis for ${B0}–${B1} at the nearest 0.25° grid point${s.grid ? ` (${s.grid[0]}, ${s.grid[1]}; ${fmt(s.grid[2], 1)} km from the site)` : " to each site"}.</li>
     <li><b>Typical year:</b> an ISO 15927-4 typical meteorological year built from the same record, used for the hourly charts.</li>
     <li><b>Hot year:</b> the site's hottest actual year of ${B0}–${B1} (${s.hot_year}), ranked by working-hour WBGT degree-hours above 25 °C, shown unadjusted: a year people remember.</li>
     <li><b>Extreme year:</b> the hottest year of ${E0}–${B1} once adjusted to today's climate (${s.extreme_year}${s.extreme_year === s.hot_year ? ", the same year as the hot year" : ""}), ranked on ${s.extreme_rule}: a plausible worst case from real weather. To adjust it, every year of ERA5 ${E0}–${B1} is moved to the ${DATA.meta.reference_year} climate with the warming the same climate models simulate between 2000–2010 and 2015–2025 (daily maximum and minimum temperature and humidity, month by month). The models warm western Europe more slowly than observed, so the early years stay slightly cool: the extreme year is, if anything, conservative.</li>
@@ -1088,11 +1112,82 @@ function renderAbout() {
     <li><b>Processes (Heat risk to: Processes):</b> downtime is the operating hours with hall air above the process limit; hall air is the outdoor dry bulb plus the hall gain, as for workers. A process-stop day has at least one such hour. The pipeline counts hours, days, runs of days and degree-hours above every 0.5 °C step from ${fmt(PL.rungs[0], 0)} to ${fmt(PL.rungs[PL.rungs.length - 1], 0)} °C for every year and model, so any limit uses the same ${NY}-year statistics and model ranges as the worker numbers. "Runs 24 h" counts the night shift too. The histograms and the month × hour grid draw the chart years (typical meteorological year, hot and extreme reference years, and their future versions, model median hour by hour). The 2026–2050 total interpolates linearly between today (2020), 2040 and 2050 for typical years. Preset limits are placeholders until real process specifications are supplied.</li></ul>
     <p>Known limits: ERA5's ~25 km grid smooths local peaks, and Getafe and Illescas share one grid cell, so their historical weather is identical. Climate models disagree; the ranges show that spread.</p></div>`;
 }
+/* ---------- group view: no site picked, the panel shows the sites in view as a whole (Europe, a country or a
+   selection), with a breakdown by country and site by site; a site's own card opens from the map, the ranking or the tables ---------- */
+const scopeOf = () => { const v = inView(), cs = [...new Set(v.map(s => s.country))];
+  return { v, cs, name: !v.length ? "No sites in view" : v.length === SITES.length ? "Europe" : cs.length === 1 ? cname(cs[0]) : `${v.length} sites in ${cs.length} countries`,
+    sub: v.length ? plural(v.length, "site", "sites") + (cs.length > 1 ? ` · ${cs.length} countries` : "") : "" }; };
+/* the group's metrics in the current lens */
+const gm = () => { const E = EXPO();
+  return PROC() ? { tot: "proc_hours", e: "proc_early", l: "proc_late", n: "proc_night", days: "proc_days", band: "proc_hours", hi: PL.high_hours, unit: "h", what: `hours of downtime above ${limText()}`, dname: "Process-stop days" }
+                : { tot: E.hours, e: E.byShift("early"), l: E.byShift("late"), n: E.byShift("night"), days: E.days, band: E.days, hi: DATA.meta.risk_bands_days.high, unit: "days", what: `working hours above WBGT ${WR()} °C`, dname: "Heat-safety days" }; };
+const sumOf = (ids, m, per, yt = S.yt) => ids.reduce((a, id) => a + kpiVal(id, m, per, S.scen, yt)[0], 0);
+function renderGroupSummary() {
+  const { v, cs } = scopeOf(), ids = v.map(s => s.id), M = gm(), per = futPer();
+  if (!ids.length) return `<p class="note">No sites in view. Tick a country or site in the filters.</p>`;
+  const rows = shiftRows(ids, M.tot, M.e, M.l, M.n), tN = sumOf(ids, M.tot, "hist", "typical"), tF = sumOf(ids, M.tot, per, "typical");
+  const nHi = (p, yt) => ids.filter(id => kpiVal(id, M.band, p, S.scen, yt)[0] >= M.hi).length;
+  const head = `By ${per}, a typical year brings <b>${fmt(tF)} ${M.what}</b> across ${plural(ids.length, "site", "sites")} (today ${fmt(tN)}${tN >= 50 ? `, ${sgn(100 * (tF - tN) / tN)} %` : ""}). <b>${nHi(per, "typical")} of ${ids.length}</b> ${ids.length === 1 ? "site is" : "sites are"} at High risk or above (today ${nHi("hist", "typical")}).`;
+  /* process lens: the downtime tiles, summed */
+  let strip = "";
+  if (PROC()) {
+    const yk = S.yt, ser = ["hist", "2040", "2050"].map(p => sumOf(ids, "proc_hours", p, yk)), ty = ["hist", "2040", "2050"].map(p => sumOf(ids, "proc_hours", p, "typical"));
+    const yr = y => y <= 2040 ? ty[0] + (ty[1] - ty[0]) * (y - 2020) / 20 : ty[1] + (ty[2] - ty[1]) * (y - 2040) / 10;
+    let cum = 0; for (let y = 2026; y <= 2050; y++) cum += yr(y);
+    const r10 = x => Math.round(x / 10) * 10, YRS = storyYears(), col = p => YRS.find(o => o.key === (p === "hist" ? { typical: "hist", hot: "hotref", extreme: "extref" }[yk] : `${{ typical: "", hot: "hot_", extreme: "ext_" }[yk]}${S.scen}_${p}`)).color;
+    const tile = (lab, val, sub, color, dark) => `<div class="dt${dark ? " dk" : ""}"><span class="l">${lab}</span><span class="v" style="${color ? `color:${txtCol(color)}` : ""}">${val}<small> h</small></span><span class="s">${sub}</span></div>`;
+    strip = `<div class="dtstrip">${tile("Today", fmt(ser[0]), "summed over the sites", col("hist"))}${tile("2040", fmt(ser[1]), `${sgn(ser[1] - ser[0])} h vs today`, col("2040"))}${tile("2050", fmt(ser[2]), `${sgn(ser[2] - ser[0])} h vs today`, col("2050"))}${tile("Total 2026–2050", fmt(r10(cum)), `typical years · ${sgn(r10(cum - 25 * ty[0]))} h from climate change`, null, true)}</div>`;
+  }
+  const card1 = `<div class="sc"><div class="t">${head}</div>${strip}
+    <div class="sub">${PROC() ? `Operating hours above ${limText()}` : `Working hours above WBGT ${WR()} °C`} by shift, summed over the sites in view</div>${shiftChart(rows, "Hours above the limit by shift, summed over the sites")}${shiftKeys()}
+    <div class="fn"><b>Typical</b>: the median of the last ${NY} years for each site. <b>Hot</b> and <b>extreme</b> rows: each site's own hot and extreme year, as on its card, summed.</div></div>`;
+  /* by country and site by site, for the Year and scenario in the View bar */
+  const ytn = { typical: "typical year", hot: "1-in-10 year", extreme: "extreme year" }[S.yt];
+  const hdr = first => `<thead><tr><th>${first}</th><th>Today</th><th>2040</th><th>2050</th><th>Change</th><th>${M.dname} 2050</th></tr></thead>`;
+  const line = (lab, ids2, attr, cls = "") => { const a = sumOf(ids2, M.tot, "hist"), b = sumOf(ids2, M.tot, "2040"), c = sumOf(ids2, M.tot, "2050");
+    const d = ids2.length === 1 ? fmt(kpiVal(ids2[0], M.days, "2050")[0]) : `${ids2.filter(id => kpiVal(id, M.band, "2050")[0] >= M.hi).length} of ${ids2.length} high`;
+    return `<tr class="${cls}" ${attr}><th scope="row">${lab}</th><td class="v">${fmt(a)}</td><td class="v">${fmt(b)}</td><td class="v"><b>${fmt(c)}</b></td><td class="v">${a >= 50 ? `${sgn(100 * (c - a) / a)} %` : sgn(c - a)}</td><td class="v">${d}</td></tr>`; };
+  const byCountry = cs.length > 1 ? `<div class="sc"><div class="t">By country</div><div class="sub">${PROC() ? "Downtime" : "Working"} hours a year above the limit, summed over each country's sites · ${ytn} · ${SCEN[S.scen]} · click a country to see it on its own</div>
+    <div class="tw"><table class="grp">${hdr("Country")}<tbody>${line(`<b>${esc(scopeOf().name)}</b>`, ids, "", "tot")}${[...cs].sort((a, b) => sumOf(v.filter(s => s.country === b).map(s => s.id), M.tot, "2050") - sumOf(v.filter(s => s.country === a).map(s => s.id), M.tot, "2050")).map(c => { const ci = v.filter(s => s.country === c).map(s => s.id);
+      return line(`${esc(cname(c))} <small>${plural(ci.length, "site", "sites")}</small>`, ci, `data-country="${c}" tabindex="0"`); }).join("")}</tbody></table></div></div>` : "";
+  const sites = [...v].sort((x, y) => kpiVal(y.id, M.tot, "2050")[0] - kpiVal(x.id, M.tot, "2050")[0]);
+  const bySite = `<div class="sc"><div class="t">Site by site</div><div class="sub">${PROC() ? "Downtime" : "Working"} hours a year above the limit · ${ytn} · ${SCEN[S.scen]} · click a site for its card</div>
+    <div class="tw"><table class="grp">${hdr("Site")}<tbody>${cs.length === 1 ? line(`<b>${esc(scopeOf().name)}</b>`, ids, "", "tot") : ""}${sites.map(x => line(`${esc(x.name)}${cs.length > 1 ? ` <small>${esc(cname(x.country))}</small>` : ""}`, [x.id], `data-site="${x.id}" tabindex="0"`)).join("")}</tbody></table></div></div>`;
+  return `<div class="story">${card1}${byCountry}${bySite}</div>
+    <p class="note">${SCEN[S.scen]} · median of ${DATA.meta.models.length} climate models · operating hours ${OPH.start}–${OPH.end} local · sums count each site once (one ${PROC() ? "line" : "worker"} per site); "high" uses the risk bands in the tiles.</p>`;
+}
+/* Indicators for the group: one row per site, today -> 2050 for the Year in the View bar */
+function renderGroupData() {
+  const { v } = scopeOf(), E = EXPO();
+  if (!v.length) return `<p class="note">No sites in view. Tick a country or site in the filters.</p>`;
+  const ind = PROC() ? [["Downtime hours", "proc_hours"], ["Process-stop days", "proc_days"], ["Longest run of stop days", "proc_longest"], ["Days above 30 °C", "days_tmax_gt30"], ["Warm nights", "nights_tmin_gt20"]]
+                     : [["Heat-safety days", E.days], [`Hours above WBGT ${WR()} °C`, E.hours], ["Days above 30 °C", "days_tmax_gt30"], ["Longest run above 30 °C", "hw30_longest"], ["Warm nights", "nights_tmin_gt20"]];
+  const sites = [...v].sort((x, y) => kpiVal(y.id, ind[0][1], "2050")[0] - kpiVal(x.id, ind[0][1], "2050")[0]);
+  const ytn = { typical: "typical year", hot: "1-in-10 year", extreme: "extreme year" }[S.yt];
+  return `<div><h3>Key indicators by site <span class="sub">2050 (today below) · ${ytn} · ${SCEN[S.scen]} · click a site for its card</span></h3>
+    <div class="tw"><table class="grp"><thead><tr><th>Site</th>${ind.map(([l]) => `<th>${l}</th>`).join("")}</tr></thead><tbody>${sites.map(x => `<tr data-site="${x.id}" tabindex="0"><th scope="row">${esc(x.name)}</th>${ind.map(([, m]) =>
+      `<td class="v"><b>${fmt(kpiVal(x.id, m, "2050")[0])}</b><span class="rg">${fmt(kpiVal(x.id, m, "hist")[0])}</span></td>`).join("")}</tr>`).join("")}</tbody></table></div></div>`;
+}
+/* chart tabs describe one site's climate: ask for a site */
+function renderGroupPick() {
+  const { v } = scopeOf();
+  return `<div class="sc"><div class="t">Pick a site to see its climate</div><div class="sub">These charts describe one place (its temperatures, comfort and hours by month and time of day), so they are drawn per site. Click a site on the map, in the ranking or here.</div>
+    <div class="sitepick">${v.map(x => `<button type="button" class="kbtn" data-site="${x.id}">${esc(x.name)}</button>`).join("")}</div></div>`;
+}
 function renderPanel() {
-  if (!S.site) return;
-  renderHeader();
   for (const b of $$(".tabs button")) b.setAttribute("aria-selected", b.dataset.tab === S.tab);
   const pane = $("#pane");
+  if (!S.site) {
+    const sc = scopeOf();
+    $("#s-name").innerHTML = `${esc(sc.name)}${sc.sub ? ` <span class="scope">${sc.sub}</span>` : ""}`;
+    pane.innerHTML = { summary: renderGroupSummary, data: renderGroupData, temp: renderGroupPick, stress: renderGroupPick, about: renderAbout }[S.tab]();
+    for (const el of $$("[data-t]", pane)) hover(el, el.dataset.t);
+    for (const el of $$("[data-site]", pane)) { const go = () => selectSite(el.dataset.site); el.addEventListener("click", go); el.addEventListener("keydown", e => { if (e.key === "Enter") go(); }); }
+    for (const el of $$("[data-country]", pane)) { const go = () => { S.sel = new Set(SITES.filter(x => x.country === el.dataset.country).map(x => x.id)); S.open[el.dataset.country] = true; afterFilter(); };
+      el.addEventListener("click", go); el.addEventListener("keydown", e => { if (e.key === "Enter") go(); }); }
+    return;
+  }
+  renderHeader();
   pane.innerHTML = { summary: renderStory, data: renderData, temp: renderTemp, stress: renderStress, about: renderAbout }[S.tab]();
   for (const el of $$("[data-t]", pane)) hover(el, el.dataset.t);
   for (const sel of $$("select[data-cmp]", pane)) sel.addEventListener("change", e => { S[e.target.dataset.cmp] = e.target.value; renderPanel(); });
@@ -1215,30 +1310,8 @@ function renderStoryProc() {
 }
 function procCard1() {
   const id = S.site, sc = S.scen, K = DATA.kpi[id], s = byId[id], per = futPer(), YRS = storyYears(), W0 = paneW(30), op = true;
-  const pick = (m, k) => k === "hist" ? K[m].hist.typical : k === "hotref" || k === "extref" ? K[m][k] : K[m][k][0];
-  const rows = YRS.map(y => {
-    const tot = pick("proc_hours", y.kpi), e = pick("proc_early", y.kpi), l = pick("proc_late", y.kpi), n = pick("proc_night", y.kpi);
-    if (op) { const f = e + l > 0 ? e / (e + l) : 0; return { ...y, early: tot * f, late: tot * (1 - f), night: n, tot }; }
-    const sum = e + l + n || 1; return { ...y, early: tot * e / sum, late: tot * l / sum, night: tot * n / sum, tot };
-  });
-  const SH = { early: 0.5, late: 1, night: op ? 0.15 : 0.75 }, SHN = { early: SHIFT_NAME("early"), late: SHIFT_NAME("late"), night: SHIFT_NAME("night") };
-  const gw = 46, lw = 150, rh = 20, gap = 8, bh = 11, W = Math.max(80, W0 - lw - 112);
-  const mx = Math.max(...rows.map(r => r.tot + (op ? r.night : 0)), 1), yOf = i => i * rh + Math.floor(i / 3) * gap;
-  let o = `<svg class="chart" width="${W0}" viewBox="0 0 ${W0} ${yOf(rows.length - 1) + rh}" style="max-width:${W0}px" role="img" aria-label="Downtime hours by shift">`;
-  rows.forEach((r, i) => {
-    const y = yOf(i); let x = lw;
-    if (i % 3 === 0) o += `<text class="grp" x="0" y="${y + 14}">${r.grp}</text>`;
-    o += `<text class="lab" x="${gw}" y="${y + 14}">${r.sub}</text>`;
-    for (const k of ["early", "late", "night"]) {
-      const len = W * r[k] / mx, outside = op && k === "night";
-      if (len > 0) o += `<rect x="${x}" y="${y + 5}" width="${Math.max(len - 1, 0.5)}" height="${bh}" rx="2" fill="${r.color}" fill-opacity="${SH[k]}" ${outside ? `stroke="${r.color}" stroke-width="1"` : ""} data-t="${r.name}<br>${SHN[k]}: ${fmt(r[k])} h${outside ? " (outside operating hours)" : ""}"/>`;
-      x += len;
-    }
-    o += `<text class="val" x="${x + 6}" y="${y + 14}">${fmt(r.tot)} h${op && r.night >= 0.5 ? `<tspan style="fill:var(--ink-3)"> +${fmt(r.night)} night</tspan>` : ""}</text>`;
-  });
-  o += `</svg>`;
-  const sw = (a, extra = "") => `<i style="background:rgba(74,77,87,${a});${extra}"></i>`;
-  const keys = `<div class="keys"><span>${sw(0.5)}Early ${shLbl("early")}</span><span>${sw(1)}Late ${shLbl("late")}</span>${op ? `<span>${sw(0.15, "outline:1px solid #4A4D57")}Night ${shLbl("night")} (outside operating hours, not in the total)</span>` : `<span>${sw(0.75)}Night ${shLbl("night")}</span>`}</div>`;
+  const rows = shiftRows([id], "proc_hours", "proc_early", "proc_late", "proc_night");
+  const o = shiftChart(rows, "Downtime hours by shift"), keys = shiftKeys();
   const g = k => rows.find(r => r.kpi === k), rF = g(`${sc}_${per}_typical`), tN = g("hist").tot;
   const latePct = rF.tot ? Math.round(100 * rF.late / rF.tot) : 0;
   const none = Math.max(...rows.map(r => r.tot)) < 0.5;
@@ -1384,7 +1457,7 @@ function writeUrl() {
     if ((k === "expo" || k === "prof") && PROC()) continue;
     q.set(k, S[k]);
   }
-  try { history.replaceState(null, "", `${location.pathname}?${q}#${S.site}`); } catch (e) { /* framed or sandboxed: nothing to update */ }
+  try { history.replaceState(null, "", `${location.pathname}?${q}${S.site ? "#" + S.site : ""}`); } catch (e) { /* framed or sandboxed: nothing to update */ }
 }
 function renderAll() {
   syncLens();
@@ -1392,6 +1465,7 @@ function renderAll() {
   $("#hallgrp").style.opacity = sunOff ? .4 : 1; for (const b of $$("#ctl-hall button")) b.disabled = sunOff;
   renderStrip(); updateMap(); renderPanel(); writeUrl();
 }
+function clearSite() { if (!S.site) return; S.site = null; renderTree(); renderAll(); }
 function selectSite(id) {
   if (!byId[id]) return;
   S.site = id;
@@ -1452,7 +1526,7 @@ function init() {
   $("#gen").textContent = DATA.meta.generated;
   bindFilters(); drawMap();
   const h = location.hash.slice(1);
-  S.site = byId[h] ? h : "SVQ";
+  S.site = byId[h] ? h : null;   /* no site in the link: start with the sites in view as a whole (Europe) */
   if (byId[h]) S.open[byId[h].country] = true;
   renderTree(); renderAll();
   /* the map frame and the site-card charts are sized to their boxes: fit again once laid out and on resize */
@@ -1461,7 +1535,8 @@ function init() {
   /* the map box also changes size without a window resize (e.g. "Show all" in the ranking): redraw so markers keep their size */
   if (window.ResizeObserver) { let rf, last = 0; new ResizeObserver(es => { const h = Math.round(es[0].contentRect.height); if (Math.abs(h - last) < 2) return; last = h;
     cancelAnimationFrame(rf); rf = requestAnimationFrame(() => { drawMap(); updateMap(); }); }).observe($(".mapbox")); }
-  addEventListener("hashchange", () => { const x = location.hash.slice(1); if (byId[x] && x !== S.site) selectSite(x); });
+  addEventListener("hashchange", () => { const x = location.hash.slice(1); if (byId[x] && x !== S.site) selectSite(x); else if (!x) clearSite(); });
+  addEventListener("keydown", e => { if (e.key === "Escape" && !e.target.closest("input, select, textarea")) clearSite(); });
 }
 init();
 </script>

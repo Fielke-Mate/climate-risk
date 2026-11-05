@@ -88,9 +88,9 @@ async function check(p, where) {
   if (/weather in 2050/.test(paneText)) fail("typical charts", "typical view still shows the hot-year series");
 
   // 1b'. The working-time tile follows the filter: with one site in view it shows that site's own hours
-  const oneSite = await page.evaluate(() => { const keep = new Set(S.sel); S.sel = new Set(["TLS"]); afterFilter();
+  const oneSite = await page.evaluate(() => { const keep = new Set(S.sel), was = S.site; S.sel = new Set(["TLS"]); afterFilter();
     const tile = document.querySelector("#kstrip .kstat:nth-child(2) .val").childNodes[0].textContent.trim();
-    const own = fmt(kpiVal("TLS", EXPO().hours)[0]); S.sel = keep; afterFilter(); return [tile, own]; });
+    const own = fmt(kpiVal("TLS", EXPO().hours)[0]); S.sel = keep; afterFilter(); selectSite(was); return [tile, own]; });
   if (oneSite[0] !== oneSite[1]) fail("tile follows filter", `one site in view: tile ${oneSite[0]} h, site ${oneSite[1]} h`);
   // 1c. Summary tab: comfort-shift year pickers and the hours chart (consistent with the Indicators table)
   await click('.tabs button[data-tab="summary"]');
@@ -255,6 +255,35 @@ async function check(p, where) {
   const wl = await page.$eval("#ctl-layer", e => [e.value, [...e.options].map(o => o.value)]);
   if (wl[0].includes("proc") || !wl[1].includes("worker_days") || wl[1].some(v => v.includes("proc"))) fail("worker lens", `map layers not restored: ${wl[0]} of ${wl[1].join(", ")}`);
   if ((await page.$eval('.tabs button[data-tab="stress"]', e => e.textContent)) !== "Heat stress") fail("worker lens", "tab label not restored");
+  await page.goto(PAGE + "#SVQ"); await page.waitForTimeout(300);
+
+  // 1f. Group view: with no site picked the panel shows the sites in view (Europe), totals agree with the tile, clicking off a
+  //     site clears the name tag, a country row filters to that country, a single-site filter opens that site
+  await page.goto(PAGE); await page.waitForTimeout(400);
+  if (!(await page.$eval("#s-name", e => e.textContent)).startsWith("Europe")) fail("group view", "does not start at Europe without a site in the link");
+  if (!(await page.isHidden("#mapsel"))) fail("group view", "a name tag shows with no site picked");
+  for (const tab of ["summary", "data", "temp", "stress", "about"]) { await click(`.tabs button[data-tab="${tab}"]`); await check(page, `group/tab:${tab}`); states++; }
+  await click('.tabs button[data-tab="summary"]');
+  const gt = await page.evaluate(() => [document.querySelector("#kstrip .kstat:nth-child(2) .val").childNodes[0].textContent.trim(),
+    document.querySelector("#pane table.grp tr.tot td:nth-child(4)").textContent.trim(), document.querySelectorAll('#pane table.grp tr[data-site]').length]);
+  if (gt[0] !== gt[1]) fail("group view", `Europe total ${gt[1]} h does not match the tile ${gt[0]} h`);
+  if (gt[2] !== 15) fail("group view", `site table has ${gt[2]} rows`);
+  await page.click('#sites circle[data-id="TLS"]', { force: true });
+  if ((await page.$eval("#s-name", e => e.textContent)) !== "Toulouse (Blagnac)" || await page.isHidden("#mapsel")) fail("deselect", "clicking a site did not open it");
+  const mb = await page.$eval("#map", e => { const r = e.getBoundingClientRect(); return [r.left + 6, r.bottom - 6]; });
+  await page.mouse.click(mb[0], mb[1]); await page.waitForTimeout(100);
+  if (!(await page.isHidden("#mapsel")) || !(await page.$eval("#s-name", e => e.textContent)).startsWith("Europe")) fail("deselect", "clicking off a site did not clear the tag and return to Europe");
+  await page.click('#sites circle[data-id="SVQ"]', { force: true }); await page.keyboard.press("Escape"); await page.waitForTimeout(100);
+  if (!(await page.$eval("#s-name", e => e.textContent)).startsWith("Europe")) fail("deselect", "Esc did not clear the site");
+  await page.click('#pane tr[data-country="ES"]'); await page.waitForTimeout(150);
+  const es = await page.evaluate(() => [document.querySelector("#s-name").textContent, document.querySelectorAll('#pane table.grp tr[data-site]').length, document.querySelectorAll("#sites circle:not(.off)").length]);
+  if (!es[0].startsWith("Spain") || es[1] !== 3 || es[2] !== 3) fail("country filter", `after clicking Spain: ${es.join(" / ")}`);
+  for (const tab of ["summary", "data"]) { await click(`.tabs button[data-tab="${tab}"]`); await check(page, `group Spain/tab:${tab}`); states++; }
+  await click('#ctl-lens button[data-v="proc"]'); await click('.tabs button[data-tab="summary"]'); await check(page, "group Spain/process"); states++;
+  if ((await page.$$("#pane .dtstrip .dt")).length !== 4) fail("group view", "process lens: no downtime tiles for the group");
+  await click('#ctl-lens button[data-v="work"]');
+  await page.evaluate(() => { S.sel = new Set(["GET"]); afterFilter(); });
+  if ((await page.$eval("#s-name", e => e.textContent)) !== "Getafe") fail("country filter", "a one-site filter did not open that site");
   await page.goto(PAGE + "#SVQ"); await page.waitForTimeout(300);
 
   // 2. Every site, every tab (default view)
