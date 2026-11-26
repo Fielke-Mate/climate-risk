@@ -49,6 +49,11 @@ def load_sites(path: Path = SITES_FILE) -> list[Site]:
     ]
 
 
+def nex_site(site_id: str) -> str:
+    """The site whose NEX-GDDP cell supplies this site's climate-model data (D71: itself unless proxied)."""
+    return (settings()["future"].get("nex_proxy") or {}).get(site_id, site_id)
+
+
 def hourly_path(site_id: str, kind: str = "baseline") -> Path:
     """The site's hourly ERA5 record. kind: "baseline" (2015-2025 as observed: headline statistics, TMY,
     future morphing), "extended" (2000-2025 as observed) or "adjusted" (2000-2025, every year moved to the

@@ -21,7 +21,7 @@
 | ERA5 grid point used per site | `outputs/phase1/era5_grid_points.csv` | Yes |
 | Figures | `docs/phase1/figures/` | Yes |
 
-All 15 sites passed the automated checks: complete hourly record, no gaps or duplicates, and values in plausible ranges (`outputs/phase1/validation.json`).
+All 16 sites passed the automated checks: complete hourly record, no gaps or duplicates, and values in plausible ranges (`outputs/phase1/validation.json`).
 
 ## Method summary
 
@@ -43,6 +43,8 @@ All 15 sites passed the automated checks: complete hourly record, no gaps or dup
 
 ## Results per site (south → north)
 
+Augsburg (added Nov 2026, D71) has its own ERA5 record; its D61 baseline adjustment uses the Donauwörth climate-model cell until the NASA THREDDS server can supply its own.
+
 | Site | ERA5 grid point (distance) | TMY mean T (°C) | TMY − ERA5 11-yr mean | TMY − PVGIS | Hot year | WBGT degree-hours > 25 (working hrs): median → hot year | Working hours WBGT > 26 (> 28): median → hot year |
 |---|---|---|---|---|---|---|---|
 | Sevilla (San Pablo) | 37.50, -6.00 (14 km) | 19.1 | -0.1 | +0.0 | **2025** | 447 → 737 | 197 (12) → 321 (27) |
@@ -52,6 +54,7 @@ All 15 sites passed the automated checks: complete hourly record, no gaps or dup
 | Toulouse (Blagnac) | 43.75, 1.25 (14 km) | 14.9 | +0.2 | +1.0 | **2025** | 123 → 250 | 59 (3) → 107 (8) |
 | Nantes (Bouguenais) | 47.25, -1.50 (12 km) | 13.2 | +0.2 | +0.1 | **2019** | 6 → 72 | 0 (0) → 28 (4) |
 | Saint-Nazaire (Montoir-de-Bretagne) | 47.25, -2.25 (10 km) | 13.4 | +0.1 | -0.1 | **2024** | 1 → 23 | 0 (0) → 14 (0) |
+| Augsburg | 48.25, 11.00 (10 km) | 10.2 | +0.1 | +0.0 | **2015** (dry heat, D68) | 0 → 1 | 0 (0) → 0 (0) |
 | Donauworth | 48.75, 10.75 (5 km) | 9.9 | -0.2 | +0.0 | **2015** | 0 → 4 | 0 (0) → 0 (0) |
 | Meaulte | 50.00, 2.75 (6 km) | 11.6 | +0.1 | +0.6 | **2025** | 1 → 22 | 0 (0) → 9 (0) |
 | Filton | 51.50, -2.50 (6 km) | 11.2 | +0.1 | +1.0 | **2022** | 0 → 0 | 0 (0) → 0 (0) |
@@ -100,6 +103,7 @@ All 15 sites passed the automated checks: complete hourly record, no gaps or dup
 | Toulouse (Blagnac) | 2025 | 2003 | 107 / 168 | 322 / 568 | 14 / 16 | 42.2 / 41.5 |
 | Nantes (Bouguenais) | 2019 | 2003 | 28 / 84 | 94 / 172 | 4 / 12 | 37.8 / 39.0 |
 | Saint-Nazaire (Montoir-de-Bretagne) | 2024 | 2003 | 14 / 62 | 13 / 73 | 2 / 4 | 32.7 / 34.5 |
+| Augsburg | 2015 (dry heat) | 2003 (dry heat) | 0 / 0 | 115 / 186 | 4 / 12 | 35.3 / 37.5 |
 | Donauworth | 2015 | 2003 (dry heat) | 0 / 0 | 133 / 170 | 4 / 12 | 35.7 / 37.7 |
 | Meaulte | 2025 | 2003 | 9 / 29 | 43 / 92 | 3 / 10 | 35.2 / 36.2 |
 | Filton | 2022 | 2022 (dry heat) | 0 / 0 | 46 / 46 | 4 / 4 | 34.9 / 34.8 |
@@ -110,7 +114,7 @@ All 15 sites passed the automated checks: complete hourly record, no gaps or dup
 | Stade | 2018 (dry heat) | 2018 (dry heat) | 0 / 0 | 67 / 67 | 5 / 5 | 34.8 / 34.9 |
 
 **Reading:**
-- **2003 is the extreme year at eight sites** (all of France, the Madrid sites, Donauwörth). In today's climate it brings **more heat and longer spells** than any recent year: Nantes 172 hours above 30 °C and a 12-day spell (2019: 94 hours, 4 days), Donauwörth 12 days (2015: 4), Marignane 30 days (2025: 19), Toulouse 168 indoor WBGT hours above 26 °C (2025: 107).
+- **2003 is the extreme year at nine sites** (all of France, the Madrid sites, Donauwörth, Augsburg). In today's climate it brings **more heat and longer spells** than any recent year: Nantes 172 hours above 30 °C and a 12-day spell (2019: 94 hours, 4 days), Donauwörth 12 days (2015: 4), Marignane 30 days (2025: 19), Toulouse 168 indoor WBGT hours above 26 °C (2025: 107).
 - **Sevilla: 2006**, humid heat (398 WBGT hours, against 321 in 2025).
 - **North Germany: 2018** is both the hot and the extreme year since D68 (dry-heat fallback for the hot year): 3–4 times the hours above 30 °C of 2015 and the longest spells. The extreme version is 2018 adjusted to the 2020 climate, so it reads marginally warmer. Before D68 the hot year was 2015, chosen on a few humid hours (1–7 indoor WBGT hours), which made the "hot" year lower than the typical year for dry heat.
 - **UK: 2022** is both the hot and the extreme year; no earlier year, even adjusted, beats it.

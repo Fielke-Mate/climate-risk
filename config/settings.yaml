@@ -165,6 +165,11 @@ future:
     NorESM2-MM: r1i1p1f1
   variables: [tas, tasmax, tasmin, huss, rsds, rlds, sfcWind]
   baseline_years: [2015, 2025]     # model window the future deltas are measured from (centre 2020)
+  # D71: site -> site whose NEX cell supplies its model data (future deltas and the D61 baseline adjustment).
+  # Augsburg was added while the NCCS THREDDS server failed every data request (Nov 2026); it takes the
+  # Donauwörth cell, the adjacent one to the north (44 km). Delete the entry and rerun fetch_nex.py,
+  # phase1 and phase2 without --reuse-* once THREDDS works, to give Augsburg its own cell.
+  nex_proxy: {AGB: DON}
   # D61: the ERA5 years 2000-2025 are adjusted to the 2020 climate with the models' own warming between
   # these windows (early from the historical run, late = baseline_years); see climate_risk/adjust.py
   baseline_adjustment:

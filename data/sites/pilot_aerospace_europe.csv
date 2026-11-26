@@ -9,6 +9,7 @@ BRE,Bremen,DE,53.0524,8.7957,OpenStreetMap Airbus Bremen works,high,
 STD,Stade,DE,53.5686,9.5097,OpenStreetMap Airbus Aerostructures Stade works,high,
 NOR,Nordenham,DE,53.5117,8.5181,OpenStreetMap Airbus Aerostructures Nordenham (Einswarden) industrial area,high,
 DON,Donauworth,DE,48.7091,10.7695,OpenStreetMap Airbus Helicopters industrial area,high,
+AGB,Augsburg,DE,48.3218,10.9106,OpenStreetMap Airbus Aerostructures Augsburg Werk IV (Haunstetter Strasse 225),high,"Werks I, III and IV Ost lie within 2.5 km (same ERA5 and NEX cells)"
 GET,Getafe,ES,40.2972,-3.7096,OpenStreetMap Airbus Getafe industrial area,high,
 ILL,Illescas,ES,40.1585,-3.8246,OpenStreetMap Airbus Operations Illescas industrial area,high,
 SVQ,Sevilla (San Pablo),ES,37.4110,-5.8828,OpenStreetMap Airbus Defence and Space works (San Pablo),high,
