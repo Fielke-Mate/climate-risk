@@ -52,3 +52,7 @@ def test_annual_summary_has_heatwave_and_spell_columns():
     s = annual_summary(df, 43.6, 1.4, "Europe/Paris", settings()).loc[2022]
     assert s["hw30_events"] == 1 and s["hw30_longest"] == 6
     assert s["op_longest_wbgt_shade_gt_ref"] == 6 and s["op_spells_wbgt_shade_gt_ref"] == 1
+    # D72: weekdays only. The spell runs Sunday 10 to Friday 15 July, so it loses the Sunday
+    assert s["wd_days_wbgt_shade_gt_ref"] == s["op_days_wbgt_shade_gt_ref"] - 1
+    assert s["wd_longest_wbgt_shade_gt_ref"] == 5 and s["wd_spells_wbgt_shade_gt_ref"] == 1
+    assert s["wd_hours_wbgt_shade_gt_ref"] < s["op_hours_wbgt_shade_gt_ref"]
