@@ -12,9 +12,9 @@ The first focus is **extreme heat**: risk to **worker health and productivity** 
 - Code review and functional test (Nov 2026): [`docs/code_review_2026-11.md`](docs/code_review_2026-11.md)
 - Methodology review (building services): [`docs/methodology_review.md`](docs/methodology_review.md)
 - Methodology review (climate science: future hot years and amplified extremes): [`docs/climate_science_review.md`](docs/climate_science_review.md)
-- Dashboard prototype: `dashboard/index.html` (self-contained; open in a browser or host on GitHub Pages). Rebuild with `scripts/build_dashboard.py`, which also writes `dashboard/data.json` (the data, for inspection) and `dashboard/page.html` (for publishing as a claude.ai page); those two are build outputs and not committed (D69).
+- Dashboard prototype: published from the default branch to GitHub Pages by CI (D71). Locally, `scripts/render_dashboard.py` writes `dashboard/index.html` (open in a browser) and `dashboard/page.html` (for publishing as a claude.ai page) from the committed data snapshot `dashboard/data.json` in seconds; `scripts/build_dashboard.py` rebuilds that snapshot from the pipeline outputs and then renders.
 - Process-limit lens (D66, dashboard "Heat risk to: Processes"): [`docs/process_lens_plan.md`](docs/process_lens_plan.md)
-- Dashboard build in CI (plan, not started): [`docs/dashboard_ci_plan.md`](docs/dashboard_ci_plan.md)
+- Dashboard build in CI (D71): [`docs/dashboard_ci_plan.md`](docs/dashboard_ci_plan.md)
 - Working conventions (branches, decisions log, generated files, secrets): [`CLAUDE.md`](CLAUDE.md)
 
 ## Setup
@@ -34,6 +34,8 @@ ERA5 downloads need a free Copernicus CDS account. Put the API key in the `CDSAP
 .venv/bin/python scripts/phase1_historical.py   # --reuse-adjustment skips the model data
 .venv/bin/python scripts/phase2_future.py       # --reuse-deltas skips the model data
 .venv/bin/python -m pytest
+.venv/bin/python scripts/build_dashboard.py    # data snapshot dashboard/data.json + page (needs data/weather/future)
+.venv/bin/python scripts/render_dashboard.py   # page only, from the committed data.json (template changes)
 node tests/dashboard_check.js   # browser test of dashboard/index.html (needs Playwright)
 ```
 

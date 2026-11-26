@@ -10,6 +10,6 @@ data/weather/hourly/
 *.egg-info/
 data/weather/future/
 
-# Build outputs of scripts/build_dashboard.py (D69): index.html is committed, these are not
-dashboard/data.json
+# Rendered pages (D71): built by scripts/render_dashboard.py locally and in CI; dashboard/data.json is committed
+dashboard/index.html
 dashboard/page.html

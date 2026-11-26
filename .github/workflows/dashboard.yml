@@ -1,0 +1,80 @@
+# Dashboard CI (D71): test, render the page from the committed data snapshot, check it in
+# headless Chromium, and publish the default branch to GitHub Pages.
+# The pipeline itself (ERA5, NEX, phases 1-2) never runs here: dashboard/data.json is its output.
+name: Dashboard
+
+on:
+  pull_request:
+  push:            # every branch; jobs below act only on the default branch
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    # PRs, manual runs, and pushes to the default branch (whatever it is named)
+    if: github.event_name != 'push' || github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Tests (incl. data.json matches sites and config)
+        run: python -m pytest -q
+
+      - name: Render the page
+        run: python scripts/render_dashboard.py
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Playwright and Chromium
+        run: |
+          npm install --no-save --no-package-lock playwright@1.63.0
+          npx playwright install --with-deps chromium
+
+      - name: Dashboard check
+        run: node tests/dashboard_check.js
+
+      - name: Upload the built page for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard
+          path: dashboard/index.html
+          retention-days: 14
+
+      - name: Stage the Pages site
+        if: github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch
+        run: mkdir _site && cp dashboard/index.html _site/index.html
+
+      - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch
+        with:
+          path: _site
+
+  deploy:
+    needs: check
+    if: github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

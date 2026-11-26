@@ -1,6 +1,7 @@
-# Generated pages (scripts/build_dashboard.py, scripts/build_summary_concepts.py).
+# Generated files: the dashboard data snapshot (scripts/build_dashboard.py, D71) and the concept pages
+# (scripts/build_summary_concepts.py).
 # Treated as binary: git never text-merges them and PRs collapse their diff.
-# On a conflict, merge the sources (template, script, outputs) and rebuild; never hand-resolve.
-dashboard/index.html                        -diff -merge linguist-generated=true
+# On a conflict, merge the sources (script, outputs, config, sites) and rebuild; never hand-resolve.
+dashboard/data.json                         -diff -merge linguist-generated=true
 dashboard/concepts/summary_concepts.html    -diff -merge linguist-generated=true
 dashboard/concepts/summary_concepts_full.html -diff -merge linguist-generated=true

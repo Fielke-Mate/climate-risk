@@ -7,15 +7,17 @@ Physical climate risk (extreme heat) proof of concept for European aerospace man
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 .venv/bin/python -m pytest
-.venv/bin/python scripts/build_dashboard.py   # rebuilds dashboard/index.html
-node tests/dashboard_check.js                 # headless check of the built dashboard
+.venv/bin/python scripts/render_dashboard.py  # page from the committed data.json (seconds, no pipeline)
+.venv/bin/python scripts/build_dashboard.py   # rebuilds data.json from the pipeline outputs, then renders
+node tests/dashboard_check.js                 # headless check of the rendered dashboard
 ```
 
-Run pytest, and after any dashboard change the build and `dashboard_check.js`, before opening a PR.
+Run pytest, and after any dashboard change the render and `dashboard_check.js`, before opening a PR. CI (`.github/workflows/dashboard.yml`) runs the same on every PR and attaches the built page as a workflow artefact.
 
 ## Branches and pull requests
 
-- Never commit or push to `main`. Work on a branch, open a PR, and the other person reviews and merges.
+- "main" below means the repo's default branch, whatever it is called (as at Nov 2026 it is `claude/peaceful-darwin-8w6ulr`; renaming it to `main` is planned). Check with `git ls-remote --symref origin HEAD`.
+- Never commit or push to main. Work on a branch, open a PR, and the other person reviews and merges. Every merge to main publishes the dashboard to GitHub Pages.
 - Keep a PR to one change. Commit subjects follow the existing style: area, colon, what changed, decision number if any, e.g. `Process lens: one running window for both lenses (D70)`.
 
 ## Decisions log
@@ -26,10 +28,14 @@ Run pytest, and after any dashboard change the build and `dashboard_check.js`, b
 
 ## Generated files
 
-- `dashboard/index.html` is built by `scripts/build_dashboard.py` from `dashboard/template.html`, the pipeline outputs and `config/settings.yaml`. Edit the template or the script, never `index.html`.
-- `.gitattributes` marks `index.html` (and the concept pages) as binary. On a merge conflict, resolve the sources, rebuild, and commit the rebuilt file.
-- `dashboard/data.json` and `dashboard/page.html` are build outputs and not committed (D69).
-- The build reads gitignored inputs: `data/weather/future/` (from `scripts/phase2_future.py`), which in turn needs the hourly ERA5 files in `data/weather/hourly/` (from `scripts/fetch_era5.py`). Without them the build fails, even for a template-only change. `phase2_future.py --reuse-deltas` avoids the ~3 h NEX download. `docs/dashboard_ci_plan.md` plans to remove this dependency.
+The dashboard is built in two steps (D71):
+
+- `scripts/build_dashboard.py` turns the pipeline outputs and `config/settings.yaml` into the data snapshot `dashboard/data.json`, which is **committed**. It needs gitignored inputs: `data/weather/future/` (from `scripts/phase2_future.py`, which needs the hourly ERA5 files from `scripts/fetch_era5.py`; `--reuse-deltas` skips the ~3 h NEX download).
+- `scripts/render_dashboard.py` puts `data.json` into `dashboard/template.html` and writes `index.html` and `page.html`. Neither is committed; CI renders and publishes.
+- Edit the template for layout and behaviour, and the build script for data. Never hand-edit `data.json`, `index.html` or `page.html`.
+- Any change to sites, config, pipeline outputs or the data part of the build script must ship with a rebuilt `data.json` in the same PR. `tests/test_dashboard_data.py` fails if the snapshot's sites or key config values don't match the repo. A template change that reads a new data field also needs the rebuilt snapshot in the same PR.
+- `.gitattributes` marks `data.json` (and the concept pages) as binary. On a merge conflict in it, resolve the sources, rerun `build_dashboard.py`, and commit the result.
+- An older branch that still edits `dashboard/index.html` conflicts with its removal: run `git rm dashboard/index.html`, then rebuild `data.json` as above.
 
 ## Configuration and data
 
