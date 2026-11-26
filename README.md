@@ -14,6 +14,8 @@ The first focus is **extreme heat**: risk to **worker health and productivity** 
 - Methodology review (climate science: future hot years and amplified extremes): [`docs/climate_science_review.md`](docs/climate_science_review.md)
 - Dashboard prototype: `dashboard/index.html` (self-contained; open in a browser or host on GitHub Pages). Rebuild with `scripts/build_dashboard.py`, which also writes `dashboard/data.json` (the data, for inspection) and `dashboard/page.html` (for publishing as a claude.ai page); those two are build outputs and not committed (D69).
 - Process-limit lens (D66, dashboard "Heat risk to: Processes"): [`docs/process_lens_plan.md`](docs/process_lens_plan.md)
+- Dashboard build in CI (plan, not started): [`docs/dashboard_ci_plan.md`](docs/dashboard_ci_plan.md)
+- Working conventions (branches, decisions log, generated files, secrets): [`CLAUDE.md`](CLAUDE.md)
 
 ## Setup
 

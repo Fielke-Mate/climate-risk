@@ -1,0 +1,6 @@
+# Generated pages (scripts/build_dashboard.py, scripts/build_summary_concepts.py).
+# Treated as binary: git never text-merges them and PRs collapse their diff.
+# On a conflict, merge the sources (template, script, outputs) and rebuild; never hand-resolve.
+dashboard/index.html                        -diff -merge linguist-generated=true
+dashboard/concepts/summary_concepts.html    -diff -merge linguist-generated=true
+dashboard/concepts/summary_concepts_full.html -diff -merge linguist-generated=true
