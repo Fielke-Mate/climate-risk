@@ -24,7 +24,7 @@ from concurrent.futures import ProcessPoolExecutor
 
 from climate_risk.annual import wbgt_metric_names, wbgt_profiles
 from climate_risk.heatwave import heatwave_metric_names
-from climate_risk.config import ROOT, WEATHER_DIR, load_sites, settings, shifts
+from climate_risk.config import ROOT, WEATHER_DIR, load_sites, nex_site, settings, shifts
 from climate_risk.heat import heat_frame, utci_indoor, wbgt_liljegren
 from climate_risk.ladder import rung_names, rungs
 from climate_risk.weather import operating_hours_mask
@@ -340,6 +340,11 @@ def main() -> None:
                           "x": round(float(x), 1), "y": round(float(y), 1), "hot_year": hy, "extreme_year": ey,
                           "extreme_rule": str(hot.loc[s.site_id, "extreme_rule"]), "hot_rule": str(hot.loc[s.site_id, "hot_rule"]),
                           "grid": [float(g.grid_lat), float(g.grid_lon), float(g.distance_km)], "tz": s.timezone})
+        if nex_site(s.site_id) != s.site_id:  # D71: climate-model data borrowed from another site's cell
+            p = next(x for x in sites if x.site_id == nex_site(s.site_id))
+            la1, la2, dlon = math.radians(s.lat), math.radians(p.lat), math.radians(p.lon - s.lon)
+            km = 6371 * math.acos(min(1.0, math.sin(la1) * math.sin(la2) + math.cos(la1) * math.cos(la2) * math.cos(dlon)))
+            site_rows[-1]["nex_proxy"] = {"id": p.site_id, "name": p.name, "km": round(km)}
         # headline indicators (multi-year analysis)
         k = {}
         e = ens[ens.site_id == s.site_id]
