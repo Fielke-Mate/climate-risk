@@ -29,7 +29,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 from climate_risk import deltas as dl  # noqa: E402
 from climate_risk import morph, weather  # noqa: E402
-from climate_risk.annual import annual_summary, wbgt_metric_names  # noqa: E402
+from climate_risk.annual import annual_summary, wbgt_metric_names, with_weekdays  # noqa: E402
 from climate_risk.ladder import ensemble as ladder_ensemble, ladder  # noqa: E402
 from climate_risk.heatwave import heatwave_metric_names  # noqa: E402
 from climate_risk.config import ROOT, WEATHER_DIR, hourly_path, load_sites, settings  # noqa: E402
@@ -40,13 +40,13 @@ FIG = ROOT / "docs" / "phase2" / "figures"
 FUT = WEATHER_DIR / "future"
 SERIES = ["#2a78d6", "#eb6834", "#1baf7a"]
 INK, INK2, GRID = "#0b0b0b", "#52514e", "#e4e3df"
-METRICS = ["temp_mean", "temp_max", "hours_t_gt30", "days_tmax_gt30", "days_tmax_gt35", "nights_tmin_gt20", "op_wbgt_shade_degree_hours_gt_base",
+METRICS = with_weekdays(["temp_mean", "temp_max", "hours_t_gt30", "days_tmax_gt30", "days_tmax_gt35", "nights_tmin_gt20", "op_wbgt_shade_degree_hours_gt_base",
            "op_hours_utci_in0_gt28", "op_hours_utci_in0_gt32", "op_hours_utci_in2_gt28", "op_hours_utci_in2_gt32",
            "op_hours_utci_in4_gt28", "op_hours_utci_in4_gt32", "op_hours_utci_sun_gt32",
            "wbgt_shade_max", "wbgt_sun_max", "hours_utci_shade_gt28", "hours_utci_sun_gt32",
            "hours_utci_sun_gt38", "proc_hours_paint_application_max_temp", "proc_hours_paint_application_max_rh",
            "proc_hours_composite_room_cooling", "cdh24", "hdh19",
-           *wbgt_metric_names(settings()["heat"]), *heatwave_metric_names(settings())]
+           *wbgt_metric_names(settings()["heat"]), *heatwave_metric_names(settings())], settings())   # D72: + "wd_*"
 
 
 def style(ax):

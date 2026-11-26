@@ -45,6 +45,29 @@ def test_counts_match_brute_force():
     assert list(ys) == [2021]
 
 
+def test_weekdays_only_matches_brute_force():
+    """D72: the "wd_" metrics count operating hours on weekdays only; a weekend does not end a run of days."""
+    cfg = settings()
+    df, loc = synthetic(seed=2)
+    lad = ladder(df, "Europe/Madrid", cfg)
+    lad = lad[lad.year == 2021].set_index("metric")
+    t = df["temp_air"].to_numpy()
+    m = loc.year == 2021
+    wd = (loc.hour >= 6) & (loc.hour < 22) & (loc.dayofweek < 5)
+    for r in (25.0, 30.0, 32.5, 35.0):
+        c = f"{r:g}"
+        assert lad.loc["wd_hours", c] == int((t[m & wd] > r).sum())
+        assert lad.loc["wd_hours", c] == lad.loc["wd_early", c] + lad.loc["wd_late", c]
+        night = ((loc.hour >= 22) | (loc.hour < 6)) & (loc.dayofweek < 5)   # the night shift is counted on the same days
+        assert lad.loc["wd_night", c] == int((t[m & night] > r).sum())
+        assert lad.loc["wd_hours", c] <= lad.loc["op_hours", c]
+        dmax = pd.Series(t[m & wd]).groupby(loc.normalize()[m & wd]).max()
+        assert lad.loc["wd_days", c] == int((dmax > r).sum())
+        runs = run_lengths((dmax > r).to_numpy())   # consecutive weekdays: Friday is followed by Monday
+        assert lad.loc["wd_longest", c] == (runs.max() if len(runs) else 0)
+        assert lad.loc["wd_dh", c] == pytest.approx(float(np.clip(t[m & wd] - r, 0, None).sum()), abs=0.1)
+
+
 def test_monotonic_in_the_rung():
     cfg = settings()
     df, _ = synthetic(seed=3)

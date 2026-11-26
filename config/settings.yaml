@@ -10,6 +10,9 @@ operating_hours:          # D39: user-adjustable for sensitivity tests
   start: "06:00"          # local time, inclusive
   end: "22:00"            # local time, exclusive
   days: [0, 1, 2, 3, 4, 5, 6]   # Monday=0 ... Sunday=6
+  # D72: every operating-hours metric is also counted on these days only ("wd_" for "op_"), for the
+  # dashboard's Working days toggle (all days / weekdays). The headline stays on `days`.
+  weekdays: [0, 1, 2, 3, 4]
 # Shifts (local time, [start, end)): the shift splits in the summaries, the ladder and the dashboard all read
 # this block. Early + late should cover operating_hours; night is outside them by default.
 shifts:

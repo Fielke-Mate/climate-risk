@@ -155,6 +155,37 @@ async function check(p, where) {
   await click('#ctl-expo button[data-v="in"]');
   await click('#ctl-hall button[data-v="0"]');
 
+  // 1d2. Work days (D72): Mon–Fri renders on every tab in both lenses, never counts more than every day, says so,
+  //      and is carried in the URL
+  const dayBtns = await page.$$eval("#ctl-days button", bs => bs.map(b => `${b.dataset.v}:${b.textContent}`));
+  if (dayBtns.join("|") !== "all:Mon–Sun|wd:Mon–Fri") fail("work days", `toggle buttons: ${dayBtns.join(", ")}`);
+  for (const lens of ["work", "proc"]) {
+    await click(`#ctl-lens button[data-v="${lens}"]`);
+    for (const yt of ["typical", "hot", "extreme"]) {
+      await click(`#ctl-yt button[data-v="${yt}"]`);
+      for (const period of ["hist", "2050"]) {
+        await click(`#ctl-period button[data-v="${period}"]`);
+        await click('#ctl-days button[data-v="all"]');
+        const all = await tileHours();
+        await click('#ctl-days button[data-v="wd"]');
+        const wd = await tileHours();
+        if (wd > all) fail(`work days ${lens}/${yt}/${period}`, `Mon–Fri ${wd} h above Mon–Sun ${all} h`);
+        if (all > 50 && !(wd < all)) fail(`work days ${lens}/${yt}/${period}`, `Mon–Fri gives the same hours as Mon–Sun (${all} h)`);
+        for (const tab of ["summary", "data", "temp", "stress", "about"]) {
+          await click(`.tabs button[data-tab="${tab}"]`);
+          await check(page, `work days ${lens}/${yt}/${period}/tab:${tab}`);
+          states++;
+        }
+      }
+    }
+    if (!/days=wd/.test(page.url())) fail(`work days ${lens}`, "the URL does not carry days=wd");
+    await click('.tabs button[data-tab="data"]');
+    if (!/Mon–Fri/.test(await page.$eval("#pane", e => e.textContent))) fail(`work days ${lens}`, "the Indicators tab does not say Mon–Fri");
+    await click('#ctl-days button[data-v="all"]');
+  }
+  await click('#ctl-lens button[data-v="work"]'); await click('#ctl-yt button[data-v="typical"]'); await click('#ctl-period button[data-v="2050"]');
+  await click('.tabs button[data-tab="summary"]');
+
   // 1e. Process lens (D66): every view x run mode x process layer x tab; monotonic in the limit, hall gain and run mode;
   //     summary bars agree with the Indicators table; presets, stepper, free entry and clamping
   await click('#ctl-lens button[data-v="proc"]');
