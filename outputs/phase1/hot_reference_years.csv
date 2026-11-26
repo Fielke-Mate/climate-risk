@@ -6,6 +6,7 @@ MRS,Marignane,2025,humid heat (WBGT degree-hours),2003,humid heat (WBGT degree-h
 TLS,Toulouse (Blagnac),2025,humid heat (WBGT degree-hours),2003,humid heat (WBGT degree-hours),250.5,107.0,17.0,322.0,42.2,14.0,14.0,381.7,168.0,29.0,568.0,41.5,27.0,16.0,59.0
 NTE,Nantes (Bouguenais),2019,humid heat (WBGT degree-hours),2003,humid heat (WBGT degree-hours),72.2,28.0,5.0,94.0,37.8,2.0,4.0,215.2,84.0,11.0,172.0,39.0,7.0,12.0,0.0
 SNR,Saint-Nazaire (Montoir-de-Bretagne),2024,humid heat (WBGT degree-hours),2003,humid heat (WBGT degree-hours),22.6,14.0,3.0,13.0,32.7,0.0,2.0,147.8,62.0,8.0,73.0,34.5,0.0,4.0,0.0
+AGB,Augsburg,2015,dry heat (hours above 30 °C),2003,dry heat (hours above 30 °C),1.3,0.0,0.0,115.0,35.3,1.0,4.0,0.1,0.0,0.0,186.0,37.5,8.0,12.0,0.0
 DON,Donauworth,2015,dry heat (hours above 30 °C),2003,dry heat (hours above 30 °C),3.6,0.0,0.0,133.0,35.7,1.0,4.0,0.9,0.0,0.0,170.0,37.7,6.0,12.0,0.0
 MLT,Meaulte,2025,humid heat (WBGT degree-hours),2003,humid heat (WBGT degree-hours),21.8,9.0,1.0,43.0,35.2,1.0,3.0,63.9,29.0,4.0,92.0,36.2,4.0,10.0,0.0
 FIL,Filton,2022,dry heat (hours above 30 °C),2022,dry heat (hours above 30 °C),0.0,0.0,0.0,46.0,34.9,0.0,4.0,0.0,0.0,0.0,46.0,34.8,0.0,4.0,0.0

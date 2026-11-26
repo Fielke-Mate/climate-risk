@@ -31,7 +31,7 @@ from matplotlib.patches import Rectangle  # noqa: E402
 
 from climate_risk import adjust, era5, pvgis, tmy, weather  # noqa: E402
 from climate_risk.annual import annual_summary, select_extreme_year, select_reference_year  # noqa: E402
-from climate_risk.config import ROOT, WEATHER_DIR, hourly_path, load_sites, settings  # noqa: E402
+from climate_risk.config import ROOT, WEATHER_DIR, hourly_path, load_sites, nex_site, settings  # noqa: E402
 from climate_risk.ladder import ladder  # noqa: E402
 
 OUT = ROOT / "outputs" / "phase1"
@@ -76,11 +76,14 @@ ADJ_CSV = OUT / "baseline_adjustment.csv"
 
 def adjustment_table(sites, cfg, reuse: bool) -> pd.DataFrame:
     """D61: per-site monthly warming rates from the climate models (or the saved table)."""
-    if reuse:
-        return pd.read_csv(ADJ_CSV)
+    if reuse:  # D73: a proxied site takes its proxy's rows
+        saved = pd.read_csv(ADJ_CSV)
+        saved = saved[saved.site_id.isin({nex_site(s.site_id) for s in sites})]
+        return pd.concat([saved[saved.site_id == nex_site(s.site_id)].assign(site_id=s.site_id) for s in sites],
+                         ignore_index=True)
     fc, b = cfg["future"], cfg["baseline"]
     adj = fc["baseline_adjustment"]
-    frames = [adjust.adjustment_rates(s.site_id, list(fc["models"]), fc["scenarios"], tuple(adj["early_window"]),
+    frames = [adjust.adjustment_rates(nex_site(s.site_id), list(fc["models"]), fc["scenarios"], tuple(adj["early_window"]),
                                       tuple(fc["baseline_years"])).assign(site_id=s.site_id) for s in sites]
     out = pd.concat(frames, ignore_index=True)
     out.to_csv(ADJ_CSV, index=False)
@@ -214,7 +217,11 @@ def main() -> None:
     order = [s.site_id for s in sites][::-1]  # north at top
 
     # Figure 1: monthly mean temperature, small multiples
-    fig, axes = plt.subplots(3, 5, figsize=(15, 8.2), sharex=True, sharey=True)
+    ncol = 5 if len(order) <= 15 else 6
+    nrow = -(-len(order) // ncol)
+    fig, axes = plt.subplots(nrow, ncol, figsize=(3 * ncol, 2.75 * nrow), sharex=True, sharey=True, squeeze=False)
+    for ax in axes.flat[len(order):]:
+        ax.set_visible(False)
     for ax, sid in zip(axes.flat, order):
         style_axes(ax)
         for i, src in enumerate(monthly["source"].unique()):

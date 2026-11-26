@@ -194,6 +194,7 @@ select.ksel { height: 30px; font: inherit; font-size: var(--fs-125); padding: 0 
 /* site card */
 .site-h { padding: 12px 16px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
 .site-h h2 { margin: 0; font-size: var(--fs-16); font-weight: 600; }
+.pnote { flex-basis: 100%; margin: 0; font-size: var(--fs-12); color: var(--need); line-height: 1.4; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { font-size: var(--fs-115); padding: 1px 9px; border-radius: var(--r-pill); background: var(--bg-2); color: var(--ink-2); }
 .chip b { color: var(--ink); font-weight: 600; }
@@ -332,7 +333,7 @@ svg.chart .gridl { stroke: var(--line); }
 <div class="shell" id="shell">
   <header class="pbar">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M10 13.5V5a2 2 0 1 1 4 0v8.5a4 4 0 1 1-4 0Z"/><path d="M12 9v6"/></svg></div>
-    <h1>European Plant Heat Risk<small>Illustrative aerospace portfolio · 15 sites · 4 countries</small></h1>
+    <h1>European Plant Heat Risk<small>Illustrative aerospace portfolio · 16 sites · 4 countries</small></h1>
     <div class="vgrp lens"><span>Heat risk to</span><div class="toggle" id="ctl-lens"><button data-v="work">Workers</button><button data-v="proc">Processes</button></div></div>
     <span class="sp"></span>
     <button class="kbtn" id="copylink" type="button" title="Copy a link that opens this exact view">Copy link to this view</button>
@@ -407,7 +408,7 @@ svg.chart .gridl { stroke: var(--line); }
       </div>
 
       <section class="card" id="panel">
-        <div class="site-h"><h2 id="s-name"></h2></div>
+        <div class="site-h"><h2 id="s-name"></h2><p id="s-note" class="pnote" hidden></p></div>
         <div class="tabs" role="tablist" aria-label="Site detail">
           <button role="tab" data-tab="summary">Summary</button>
           <button role="tab" data-tab="data">Indicators</button>
@@ -758,6 +759,9 @@ function renderHeader() {
   const s = byId[S.site], k = DATA.kpi[S.site];
   $("#s-name").innerHTML = esc(s.name) + (S.sel.has(s.id) ? "" : ` <span class="offsel">outside your filter · <button type="button" class="lnk" id="showsite">show it</button></span>`);
   const bs = $("#showsite"); if (bs) bs.addEventListener("click", () => { S.sel.add(s.id); S.open[s.country] = true; afterFilter(); });
+  const pn = $("#s-note"), px = s.nex_proxy;
+  pn.hidden = !px;
+  pn.textContent = px ? `Provisional: 2040 and 2050 figures use climate-model warming from the ${px.name} grid cell (${px.km} km away) until ${s.name}'s own cell is available. Today's figures are ${s.name}'s own.` : "";
 }
 function cell(id, m, col, d) {
   const k = DATA.kpi[id][OP(m)];
@@ -1086,7 +1090,7 @@ function renderAbout() {
     <li><b>Typical year:</b> an ISO 15927-4 typical meteorological year built from the same record, used for the hourly charts.</li>
     <li><b>Hot year:</b> the site's hottest actual year of ${B0}–${B1} (${s.hot_year}), ranked by working-hour WBGT degree-hours above 25 °C, shown unadjusted: a year people remember.</li>
     <li><b>Extreme year:</b> the hottest year of ${E0}–${B1} once adjusted to today's climate (${s.extreme_year}${s.extreme_year === s.hot_year ? ", the same year as the hot year" : ""}), ranked on ${s.extreme_rule}: a plausible worst case from real weather. To adjust it, every year of ERA5 ${E0}–${B1} is moved to the ${DATA.meta.reference_year} climate with the warming the same climate models simulate between 2000–2010 and 2015–2025 (daily maximum and minimum temperature and humidity, month by month). The models warm western Europe more slowly than observed, so the early years stay slightly cool: the extreme year is, if anything, conservative.</li>
-    <li><b>2040 and 2050:</b> every historical year adjusted with changes from ${DATA.meta.models.length} NEX-GDDP-CMIP6 models (${DATA.meta.models.join(", ")}). Hot days receive the hot-day warming. 2040 = 2031–2050 and 2050 = 2041–2060, both against 2015–2025 (the ${DATA.meta.reference_year} climate).</li>
+    <li><b>2040 and 2050:</b> every historical year adjusted with changes from ${DATA.meta.models.length} NEX-GDDP-CMIP6 models (${DATA.meta.models.join(", ")}). Hot days receive the hot-day warming. 2040 = 2031–2050 and 2050 = 2041–2060, both against 2015–2025 (the ${DATA.meta.reference_year} climate).${s.nex_proxy ? ` For ${esc(s.name)}, these changes and the extreme-year adjustment come from the ${esc(s.nex_proxy.name)} grid cell, ${s.nex_proxy.km} km away, until its own cell can be downloaded; across site pairs 20–90 km apart in this portfolio, 2050 summer warming differs by up to about 0.15 °C.` : ""}</li>
     <li><b>Typical, hot and extreme:</b> headline numbers use the median year and the 90th-percentile year (about 1 in 10) of the ${NY} years ${B0}–${B1}; "Extreme" uses the extreme reference year. In the charts, "Hot" shows the site's hot reference year (${s.hot_year}) as it happened and adjusted to 2040 and 2050, "Extreme" the extreme year (${s.extreme_year}) in today's climate and adjusted, and "Typical" the typical year.</li>
     <li><b>Days</b> (View bar): every working-hours number (heat-safety days and hours, shifts, process downtime) counts the operating hours ${OPH.start}–${OPH.end} on ${daysLbl(OPH.days)} by default${OPH.weekdays != null ? `; ${daysLbl(OPH.weekdays)} leaves the other days out, for sites that do not work them. Runs of heat-safety or process-stop days then run over consecutive working days, so a weekend does not end one. The risk bands stay in days (High from ${DATA.meta.risk_bands_days.high} heat-safety days), not weeks of operation. Hot and extreme years are chosen on every day either way` : ""}.</li>
     <li><b>Heatwave length:</b> runs of consecutive days above 30 °C or 35 °C (a heatwave is ${HW.min_days} days or more), of warm nights, and of working days with an hour above the WBGT reference. Future years keep the historical order of days with every day warmed, so lengthening from warmer days is included; any change in how persistent hot spells become is not.</li>

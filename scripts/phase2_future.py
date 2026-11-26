@@ -32,7 +32,7 @@ from climate_risk import morph, weather  # noqa: E402
 from climate_risk.annual import annual_summary, wbgt_metric_names, with_weekdays  # noqa: E402
 from climate_risk.ladder import ensemble as ladder_ensemble, ladder  # noqa: E402
 from climate_risk.heatwave import heatwave_metric_names  # noqa: E402
-from climate_risk.config import ROOT, WEATHER_DIR, hourly_path, load_sites, settings  # noqa: E402
+from climate_risk.config import ROOT, WEATHER_DIR, hourly_path, load_sites, nex_site, settings  # noqa: E402
 from concurrent.futures import ProcessPoolExecutor  # noqa: E402
 
 OUT = ROOT / "outputs" / "phase2"
@@ -81,14 +81,14 @@ def process_site(job):
     if saved_deltas:
         saved = pd.read_parquet(saved_deltas)
         saved = {k: g.drop(columns=["site_id", "model", "scenario", "period"]).reset_index(drop=True)
-                 for k, g in saved[saved.site_id == site_id].groupby(["model", "scenario", "period"])}
+                 for k, g in saved[saved.site_id == nex_site(site_id)].groupby(["model", "scenario", "period"])}  # D73
     for model in fc["models"]:
         for scen in fc["scenarios"]:
             for period, window in fc["periods"].items():
                 if saved_deltas:
                     d = saved[(model, scen, period)]
                 else:
-                    d = dl.site_deltas(site.site_id, model, scen, tuple(fc["baseline_years"]), tuple(window),
+                    d = dl.site_deltas(nex_site(site.site_id), model, scen, tuple(fc["baseline_years"]), tuple(window),
                                        fc["temperature_quantiles"])
                 delta_frames.append(d.assign(site_id=site.site_id, model=model, scenario=scen, period=period))
                 fut = morph.morph(hourly, d, base_daily)
