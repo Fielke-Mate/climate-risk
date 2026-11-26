@@ -10,6 +10,9 @@ operating_hours:          # D39: user-adjustable for sensitivity tests
   start: "06:00"          # local time, inclusive
   end: "22:00"            # local time, exclusive
   days: [0, 1, 2, 3, 4, 5, 6]   # Monday=0 ... Sunday=6
+  # D72: every operating-hours metric is also counted on these days only ("wd_" for "op_"), for the
+  # dashboard's Working days toggle (all days / weekdays). The headline stays on `days`.
+  weekdays: [0, 1, 2, 3, 4]
 # Shifts (local time, [start, end)): the shift splits in the summaries, the ladder and the dashboard all read
 # this block. Early + late should cover operating_hours; night is outside them by default.
 shifts:
@@ -165,7 +168,7 @@ future:
     NorESM2-MM: r1i1p1f1
   variables: [tas, tasmax, tasmin, huss, rsds, rlds, sfcWind]
   baseline_years: [2015, 2025]     # model window the future deltas are measured from (centre 2020)
-  # D72: site -> site whose NEX cell supplies its model data (future deltas and the D61 baseline adjustment).
+  # D73: site -> site whose NEX cell supplies its model data (future deltas and the D61 baseline adjustment).
   # Augsburg was added while the NCCS THREDDS server failed every data request (Nov 2026); it takes the
   # Donauwörth cell, the adjacent one to the north (44 km). Delete the entry and rerun fetch_nex.py,
   # phase1 and phase2 without --reuse-* once THREDDS works, to give Augsburg its own cell.

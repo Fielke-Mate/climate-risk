@@ -50,7 +50,7 @@ def load_sites(path: Path = SITES_FILE) -> list[Site]:
 
 
 def nex_site(site_id: str) -> str:
-    """The site whose NEX-GDDP cell supplies this site's climate-model data (D72: itself unless proxied)."""
+    """The site whose NEX-GDDP cell supplies this site's climate-model data (D73: itself unless proxied)."""
     return (settings()["future"].get("nex_proxy") or {}).get(site_id, site_id)
 
 

@@ -76,7 +76,7 @@ ADJ_CSV = OUT / "baseline_adjustment.csv"
 
 def adjustment_table(sites, cfg, reuse: bool) -> pd.DataFrame:
     """D61: per-site monthly warming rates from the climate models (or the saved table)."""
-    if reuse:  # D72: a proxied site takes its proxy's rows
+    if reuse:  # D73: a proxied site takes its proxy's rows
         saved = pd.read_csv(ADJ_CSV)
         saved = saved[saved.site_id.isin({nex_site(s.site_id) for s in sites})]
         return pd.concat([saved[saved.site_id == nex_site(s.site_id)].assign(site_id=s.site_id) for s in sites],

@@ -25,11 +25,11 @@ from pythermalcomfort.models import utci as utci_model
 
 from concurrent.futures import ProcessPoolExecutor
 
-from climate_risk.annual import wbgt_metric_names, wbgt_profiles
+from climate_risk.annual import wbgt_metric_names, wbgt_profiles, with_weekdays
 from climate_risk.heatwave import heatwave_metric_names
 from climate_risk.config import ROOT, WEATHER_DIR, load_sites, nex_site, settings, shifts
 from climate_risk.heat import heat_frame, utci_indoor, wbgt_liljegren
-from climate_risk.ladder import rung_names, rungs
+from climate_risk.ladder import OP_METRICS, rung_names, rungs, weekday_name
 from climate_risk.weather import operating_hours_mask
 from render_dashboard import render   # scripts/ is on sys.path when run as a script
 
@@ -46,13 +46,13 @@ TEMP_BANDS = [(-99, 16, "< 16"), (16, 21, "16–21"), (21, 24, "21–24 optimal"
               (25, 30, "25–30"), (30, 35, "30–35"), (35, 99, "> 35")]
 UTCI_BANDS = [(-99, -13), (-13, 0), (0, 9), (9, 26), (26, 28), (28, 32), (32, 38), (38, 46), (46, 99)]
 SHIFTS = shifts()   # config `shifts`
-KPI_METRICS = ["days_tmax_gt30", "days_tmax_gt35", "hours_t_gt30", "nights_tmin_gt20", "temp_max", "temp_mean", "op_wbgt_shade_degree_hours_gt_base",
+KPI_METRICS = with_weekdays(["days_tmax_gt30", "days_tmax_gt35", "hours_t_gt30", "nights_tmin_gt20", "temp_max", "temp_mean", "op_wbgt_shade_degree_hours_gt_base",
                "wbgt_sun_max", "wbgt_shade_max", "op_hours_utci_in0_gt28", "op_hours_utci_in0_gt32", "op_hours_utci_in2_gt28",
                "op_hours_utci_in2_gt32", "op_hours_utci_in4_gt28", "op_hours_utci_in4_gt32", "op_hours_utci_sun_gt32",
                "hours_utci_shade_gt28", "hours_utci_sun_gt32",
                "hours_utci_sun_gt38", "proc_hours_paint_application_max_temp", "proc_hours_paint_application_max_rh",
                "proc_hours_composite_room_cooling", "cdh24", "hdh19",
-               *wbgt_metric_names(settings()["heat"]), *heatwave_metric_names(settings())]
+               *wbgt_metric_names(settings()["heat"]), *heatwave_metric_names(settings())], settings())   # D72: + "wd_*"
 INDOOR_OFFSETS = [0.0, *[float(o) for o in settings()["heat"].get("indoor_offsets_sensitivity", [])]]   # hall gains (dashboard buttons)
 
 
@@ -255,10 +255,12 @@ def combine(stats_list: list[dict]) -> dict:
     return out
 
 
-LADDER_EXPORT = ("op_hours", "op_days", "op_longest", "op_dh", "early", "late", "night")   # what the dashboard reads (D70:
-#                 operating hours only; the all-hours metrics stay in the parquet outputs)
-LADDER_RANGE = ("op_hours", "op_days", "op_dh")   # metrics that also carry the model range (min, max)
-LADDER_FULL = ("op_hours",)   # metrics exported over the whole ladder (histograms); the rest from LADDER_LIMIT_FROM up
+# what the dashboard reads (D70: operating hours only; the all-hours metrics stay in the parquet outputs), each also on
+# weekdays only (D72: "wd_hours", "wd_early", ...)
+_wd = lambda ms: (*ms, *(weekday_name(m) for m in ms)) if settings()["operating_hours"].get("weekdays") is not None else ms
+LADDER_EXPORT = _wd(OP_METRICS)
+LADDER_RANGE = _wd(("op_hours", "op_days", "op_dh"))   # metrics that also carry the model range (min, max)
+LADDER_FULL = _wd(("op_hours",))   # metrics exported over the whole ladder (histograms); the rest from LADDER_LIMIT_FROM up
 LADDER_LIMIT_FROM = 16.0              # lowest outdoor rung a limit can reach (limit range minus the largest hall gain)
 
 
@@ -344,7 +346,7 @@ def main() -> None:
                           "x": round(float(x), 1), "y": round(float(y), 1), "hot_year": hy, "extreme_year": ey,
                           "extreme_rule": str(hot.loc[s.site_id, "extreme_rule"]), "hot_rule": str(hot.loc[s.site_id, "hot_rule"]),
                           "grid": [float(g.grid_lat), float(g.grid_lon), float(g.distance_km)], "tz": s.timezone})
-        if nex_site(s.site_id) != s.site_id:  # D72: climate-model data borrowed from another site's cell
+        if nex_site(s.site_id) != s.site_id:  # D73: climate-model data borrowed from another site's cell
             p = next(x for x in sites if x.site_id == nex_site(s.site_id))
             la1, la2, dlon = math.radians(s.lat), math.radians(p.lat), math.radians(p.lon - s.lon)
             km = 6371 * math.acos(min(1.0, math.sin(la1) * math.sin(la2) + math.cos(la1) * math.cos(la2) * math.cos(dlon)))

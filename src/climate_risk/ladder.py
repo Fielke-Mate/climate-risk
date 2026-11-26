@@ -11,6 +11,8 @@ Metrics (one row per year and metric, one column per rung):
   days / op_days          days with at least one hour above the rung (all hours / operating hours)
   longest / op_longest    longest run of consecutive such days (op: consecutive operating days)
   dh / op_dh              degree-hours above the rung (C h)
+  wd_hours, wd_early, ... D72: the operating-hours metrics (op_*, early, late, night) counted on weekdays only
+                          (config operating_hours.weekdays), for the dashboard's Working days toggle
 """
 
 from __future__ import annotations
@@ -22,6 +24,12 @@ from .config import shifts
 from .heatwave import run_lengths
 from .weather import operating_hours_mask
 METRICS = ("hours", "op_hours", "early", "late", "night", "days", "op_days", "longest", "op_longest", "dh", "op_dh")
+OP_METRICS = ("op_hours", "early", "late", "night", "op_days", "op_longest", "op_dh")   # depend on the operating days
+
+
+def weekday_name(metric: str) -> str:
+    """D72: the weekdays-only twin of an operating-hours ladder metric ("op_hours" -> "wd_hours", "early" -> "wd_early")."""
+    return "wd_" + metric.removeprefix("op_")
 
 
 def rungs(cfg: dict) -> np.ndarray:
@@ -53,6 +61,15 @@ def _longest(daily_max: np.ndarray, r: np.ndarray) -> np.ndarray:
     return out
 
 
+def _operating(ty, dy, days, oy, sh, r) -> dict:
+    """The operating-hours ladder metrics of one year for one set of operating days (mask oy, shift masks sh)."""
+    dop = pd.Series(ty[oy]).groupby(dy[oy]).max().reindex(days)   # NaN on a day with no operating hour
+    return {"op_hours": _above(ty[oy], r), **{k: _above(ty[s], r) for k, s in sh.items()},
+            "op_days": _above(dop.dropna().to_numpy(), r),
+            # runs over consecutive operating days: a non-operating day does not end a run (as the worker spells, D60)
+            "op_longest": _longest(dop.dropna().to_numpy(), r), "op_dh": np.round(_degree_hours(ty[oy], r), 1)}
+
+
 def ladder(hourly: pd.DataFrame, timezone: str, cfg: dict) -> pd.DataFrame:
     """Rows: (year, metric); columns: rung names. Complete local years only (as annual_summary)."""
     r = rungs(cfg)
@@ -63,23 +80,24 @@ def ladder(hourly: pd.DataFrame, timezone: str, cfg: dict) -> pd.DataFrame:
     date = starts.normalize().tz_localize(None).to_numpy()
     op = operating_hours_mask(hourly.index, timezone, op_cfg["start"], op_cfg["end"], op_cfg["days"])
     sh = {k: operating_hours_mask(hourly.index, timezone, a, b, op_cfg["days"]) for k, (a, b) in shifts(cfg).items()}
+    wd_days = op_cfg.get("weekdays")   # D72
+    if wd_days is not None:
+        wd = operating_hours_mask(hourly.index, timezone, op_cfg["start"], op_cfg["end"], wd_days)
+        wsh = {k: operating_hours_mask(hourly.index, timezone, a, b, wd_days) for k, (a, b) in shifts(cfg).items()}
     rows = []
     for y in np.unique(year):
         m = year == y
         if m.sum() < 8700:
             continue
-        ty, dy, oy = t[m], date[m], op[m]
+        ty, dy = t[m], date[m]
         # a gap-free calendar of local days (missing days would join runs; there are none in complete years)
         dall = pd.Series(ty).groupby(dy).max()
-        dop = pd.Series(ty[oy]).groupby(dy[oy]).max().reindex(dall.index)   # NaN on a day with no operating hour
-        vals = {
-            "hours": _above(ty, r), "op_hours": _above(ty[oy], r),
-            **{k: _above(ty[s[m]], r) for k, s in sh.items()},
-            "days": _above(dall.to_numpy(), r), "op_days": _above(dop.dropna().to_numpy(), r),
-            # op runs over consecutive operating days: a non-operating day does not end a run (as the worker spells, D60)
-            "longest": _longest(dall.to_numpy(), r), "op_longest": _longest(dop.dropna().to_numpy(), r),
-            "dh": np.round(_degree_hours(ty, r), 1), "op_dh": np.round(_degree_hours(ty[oy], r), 1),
-        }
+        vals = {"hours": _above(ty, r), "days": _above(dall.to_numpy(), r), "longest": _longest(dall.to_numpy(), r),
+                "dh": np.round(_degree_hours(ty, r), 1),
+                **_operating(ty, dy, dall.index, op[m], {k: s[m] for k, s in sh.items()}, r)}
+        vals = {k: vals[k] for k in METRICS}   # the row order of earlier outputs
+        if wd_days is not None:
+            vals.update({weekday_name(k): v for k, v in _operating(ty, dy, dall.index, wd[m], {k: s[m] for k, s in wsh.items()}, r).items()})
         rows += [{"year": int(y), "metric": k, **dict(zip(rung_names(cfg), v.tolist()))} for k, v in vals.items()]
     return pd.DataFrame(rows)
 
