@@ -81,7 +81,7 @@ def process_site(job):
     if saved_deltas:
         saved = pd.read_parquet(saved_deltas)
         saved = {k: g.drop(columns=["site_id", "model", "scenario", "period"]).reset_index(drop=True)
-                 for k, g in saved[saved.site_id == nex_site(site_id)].groupby(["model", "scenario", "period"])}  # D71
+                 for k, g in saved[saved.site_id == nex_site(site_id)].groupby(["model", "scenario", "period"])}  # D72
     for model in fc["models"]:
         for scen in fc["scenarios"]:
             for period, window in fc["periods"].items():

@@ -44,7 +44,7 @@ Re-run with `scripts/fetch_nex.py` (resumable), then `scripts/phase2_future.py`.
 
 ### Warming in annual mean temperature vs 2015–2025 (median of 6 models)
 
-Augsburg (D71) uses the Donauwörth climate-model cell, so its warming is Donauwörth's by construction; its other indicators differ because they morph Augsburg's own ERA5 record.
+Augsburg (D72) uses the Donauwörth climate-model cell, so its warming is Donauwörth's by construction; its other indicators differ because they morph Augsburg's own ERA5 record.
 
 | Site | SSP2-4.5 2040 | SSP2-4.5 2050 | SSP5-8.5 2040 | SSP5-8.5 2050 |
 |---|---|---|---|---|

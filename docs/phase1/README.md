@@ -43,7 +43,7 @@ All 16 sites passed the automated checks: complete hourly record, no gaps or dup
 
 ## Results per site (south → north)
 
-Augsburg (added Nov 2026, D71) has its own ERA5 record; its D61 baseline adjustment uses the Donauwörth climate-model cell until the NASA THREDDS server can supply its own.
+Augsburg (added Nov 2026, D72) has its own ERA5 record; its D61 baseline adjustment uses the Donauwörth climate-model cell until the NASA THREDDS server can supply its own.
 
 | Site | ERA5 grid point (distance) | TMY mean T (°C) | TMY − ERA5 11-yr mean | TMY − PVGIS | Hot year | WBGT degree-hours > 25 (working hrs): median → hot year | Working hours WBGT > 26 (> 28): median → hot year |
 |---|---|---|---|---|---|---|---|
