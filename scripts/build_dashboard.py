@@ -1,9 +1,12 @@
-"""Build the dashboard prototype: one self-contained HTML page with its data embedded.
+"""Build the dashboard data from the pipeline outputs, then render the page.
 
 Outputs
-  dashboard/data.json       the data the page uses (inspectable)
-  dashboard/page.html       page content for publishing as a claude.ai page
-  dashboard/index.html      the same page as a full HTML document (GitHub Pages)
+  dashboard/data.json       the data the page uses: committed, the dashboard's data snapshot (D71)
+  dashboard/page.html       page content for publishing as a claude.ai page (via render_dashboard.py)
+  dashboard/index.html      the same page as a full HTML document (via render_dashboard.py)
+
+Needs the gitignored future weather files (data/weather/future/, from phase2_future.py).
+A template-only change needs only scripts/render_dashboard.py, which CI also runs.
 
 Usage: python scripts/build_dashboard.py
 """
@@ -28,6 +31,7 @@ from climate_risk.config import ROOT, WEATHER_DIR, load_sites, settings, shifts
 from climate_risk.heat import heat_frame, utci_indoor, wbgt_liljegren
 from climate_risk.ladder import rung_names, rungs
 from climate_risk.weather import operating_hours_mask
+from render_dashboard import render   # scripts/ is on sys.path when run as a script
 
 DASH = ROOT / "dashboard"
 BASEMAP = DASH / "basemap.json"
@@ -406,20 +410,21 @@ def main() -> None:
         "basemap": basemap, "sites": site_rows, "kpi": kpi, "tmy": tmy, "hourly": hourly_dbt,
     }
     DASH.mkdir(exist_ok=True)
-    (DASH / "data.json").write_text(json.dumps(data, separators=(",", ":")))
-    template = (DASH / "template.html").read_text()
-    fonts = "".join(
-        f'@font-face{{font-family:"{fam}";src:url(data:font/woff2;base64,'
-        f'{base64.b64encode((DASH / "fonts" / fn).read_bytes()).decode()}) format("woff2");'
-        f'font-weight:100 900;font-style:normal;font-display:swap;}}'
-        for fam, fn in (("Geist", "geist.woff2"),))   # numbers use Geist with tabular figures (no slashed zeros)
-    page = template.replace("/*__FONTS__*/", fonts).replace("/*__DATA__*/null", json.dumps(data, separators=(",", ":")))
-    (DASH / "page.html").write_text(page)
-    (DASH / "index.html").write_text(
-        "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
-        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\">\n"
-        "<style>html,body{margin:0}</style>\n</head>\n<body>\n" + page + "\n</body>\n</html>\n")
-    print(f"page.html {len(page) / 1e6:.2f} MB")
+    keep_generated_date(data, DASH / "data.json")
+    (DASH / "data.json").write_text(json.dumps(data, separators=(",", ":")))   # committed (D71)
+    size = render(data)
+    print(f"data.json written; page.html {size / 1e6:.2f} MB")
+
+
+def keep_generated_date(data: dict, path) -> None:
+    """D71: data.json is committed, so a rebuild with unchanged data must not change the file.
+    If the new data equals the existing snapshot apart from meta.generated, keep the old date."""
+    if not path.exists():
+        return
+    old = json.loads(path.read_text())
+    strip = lambda d: json.dumps({**d, "meta": {**d["meta"], "generated": None}}, separators=(",", ":"))
+    if strip(old) == strip(data):
+        data["meta"]["generated"] = old["meta"]["generated"]
 
 
 if __name__ == "__main__":
