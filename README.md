@@ -16,6 +16,7 @@ The first focus is **extreme heat**: risk to **worker health and productivity** 
 - Process-limit lens (D66, dashboard "Heat risk to: Processes"): [`docs/process_lens_plan.md`](docs/process_lens_plan.md)
 - Dashboard build in CI (D71): [`docs/dashboard_ci_plan.md`](docs/dashboard_ci_plan.md)
 - Working conventions (branches, decisions log, generated files, secrets): [`CLAUDE.md`](CLAUDE.md)
+- Onboarding a new contributor (setup, pipeline timings, coordination): [`docs/onboarding.md`](docs/onboarding.md)
 
 ## Setup
 

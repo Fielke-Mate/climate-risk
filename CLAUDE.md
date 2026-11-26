@@ -1,6 +1,6 @@
 # Climate Risk: working notes for Claude
 
-Physical climate risk (extreme heat) proof of concept for European aerospace manufacturing sites, with a client dashboard. Two people work on this repo. Start with `README.md`, then `docs/concept.md` (framework, decisions log in §12).
+Physical climate risk (extreme heat) proof of concept for European aerospace manufacturing sites, with a client dashboard. Two people work on this repo. Start with `README.md`, then `docs/concept.md` (framework, decisions log in §12). A new contributor's setup, the pipeline timings and the coordination rules are in `docs/onboarding.md`.
 
 ## Commands
 
@@ -36,6 +36,8 @@ The dashboard is built in two steps (D71):
 - Any change to sites, config, pipeline outputs or the data part of the build script must ship with a rebuilt `data.json` in the same PR. `tests/test_dashboard_data.py` fails if the snapshot's sites or key config values don't match the repo. A template change that reads a new data field also needs the rebuilt snapshot in the same PR.
 - `.gitattributes` marks `data.json` (and the concept pages) as binary. On a merge conflict in it, resolve the sources, rerun `build_dashboard.py`, and commit the result.
 - An older branch that still edits `dashboard/index.html` conflicts with its removal: run `git rm dashboard/index.html`, then rebuild `data.json` as above.
+- Pipeline outputs (`outputs/`, `data/weather/`) can't be merged by hand. When a branch that changes outputs merges in a default branch that also changed them, rerun Phase 1, Phase 2 and the build **for all sites** after the merge: a method change on either side applies to every site. Then compare the result with both parents (unchanged sites against the default branch, the branch's own sites against the branch) before committing. The Augsburg merge (D73) is the worked example.
+- Phase 1 downloads PVGIS again and rewrites the committed weather files. Restore anything that changes only because of that (see `docs/onboarding.md` §4) unless the PR is about it.
 
 ## Configuration and data
 
